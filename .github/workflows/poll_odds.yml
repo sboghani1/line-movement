@@ -2,8 +2,8 @@ name: NBA Odds Poller
 
 on:
   schedule:
-    # Run every hour at minute 0
-    - cron: '0 * * * *'
+    # Run every 3 hours
+    - cron: '0 */3 * * *'
   workflow_dispatch:  # Allow manual trigger
 
 jobs:

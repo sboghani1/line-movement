@@ -2,15 +2,14 @@
 """
 NBA Odds Poller
 Fetches NBA betting lines from The Odds API and appends to Google Sheets.
-Designed to run hourly via GitHub Actions.
-Only writes new rows if the value changed or 4+ hours have passed.
+Runs every 3 hours via GitHub Actions.
 """
 
 import requests
 import os
 import json
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -22,14 +21,6 @@ WORKSHEET_NAME = "nba_odds"
 
 # Filter to specific books, or leave empty [] for all available
 BOOKMAKERS = ["betonlineag"]
-
-# Only write a new row if value changed OR this many hours have passed
-HOURS_BEFORE_FORCE_UPDATE = 4
-
-# Alert thresholds — set to None to disable
-SPREAD_MOVE_ALERT = 1.5    # alert if spread moves by this many points
-TOTAL_MOVE_ALERT  = 2.0    # alert if total moves by this many points
-ML_MOVE_ALERT     = 20     # alert if moneyline moves by this many American odds points
 
 FIELDNAMES = [
     "timestamp", "commence_time", "home_team", "away_team",
@@ -126,167 +117,6 @@ def write_rows_to_sheet(worksheet, rows):
     worksheet.append_rows(row_values, value_input_option="USER_ENTERED")
 
 
-def load_bet_history(worksheet):
-    """
-    Return dict of {bet_key: (timestamp, price, point)} for the most recent entry of each bet.
-    bet_key = (bookmaker, home_team, away_team, market, team_or_side)
-    """
-    all_values = worksheet.get_all_values()
-    
-    if len(all_values) <= 1:  # Only header or empty
-        return {}
-    
-    header = all_values[0]
-    data_rows = all_values[1:]
-    
-    if not data_rows:
-        return {}
-    
-    # Build index mapping
-    idx = {name: header.index(name) for name in FIELDNAMES if name in header}
-    
-    history = {}
-    for row in data_rows:
-        try:
-            key = (
-                row[idx["bookmaker"]],
-                row[idx["home_team"]],
-                row[idx["away_team"]],
-                row[idx["market"]],
-                row[idx["team_or_side"]],
-            )
-            timestamp_str = row[idx["timestamp"]]
-            price = float(row[idx["price"]])
-            point_str = row[idx["point"]]
-            point = float(point_str) if point_str else None
-            
-            # Always keep the most recent entry (rows are in chronological order)
-            history[key] = (timestamp_str, price, point)
-        except (ValueError, IndexError, KeyError):
-            continue
-    
-    return history
-
-
-def filter_rows_to_write(new_rows, history, current_timestamp):
-    """
-    Filter rows to only include those where:
-    - It's a new bet (not in history)
-    - The price or point changed
-    - 4+ hours have passed since the last entry
-    """
-    rows_to_write = []
-    current_dt = datetime.strptime(current_timestamp, "%Y-%m-%d %H:%M:%S")
-    
-    for row in new_rows:
-        key = (
-            row["bookmaker"],
-            row["home_team"],
-            row["away_team"],
-            row["market"],
-            row["team_or_side"],
-        )
-        
-        try:
-            new_price = float(row["price"])
-            new_point = float(row["point"]) if row["point"] else None
-        except (ValueError, TypeError):
-            new_price = row["price"]
-            new_point = row.get("point")
-        
-        if key not in history:
-            # New bet, always write
-            rows_to_write.append(row)
-            continue
-        
-        last_ts_str, last_price, last_point = history[key]
-        
-        # Check if value changed
-        value_changed = (new_price != last_price) or (new_point != last_point)
-        
-        # Check if 4+ hours passed
-        try:
-            last_dt = datetime.strptime(last_ts_str, "%Y-%m-%d %H:%M:%S")
-            hours_passed = (current_dt - last_dt).total_seconds() / 3600
-            time_threshold_met = hours_passed >= HOURS_BEFORE_FORCE_UPDATE
-        except ValueError:
-            time_threshold_met = True  # If we can't parse, write anyway
-        
-        if value_changed or time_threshold_met:
-            rows_to_write.append(row)
-    
-    return rows_to_write
-
-
-def load_last_snapshot_for_alerts(history):
-    """Convert history to snapshot format for alert checking."""
-    snapshot = {}
-    for key, (ts, price, point) in history.items():
-        # Convert to old key format: (bookmaker, game_key, market, team)
-        bookmaker, home, away, market, team = key
-        old_key = (bookmaker, f"{home} vs {away}", market, team)
-        snapshot[old_key] = (price, point)
-    return snapshot
-
-
-def check_movements(new_rows, prev_snapshot):
-    if not prev_snapshot:
-        return
-    alerts = []
-    for row in new_rows:
-        key = (
-            row["bookmaker"],
-            row["home_team"] + " vs " + row["away_team"],
-            row["market"],
-            row["team_or_side"],
-        )
-        if key not in prev_snapshot:
-            continue
-        old_price, old_point = prev_snapshot[key]
-        try:
-            new_price = float(row["price"])
-            new_point = float(row["point"]) if row["point"] else None
-        except (ValueError, TypeError):
-            continue
-
-        market = row["market"]
-        game = f"{row['away_team']} @ {row['home_team']}"
-        book = row["bookmaker"]
-        side = row["team_or_side"]
-
-        if market == "spreads" and SPREAD_MOVE_ALERT and new_point is not None and old_point is not None:
-            if abs(new_point - old_point) >= SPREAD_MOVE_ALERT:
-                alerts.append(
-                    f"  🔔 SPREAD MOVE [{book}] {game} | {side}: "
-                    f"{old_point:+.1f} → {new_point:+.1f} "
-                    f"(Δ{new_point - old_point:+.1f})"
-                )
-        elif market == "totals" and TOTAL_MOVE_ALERT and new_point is not None and old_point is not None:
-            if abs(new_point - old_point) >= TOTAL_MOVE_ALERT:
-                alerts.append(
-                    f"  🔔 TOTAL MOVE  [{book}] {game} | {side}: "
-                    f"{old_point:.1f} → {new_point:.1f} "
-                    f"(Δ{new_point - old_point:+.1f})"
-                )
-        elif market == "h2h" and ML_MOVE_ALERT:
-            if abs(new_price - old_price) >= ML_MOVE_ALERT:
-                alerts.append(
-                    f"  🔔 ML MOVE     [{book}] {game} | {side}: "
-                    f"{old_price:+.0f} → {new_price:+.0f} "
-                    f"(Δ{new_price - old_price:+.0f})"
-                )
-
-    if alerts:
-        print("\n" + "="*60)
-        print("  ⚡ LINE MOVEMENT DETECTED")
-        print("="*60)
-        for a in alerts:
-            print(a)
-        print("="*60 + "\n")
-    else:
-        print("  No significant line movements detected.")
-
-
 # ── Main poll function ────────────────────────────────────────────────────────
 def poll():
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -294,9 +124,6 @@ def poll():
 
     try:
         worksheet = get_worksheet()
-        history = load_bet_history(worksheet)
-        prev_snapshot = load_last_snapshot_for_alerts(history)
-        
         data, remaining, used = fetch_odds()
         rows = parse_rows(data, timestamp)
 
@@ -304,18 +131,9 @@ def poll():
             print("  No lines returned (games may not have opened yet).")
             return
 
-        check_movements(rows, prev_snapshot)
-        
-        # Filter to only rows that need to be written
-        rows_to_write = filter_rows_to_write(rows, history, timestamp)
-        
-        if rows_to_write:
-            write_rows_to_sheet(worksheet, rows_to_write)
-            games = len(set((r["home_team"], r["away_team"]) for r in rows_to_write))
-            print(f"  ✅ Logged {len(rows_to_write)} rows across {games} games → Google Sheet")
-        else:
-            print("  ℹ️  No changes detected, nothing written.")
-        
+        write_rows_to_sheet(worksheet, rows)
+        games = len(set((r["home_team"], r["away_team"]) for r in rows))
+        print(f"  ✅ Logged {len(rows)} rows across {games} games → Google Sheet")
         print(f"  API usage: {used} used, {remaining} remaining this month")
 
     except requests.HTTPError as e:
@@ -330,6 +148,5 @@ def poll():
 if __name__ == "__main__":
     print("NBA Odds Poller - Single Run")
     print(f"Google Sheet ID: {GOOGLE_SHEET_ID}")
-    print(f"Alert thresholds → Spread: {SPREAD_MOVE_ALERT} pts | Total: {TOTAL_MOVE_ALERT} pts | ML: {ML_MOVE_ALERT}")
     
     poll()
