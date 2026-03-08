@@ -482,13 +482,15 @@ def write_games_to_sheet(
     existing_games: Dict[str, Dict],
     fetch_timestamp: str,
     fieldnames: List[str],
-) -> tuple[int, int]:
-    """Write new games and update changed odds. Returns (new_count, updated_count)."""
+) -> tuple[int, int, List[str]]:
+    """Write new games and update changed odds. Returns (new_count, updated_count, change_details)."""
     new_rows = []
     updates = []  # List of (row_idx, col, value) for batch update
+    change_details = []  # Track specific changes for logging
 
     for game in games:
         key = f"{game['game_date']}|{game['away_team']}|{game['home_team']}"
+        game_label = f"{game['away_team']} @ {game['home_team']}"
         
         if key in existing_games:
             existing = existing_games[key]
@@ -500,8 +502,10 @@ def write_games_to_sheet(
                 row_idx = existing['row_idx']
                 if spread_changed:
                     updates.append((row_idx, 6, game['spread']))  # Column F (1-indexed)
+                    change_details.append(f"{game_label}: spread {existing['spread']} → {game['spread']}")
                 if ou_changed:
                     updates.append((row_idx, 7, game['over_under']))  # Column G (1-indexed)
+                    change_details.append(f"{game_label}: O/U {existing['over_under']} → {game['over_under']}")
                 print(
                     f"  🔄 Will update: {game['away_team']} @ {game['home_team']} - "
                     f"Spread: {existing['spread']} → {game['spread']}, "
@@ -525,6 +529,7 @@ def write_games_to_sheet(
 
         new_rows.append(row)
         existing_games[key] = {'row_idx': -1, 'spread': game['spread'], 'over_under': game['over_under']}
+        change_details.append(f"{game_label}: NEW ({game['spread']}, O/U {game['over_under']})")
         print(
             f"  ✅ Will add: {game['away_team']} @ {game['home_team']} - {game['game_time']} - {game['spread']} O/U {game['over_under']}"
         )
@@ -537,7 +542,7 @@ def write_games_to_sheet(
     for row_idx, col, value in updates:
         worksheet.update_cell(row_idx, col, value)
 
-    return len(new_rows), len(updates)
+    return len(new_rows), len(updates), change_details
 
 
 def main(target_date: Optional[str] = None):
@@ -569,7 +574,7 @@ def main(target_date: Optional[str] = None):
         nba_games = fetch_and_parse_schedule_api("nba", date_str)
         print(f"Found {len(nba_games)} NBA games")
 
-        nba_new, nba_updated = write_games_to_sheet(
+        nba_new, nba_updated, nba_changes = write_games_to_sheet(
             nba_worksheet, nba_games, nba_existing_games, timestamp, NBA_FIELDNAMES
         )
         print(
@@ -578,7 +583,7 @@ def main(target_date: Optional[str] = None):
         
         # Log NBA fetch
         nba_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
-        log_activity(spreadsheet, "fetch_schedule", f"NBA {formatted_date}: {nba_new} rows added, {nba_updated} rows updated", {"url": nba_url, "games_fetched": len(nba_games)})
+        log_activity(spreadsheet, "fetch_schedule", f"NBA {formatted_date}: {nba_new} rows added, {nba_updated} rows updated", {"url": nba_url, "games_fetched": len(nba_games), "details": ", ".join(nba_changes) if nba_changes else "no changes"})
 
         # ── College Basketball Schedule ─────────────────────────────────────
         print("\n🏀 Fetching College Basketball schedule...")
@@ -590,7 +595,7 @@ def main(target_date: Optional[str] = None):
         cbb_games = fetch_and_parse_schedule_api("cbb", date_str)
         print(f"Found {len(cbb_games)} College Basketball games")
 
-        cbb_new, cbb_updated = write_games_to_sheet(
+        cbb_new, cbb_updated, cbb_changes = write_games_to_sheet(
             cbb_worksheet, cbb_games, cbb_existing_games, timestamp, CBB_FIELDNAMES
         )
         print(
@@ -599,7 +604,7 @@ def main(target_date: Optional[str] = None):
         
         # Log CBB fetch
         cbb_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
-        log_activity(spreadsheet, "fetch_schedule", f"CBB {formatted_date}: {cbb_new} rows added, {cbb_updated} rows updated", {"url": cbb_url, "games_fetched": len(cbb_games)})
+        log_activity(spreadsheet, "fetch_schedule", f"CBB {formatted_date}: {cbb_new} rows added, {cbb_updated} rows updated", {"url": cbb_url, "games_fetched": len(cbb_games), "details": ", ".join(cbb_changes) if cbb_changes else "no changes"})
 
         # ── NHL Schedule ────────────────────────────────────────────────────
         print("\n🏒 Fetching NHL schedule...")
@@ -611,7 +616,7 @@ def main(target_date: Optional[str] = None):
         nhl_games = fetch_and_parse_schedule_api("nhl", date_str)
         print(f"Found {len(nhl_games)} NHL games")
 
-        nhl_new, nhl_updated = write_games_to_sheet(
+        nhl_new, nhl_updated, nhl_changes = write_games_to_sheet(
             nhl_worksheet, nhl_games, nhl_existing_games, timestamp, NHL_FIELDNAMES
         )
         print(
@@ -620,7 +625,7 @@ def main(target_date: Optional[str] = None):
         
         # Log NHL fetch
         nhl_url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
-        log_activity(spreadsheet, "fetch_schedule", f"NHL {formatted_date}: {nhl_new} rows added, {nhl_updated} rows updated", {"url": nhl_url, "games_fetched": len(nhl_games)})
+        log_activity(spreadsheet, "fetch_schedule", f"NHL {formatted_date}: {nhl_new} rows added, {nhl_updated} rows updated", {"url": nhl_url, "games_fetched": len(nhl_games), "details": ", ".join(nhl_changes) if nhl_changes else "no changes"})
 
         print(
             f"\n✅ Done! Processed {len(nba_games)} NBA, {len(cbb_games)} CBB, and {len(nhl_games)} NHL games."
