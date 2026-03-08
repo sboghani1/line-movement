@@ -715,9 +715,11 @@ def build_stage2_prompt(rows_to_finalize: List[str], schedule_data: dict) -> str
     prompt = f"""Finalize these parsed betting picks by filling in the 'game', 'spread', and 'side' columns based on the scheduled games.
 
 RULES:
-- game: Format as "Away Team @ Home Team" matching the schedule
+- game: Build as "away_team @ home_team" using the EXACT team names from columns C (away_team) and D (home_team) in the schedule
 - spread: The official spread from schedule (e.g., "Team -3.5") or leave empty for ML/totals
 - side: The team being bet on (should match the 'pick' column)
+- IMPORTANT: Use team names EXACTLY as they appear in the schedule for consistency (e.g., if schedule says "LA Clippers", use "LA Clippers" not "Clippers")
+- Update the 'pick' and 'side' columns to match the schedule's team naming
 - Keep all other columns exactly as they are
 - If you can't match a game to the schedule, leave game/spread empty but still include the row
 
