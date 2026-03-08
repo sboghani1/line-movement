@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import anthropic
+from PIL import Image
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -407,6 +408,8 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
         return []
     
     # Download and encode all images
+    MAX_IMAGE_SIZE = 4 * 1024 * 1024  # 4MB limit (Claude max is 5MB)
+    
     image_contents = []
     for i, url in enumerate(image_urls, 1):
         response = requests.get(url)
@@ -414,7 +417,31 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
         
         content_type = response.headers.get("content-type", "image/jpeg")
         media_type = get_media_type(url, content_type)
-        image_data = base64.standard_b64encode(response.content).decode("utf-8")
+        image_bytes = response.content
+        
+        # Resize if image is too large
+        if len(image_bytes) > MAX_IMAGE_SIZE:
+            img = Image.open(io.BytesIO(image_bytes))
+            # Convert to RGB if necessary (for PNG with alpha)
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            
+            # Reduce quality/size until under limit
+            quality = 85
+            while quality >= 20:
+                buffer = io.BytesIO()
+                img.save(buffer, format='JPEG', quality=quality, optimize=True)
+                image_bytes = buffer.getvalue()
+                if len(image_bytes) <= MAX_IMAGE_SIZE:
+                    break
+                quality -= 10
+                # Also reduce dimensions if still too large
+                if quality < 50:
+                    img = img.resize((img.width // 2, img.height // 2), Image.Resampling.LANCZOS)
+            
+            media_type = "image/jpeg"
+        
+        image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
         
         image_contents.append({
             "type": "image",
