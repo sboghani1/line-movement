@@ -48,6 +48,7 @@ FIELDNAMES = [
 # Worksheet names
 PARSED_PICKS_SHEET = "parsed_picks"
 FINALIZED_PICKS_SHEET = "finalized_picks"
+MASTER_SHEET = "master_sheet"
 NBA_SCHEDULE_SHEET = "nba_schedule"
 CBB_SCHEDULE_SHEET = "cbb_schedule"
 NHL_SCHEDULE_SHEET = "nhl_schedule"
@@ -936,32 +937,6 @@ def run_stage2(spreadsheet, image_pull_ws):
         print("No parsed_picks sheet found, skipping Stage 2")
         return
 
-    # Check if enough time has passed since last Stage 2 run (using finalized_picks timestamp)
-    try:
-        finalized_picks_ws = spreadsheet.worksheet(FINALIZED_PICKS_SHEET)
-        last_run_str = finalized_picks_ws.acell("A1").value
-    except gspread.WorksheetNotFound:
-        last_run_str = None
-
-    if last_run_str:
-        try:
-            last_run = datetime.strptime(last_run_str, "%Y-%m-%d %H:%M:%S")
-            last_run = last_run.replace(tzinfo=eastern)
-            minutes_since = (now_eastern - last_run).total_seconds() / 60
-            if minutes_since < 15:
-                minutes_remaining = int(15 - minutes_since)
-                print(
-                    f"Stage 2: Only {minutes_since:.1f}m since last run, skipping (need 15m)"
-                )
-                log_activity(
-                    spreadsheet,
-                    "finalize_picks",
-                    f"Skipped, cooldown for {minutes_remaining} more minutes",
-                )
-                return
-        except Exception:
-            pass
-
     # Get all rows from parsed_picks (row 4+)
     all_values = parsed_picks_ws.get_all_values()
     if len(all_values) < 4:
@@ -1031,6 +1006,14 @@ def run_stage2(spreadsheet, image_pull_ws):
             )
             for row in finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
+
+            # Also append to master_sheet
+            master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
+            time.sleep(1)  # Rate limit
+            master_ws.append_rows(
+                finalized_rows, value_input_option="USER_ENTERED"
+            )
+            print(f"  Also appended {len(finalized_rows)} rows to master_sheet")
 
             # Update timestamp in finalized_picks A1
             time.sleep(1)  # Rate limit
@@ -1408,7 +1391,7 @@ def main():
         # Run Stage 1: Parse OCR to structured picks
         run_stage1(spreadsheet, worksheet)
 
-        # Run Stage 2: Finalize picks (only if 15+ min since last run)
+        # Run Stage 2: Finalize picks
         run_stage2(spreadsheet, worksheet)
 
         # Run cleanup: delete old rows from schedules and image_pull
