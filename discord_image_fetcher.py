@@ -12,6 +12,7 @@ import base64
 import re
 import csv
 import io
+import time
 import requests
 from datetime import datetime
 from typing import Optional, Tuple, List
@@ -50,7 +51,7 @@ PICKS_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "s
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
 
 # Maximum number of messages to process per run
-MAX_MESSAGES_PER_RUN = 50
+MAX_MESSAGES_PER_RUN = 100
 
 # Maximum images per OCR batch (Claude supports up to 20)
 OCR_BATCH_SIZE = 15
@@ -745,17 +746,20 @@ def run_stage1(spreadsheet, image_pull_ws):
             # Get or create parsed_picks worksheet
             parsed_picks_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_SHEET)
             
-            # Append rows to parsed_picks (after row 3 which has headers)
+            # Batch append rows to parsed_picks
+            time.sleep(1)  # Rate limit
+            parsed_picks_ws.append_rows(parsed_rows, value_input_option="USER_ENTERED")
             for row in parsed_rows:
-                parsed_picks_ws.append_row(row, value_input_option="USER_ENTERED")
                 print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
             
             # Update timestamp in parsed_picks A1
+            time.sleep(1)  # Rate limit
             parsed_picks_ws.update_acell('A1', now_eastern.strftime("%Y-%m-%d %H:%M:%S"))
         
-        # Mark rows as stage_1_parsed in image_pull
-        for row_idx, _, _, _ in rows_to_process:
-            image_pull_ws.update_cell(row_idx, 6, "stage_1_parsed")
+        # Batch update rows as stage_1_parsed in image_pull
+        time.sleep(1)  # Rate limit
+        cells_to_update = [gspread.Cell(row_idx, 6, "stage_1_parsed") for row_idx, _, _, _ in rows_to_process]
+        image_pull_ws.update_cells(cells_to_update)
         
         # Log activity
         log_activity(spreadsheet, "process_ocr", f"Processed {len(rows_to_process)} rows into {len(parsed_rows)} picks")
@@ -764,9 +768,12 @@ def run_stage1(spreadsheet, image_pull_ws):
         
     except Exception as e:
         print(f"Stage 1 parsing failed: {e}")
-        # Mark rows with failure count
+        # Batch mark rows with failure count
+        time.sleep(2)  # Rate limit - extra delay after error
+        all_values = image_pull_ws.get_all_values()
+        cells_to_update = []
         for row_idx, _, _, _ in rows_to_process:
-            current_stage = image_pull_ws.cell(row_idx, 6).value or ""
+            current_stage = all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
             if current_stage.startswith("parse_failed_attempt_count_"):
                 try:
                     count = int(current_stage.split("_")[-1]) + 1
@@ -774,7 +781,9 @@ def run_stage1(spreadsheet, image_pull_ws):
                     count = 1
             else:
                 count = 1
-            image_pull_ws.update_cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
+            cells_to_update.append(gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}"))
+        if cells_to_update:
+            image_pull_ws.update_cells(cells_to_update)
 
 
 def run_stage2(spreadsheet, image_pull_ws):
@@ -865,26 +874,31 @@ def run_stage2(spreadsheet, image_pull_ws):
             # Get or create finalized_picks worksheet
             finalized_picks_ws = get_or_create_picks_worksheet(spreadsheet, FINALIZED_PICKS_SHEET)
             
-            # Append rows to finalized_picks
+            # Batch append rows to finalized_picks
+            time.sleep(1)  # Rate limit
+            finalized_picks_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
             for row in finalized_rows:
-                finalized_picks_ws.append_row(row, value_input_option="USER_ENTERED")
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
             
             # Update timestamp in finalized_picks A1
+            time.sleep(1)  # Rate limit
             finalized_picks_ws.update_acell('A1', now_eastern.strftime("%Y-%m-%d %H:%M:%S"))
         
-        # Delete processed rows from parsed_picks (rows 4+)
-        # Delete from bottom up to avoid index shifting
-        for row_idx in range(len(all_values), 3, -1):
-            if row_idx > 3:  # Don't delete header row
-                parsed_picks_ws.delete_rows(row_idx)
+        # Delete processed rows from parsed_picks (rows 4+) in one batch
+        if len(all_values) > 3:
+            time.sleep(1)  # Rate limit
+            parsed_picks_ws.delete_rows(4, len(all_values))
         
-        # Update image_pull rows to stage_2_finalized
-        # We need to find rows that were stage_1_parsed
+        # Batch update image_pull rows to stage_2_finalized
+        time.sleep(1)  # Rate limit
         image_pull_values = image_pull_ws.get_all_values()
+        cells_to_update = []
         for i, row in enumerate(image_pull_values[2:], start=3):
             if len(row) > 5 and row[5] == "stage_1_parsed":
-                image_pull_ws.update_cell(i, 6, "stage_2_finalized")
+                cells_to_update.append(gspread.Cell(i, 6, "stage_2_finalized"))
+        if cells_to_update:
+            time.sleep(1)  # Rate limit
+            image_pull_ws.update_cells(cells_to_update)
         
         # Log activity
         log_activity(spreadsheet, "finalize_picks", f"Finalized {len(finalized_rows)} picks")
@@ -918,6 +932,7 @@ def backfill_ocr(worksheet):
     print(f"Found {len(rows_needing_ocr)} rows needing OCR")
     
     # Process in batches
+    all_ocr_updates = []  # Collect all updates for batch
     for batch_start in range(0, len(rows_needing_ocr), OCR_BATCH_SIZE):
         batch = rows_needing_ocr[batch_start:batch_start + OCR_BATCH_SIZE]
         urls = [url for _, url in batch]
@@ -928,10 +943,15 @@ def backfill_ocr(worksheet):
         # Log OCR batch
         log_activity(worksheet.spreadsheet, "ocr_images", f"Completed OCR for {len(batch)} rows")
         
-        # Update each row with OCR result
+        # Collect cells to update
         for (row_idx, url), ocr_text in zip(batch, ocr_results):
             print(f"  Row {row_idx}: {ocr_text[:60]}..." if len(ocr_text) > 60 else f"  Row {row_idx}: {ocr_text}")
-            worksheet.update_cell(row_idx, 5, ocr_text)
+            all_ocr_updates.append(gspread.Cell(row_idx, 5, ocr_text))
+    
+    # Batch update all OCR results
+    if all_ocr_updates:
+        time.sleep(1)  # Rate limit
+        worksheet.update_cells(all_ocr_updates)
     
     print(f"\n✅ Backfilled OCR for {len(rows_needing_ocr)} rows")
 
@@ -998,6 +1018,8 @@ def main():
                     print(f"OCR complete. Got {len(ocr_results)} results.")
                 
                 # Insert rows (now with 6 columns including committed_stage)
+                # Collect all rows to insert
+                rows_to_insert = []
                 for idx, (image_url, message_sent_at, capper_name) in enumerate(to_process):
                     print(f"\nProcessing: {capper_name} @ {message_sent_at} ET")
                     print(f"URL: {image_url[:80]}...")
@@ -1024,11 +1046,16 @@ def main():
                         final_capper = extracted_capper if extracted_capper else "UNKNOWN"
                     print(f"Capper: {final_capper}")
                     
-                    # Insert to sheet using explicit row/column to ensure columns A-F
-                    next_row = len(worksheet.get_all_values()) + 1
-                    worksheet.update(range_name=f'A{next_row}:F{next_row}', values=[[timestamp, message_sent_at, final_capper, image_url, ocr_text, ""]], value_input_option="USER_ENTERED")
+                    rows_to_insert.append([timestamp, message_sent_at, final_capper, image_url, ocr_text, ""])
                     existing_urls.add(image_url)
-                    print(f"✅ Inserted")
+                
+                # Batch insert all rows
+                if rows_to_insert:
+                    next_row = len(worksheet.get_all_values()) + 1
+                    end_row = next_row + len(rows_to_insert) - 1
+                    time.sleep(1)  # Rate limit
+                    worksheet.update(range_name=f'A{next_row}:F{end_row}', values=rows_to_insert, value_input_option="USER_ENTERED")
+                    print(f"\n✅ Inserted {len(rows_to_insert)} rows to sheet")
                 
                 print(f"\n✅ Processed {len(to_process)} new message(s).")
             else:
