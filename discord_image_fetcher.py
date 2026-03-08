@@ -305,9 +305,23 @@ def get_messages_with_images_since(since_timestamp: Optional[datetime]) -> List[
         if since_timestamp and message_dt <= since_timestamp:
             continue
         
-        # Get capper name from message author
-        author = message.get("author", {})
-        capper_name = author.get("global_name") or author.get("username", "Unknown")
+        # Try to extract capper name from message content
+        # Filter out Discord role mentions like <@&1234567890>
+        import re
+        content = message.get("content", "").strip()
+        # Remove role mentions and user mentions
+        clean_content = re.sub(r'<@[&!]?\d+>', '', content).strip()
+        
+        # Get capper from first non-empty line of cleaned content
+        capper_name = "UNKNOWN"
+        if clean_content:
+            for line in clean_content.split('\n'):
+                line = line.strip()
+                if line and len(line) <= 30:
+                    # Skip URLs and common non-capper text
+                    if not line.startswith('http') and 'tracker' not in line.lower():
+                        capper_name = line.upper()
+                        break
         
         # Check attachments
         for attachment in message.get("attachments", []):
@@ -342,6 +356,39 @@ def get_media_type(image_url: str, content_type: str) -> str:
     elif "webp" in image_url.lower() or "webp" in content_type:
         return "image/webp"
     return "image/jpeg"
+
+
+def extract_capper_from_ocr(ocr_text: str) -> Optional[str]:
+    """Extract capper name from OCR text.
+    
+    Patterns:
+    - "CAPPER Whale Exclusive" -> CAPPER
+    - "CAPPER\n..." -> CAPPER (first line if short and uppercase)
+    """
+    if not ocr_text:
+        return None
+    
+    text = ocr_text.strip()
+    
+    # Pattern 1: "NAME Whale Exclusive" or "NAME Whale"
+    import re
+    whale_match = re.match(r'^([A-Za-z0-9_]+)\s+Whale', text, re.IGNORECASE)
+    if whale_match:
+        return whale_match.group(1).upper()
+    
+    # Pattern 2: First line is a short name (likely capper)
+    first_line = text.split('\n')[0].strip()
+    # If first line is short (1-20 chars) and doesn't look like a sport/pick
+    if first_line and len(first_line) <= 20:
+        # Skip if it's a sport name
+        sports = ['NBA', 'NCAAB', 'NHL', 'NFL', 'MLB', 'SOCCER', 'WNBA', 'MLS']
+        if first_line.upper() not in sports:
+            # Skip if it contains pick-like words
+            pick_words = ['over', 'under', 'spread', 'ml', 'moneyline', '+', '-', 'pts', 'points']
+            if not any(w in first_line.lower() for w in pick_words):
+                return first_line.upper()
+    
+    return None
 
 
 def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
@@ -937,8 +984,18 @@ def main():
                         except (ValueError, IndexError):
                             pass
                     
-                    # Append to sheet: timestamp, message_sent_at, capper_name, image_url, ocr_text, committed_stage (empty)
-                    worksheet.append_row([timestamp, message_sent_at, capper_name, image_url, ocr_text, ""], value_input_option="USER_ENTERED")
+                    # Extract capper name from OCR text if not found in message content
+                    # Priority: 1) Message content, 2) OCR text, 3) "UNKNOWN"
+                    if capper_name != "UNKNOWN":
+                        final_capper = capper_name
+                    else:
+                        extracted_capper = extract_capper_from_ocr(ocr_text)
+                        final_capper = extracted_capper if extracted_capper else "UNKNOWN"
+                    print(f"Capper: {final_capper}")
+                    
+                    # Insert to sheet using explicit row/column to ensure columns A-F
+                    next_row = len(worksheet.get_all_values()) + 1
+                    worksheet.update(range_name=f'A{next_row}:F{next_row}', values=[[timestamp, message_sent_at, final_capper, image_url, ocr_text, ""]], value_input_option="USER_ENTERED")
                     existing_urls.add(image_url)
                     print(f"✅ Inserted")
                 

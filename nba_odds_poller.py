@@ -11,6 +11,9 @@ import json
 import base64
 from datetime import datetime
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import gspread
 from google.oauth2.service_account import Credentials
 
