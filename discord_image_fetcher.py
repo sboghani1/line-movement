@@ -947,11 +947,11 @@ def run_stage2(spreadsheet, image_pull_ws):
         try:
             last_run = datetime.strptime(last_run_str, "%Y-%m-%d %H:%M:%S")
             last_run = last_run.replace(tzinfo=eastern)
-            hours_since = (now_eastern - last_run).total_seconds() / 3600
-            if hours_since < 1:
-                minutes_remaining = int((1 - hours_since) * 60)
+            minutes_since = (now_eastern - last_run).total_seconds() / 60
+            if minutes_since < 15:
+                minutes_remaining = int(15 - minutes_since)
                 print(
-                    f"Stage 2: Only {hours_since:.1f}h since last run, skipping (need 1h)"
+                    f"Stage 2: Only {minutes_since:.1f}m since last run, skipping (need 15m)"
                 )
                 log_activity(
                     spreadsheet,
@@ -1408,7 +1408,7 @@ def main():
         # Run Stage 1: Parse OCR to structured picks
         run_stage1(spreadsheet, worksheet)
 
-        # Run Stage 2: Finalize picks (only if 1+ hour since last run)
+        # Run Stage 2: Finalize picks (only if 15+ min since last run)
         run_stage2(spreadsheet, worksheet)
 
         # Run cleanup: delete old rows from schedules and image_pull
