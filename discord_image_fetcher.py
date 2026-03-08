@@ -395,8 +395,35 @@ def get_messages_with_images_since(
 
             if image_url:
                 sent_at = parse_discord_timestamp(message_time_str)
+                # Try to get capper from embed title/description/author if not found in content
+                embed_capper = capper_name
+                if embed_capper == "UNKNOWN":
+                    # Check embed title
+                    embed_title = embed.get("title", "").strip()
+                    if embed_title and len(embed_title) <= 30 and not embed_title.startswith("http"):
+                        embed_capper = embed_title.upper()
+                    # Check embed description first line
+                    if embed_capper == "UNKNOWN":
+                        embed_desc = embed.get("description", "").strip()
+                        if embed_desc:
+                            first_line = embed_desc.split("\n")[0].strip()
+                            if first_line and len(first_line) <= 30 and not first_line.startswith("http"):
+                                embed_capper = first_line.upper()
+                    # Check embed author name
+                    if embed_capper == "UNKNOWN":
+                        author_name = embed.get("author", {}).get("name", "").strip()
+                        if author_name and len(author_name) <= 30:
+                            embed_capper = author_name.upper()
+                
+                # Build full content including embed text for OCR context
+                embed_content = clean_content
+                if embed.get("title"):
+                    embed_content = f"{embed.get('title')}\n{embed_content}"
+                if embed.get("description"):
+                    embed_content = f"{embed_content}\n{embed.get('description')}"
+                
                 results.append(
-                    (image_url, sent_at, capper_name, clean_content, message_dt)
+                    (image_url, sent_at, embed_capper, embed_content, message_dt)
                 )
 
     # Return in chronological order (oldest first)
