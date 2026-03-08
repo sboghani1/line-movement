@@ -56,6 +56,23 @@ MAX_MESSAGES_PER_RUN = 100
 # Maximum images per OCR batch (Claude supports up to 20)
 OCR_BATCH_SIZE = 15
 
+# Claude API usage tracking (Haiku 4.5 pricing: $0.80/M input, $4.00/M output)
+CLAUDE_USAGE = {"input_tokens": 0, "output_tokens": 0}
+HAIKU_INPUT_COST_PER_M = 0.80
+HAIKU_OUTPUT_COST_PER_M = 4.00
+
+def get_claude_cost():
+    """Calculate estimated cost from token usage."""
+    input_cost = (CLAUDE_USAGE["input_tokens"] / 1_000_000) * HAIKU_INPUT_COST_PER_M
+    output_cost = (CLAUDE_USAGE["output_tokens"] / 1_000_000) * HAIKU_OUTPUT_COST_PER_M
+    return input_cost + output_cost
+
+def log_claude_usage(message):
+    """Track token usage from a Claude API response."""
+    if hasattr(message, 'usage'):
+        CLAUDE_USAGE["input_tokens"] += message.usage.input_tokens
+        CLAUDE_USAGE["output_tokens"] += message.usage.output_tokens
+
 # Example rows for prompts (spread, ML, total per sport)
 EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State,-11.5,Iowa State vs Kansas State,Iowa State -12,Iowa State,
 2026-02-01,DARTH FADER,NBA,Clippers,+2,Clippers @ Suns,Suns -2,Clippers,
@@ -489,6 +506,9 @@ For each image, output in this exact format:
         ],
     )
     
+    # Track token usage
+    log_claude_usage(message)
+    
     # Parse the response to extract text for each image
     response_text = message.content[0].text
     results = []
@@ -523,6 +543,9 @@ def call_haiku_text(prompt: str, max_tokens: int = 8192) -> str:
             {"role": "user", "content": prompt}
         ],
     )
+    
+    # Track token usage
+    log_claude_usage(message)
     
     return message.content[0].text
 
@@ -963,6 +986,7 @@ def main():
     now_utc = datetime.now(utc)
     timestamp = now_eastern.strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n[{timestamp}] Fetching Discord images...")
+    print(f"Claude API usage tracking: Starting run (tokens: 0, cost: $0.00)")
     
     try:
         # Get the spreadsheet and worksheet
@@ -1074,6 +1098,18 @@ def main():
         
         # Run Stage 2: Finalize picks (only if 1+ hour since last run)
         run_stage2(spreadsheet, worksheet)
+        
+        # Log Claude API usage summary
+        total_tokens = CLAUDE_USAGE["input_tokens"] + CLAUDE_USAGE["output_tokens"]
+        total_cost = get_claude_cost()
+        print(f"\n── Claude API Usage Summary ──")
+        print(f"  Input tokens:  {CLAUDE_USAGE['input_tokens']:,}")
+        print(f"  Output tokens: {CLAUDE_USAGE['output_tokens']:,}")
+        print(f"  Total tokens:  {total_tokens:,}")
+        print(f"  Estimated cost: ${total_cost:.4f}")
+        
+        # Log to activity sheet
+        log_activity(spreadsheet, "claude_usage", f"Tokens: {total_tokens:,} | Cost: ${total_cost:.4f}")
         
     except ValueError as e:
         print(f"Error: {e}")
