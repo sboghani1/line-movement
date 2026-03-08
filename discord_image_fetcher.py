@@ -404,7 +404,11 @@ def get_messages_with_images_since(
                 if embed_capper == "UNKNOWN":
                     # Check embed title
                     embed_title = embed.get("title", "").strip()
-                    if embed_title and len(embed_title) <= 30 and not embed_title.startswith("http"):
+                    if (
+                        embed_title
+                        and len(embed_title) <= 30
+                        and not embed_title.startswith("http")
+                    ):
                         embed_capper = embed_title.upper()
                     # Check embed description first line (strip ### heading markers)
                     if embed_capper == "UNKNOWN":
@@ -412,22 +416,26 @@ def get_messages_with_images_since(
                         if embed_desc:
                             first_line = embed_desc.split("\n")[0].strip()
                             # Strip Discord heading markers (###, ##, #)
-                            first_line = re.sub(r'^#{1,3}\s*', '', first_line).strip()
-                            if first_line and len(first_line) <= 30 and not first_line.startswith("http"):
+                            first_line = re.sub(r"^#{1,3}\s*", "", first_line).strip()
+                            if (
+                                first_line
+                                and len(first_line) <= 30
+                                and not first_line.startswith("http")
+                            ):
                                 embed_capper = first_line.upper()
                     # Check embed author name
                     if embed_capper == "UNKNOWN":
                         author_name = embed.get("author", {}).get("name", "").strip()
                         if author_name and len(author_name) <= 30:
                             embed_capper = author_name.upper()
-                
+
                 # Build full content including embed text for OCR context
                 embed_content = clean_content
                 if embed.get("title"):
                     embed_content = f"{embed.get('title')}\n{embed_content}"
                 if embed.get("description"):
                     embed_content = f"{embed_content}\n{embed.get('description')}"
-                
+
                 results.append(
                     (image_url, sent_at, embed_capper, embed_content, message_dt)
                 )
@@ -1171,6 +1179,11 @@ def cleanup_old_rows(spreadsheet, image_pull_ws):
                 print(
                     f"  {log_name}: No old rows to delete, {remaining_rows} remaining"
                 )
+                log_activity(
+                    spreadsheet,
+                    "cleanup",
+                    f"{log_name}: 0 rows deleted, {remaining_rows} remaining",
+                )
         except gspread.WorksheetNotFound:
             continue
 
@@ -1209,6 +1222,11 @@ def cleanup_old_rows(spreadsheet, image_pull_ws):
         else:
             remaining_rows = len(all_values) - 2
             print(f"  image_pull: No old rows to delete, {remaining_rows} remaining")
+            log_activity(
+                spreadsheet,
+                "cleanup",
+                f"image_pull: 0 rows deleted, {remaining_rows} remaining",
+            )
     except Exception as e:
         print(f"  image_pull cleanup failed: {e}")
 
