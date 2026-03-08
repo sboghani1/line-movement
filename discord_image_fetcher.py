@@ -421,6 +421,8 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
         
         # Resize if image is too large
         if len(image_bytes) > MAX_IMAGE_SIZE:
+            original_size_mb = len(image_bytes) / (1024 * 1024)
+            print(f"  ⚠️ Image {i} exceeds 4MB ({original_size_mb:.2f}MB): {url[:100]}...")
             img = Image.open(io.BytesIO(image_bytes))
             # Convert to RGB if necessary (for PNG with alpha)
             if img.mode in ('RGBA', 'P'):
@@ -439,6 +441,8 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
                 if quality < 50:
                     img = img.resize((img.width // 2, img.height // 2), Image.Resampling.LANCZOS)
             
+            new_size_mb = len(image_bytes) / (1024 * 1024)
+            print(f"    Compressed to {new_size_mb:.2f}MB (quality={quality})")
             media_type = "image/jpeg"
         
         image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
