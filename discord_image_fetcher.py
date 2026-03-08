@@ -49,7 +49,7 @@ PICKS_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "s
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
 
 # Maximum number of messages to process per run
-MAX_MESSAGES_PER_RUN = 5
+MAX_MESSAGES_PER_RUN = 50
 
 # Maximum images per OCR batch (Claude supports up to 20)
 OCR_BATCH_SIZE = 15
