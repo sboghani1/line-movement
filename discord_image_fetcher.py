@@ -372,9 +372,13 @@ def get_messages_with_images_since(
         if clean_content:
             for line in clean_content.split("\n"):
                 line = line.strip()
+                # Strip markdown bold markers
+                line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
+                line = line.strip()
                 if line and len(line) <= 30:
-                    # Skip URLs and common non-capper text
-                    if not line.startswith("http") and "tracker" not in line.lower():
+                    # Skip URLs, common non-capper text, and links
+                    skip_patterns = ["http", "tracker", "click here", "[", "]"]
+                    if not any(p in line.lower() for p in skip_patterns):
                         capper_name = line.upper()
                         break
 
