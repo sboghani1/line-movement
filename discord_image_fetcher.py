@@ -406,11 +406,13 @@ def get_messages_with_images_since(
                     embed_title = embed.get("title", "").strip()
                     if embed_title and len(embed_title) <= 30 and not embed_title.startswith("http"):
                         embed_capper = embed_title.upper()
-                    # Check embed description first line
+                    # Check embed description first line (strip ### heading markers)
                     if embed_capper == "UNKNOWN":
                         embed_desc = embed.get("description", "").strip()
                         if embed_desc:
                             first_line = embed_desc.split("\n")[0].strip()
+                            # Strip Discord heading markers (###, ##, #)
+                            first_line = re.sub(r'^#{1,3}\s*', '', first_line).strip()
                             if first_line and len(first_line) <= 30 and not first_line.startswith("http"):
                                 embed_capper = first_line.upper()
                     # Check embed author name
@@ -490,17 +492,14 @@ def extract_capper_from_ocr(ocr_text: str) -> Optional[str]:
     return None
 
 
-def extract_text_from_images_batch(
-    image_urls: List[str], message_contents: List[str] = None
-) -> List[Tuple[str, str]]:
+def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     """Use Claude Haiku to OCR multiple images in a single batch call.
 
     Args:
         image_urls: List of image URLs to OCR (max 15 recommended, 20 max supported)
-        message_contents: Optional list of Discord message text for each image (for capper identification)
 
     Returns:
-        List of (capper_name, ocr_text) tuples, one per image in the same order
+        List of OCR text results, one per image in the same order
     """
     if not ANTHROPIC_API_KEY:
         raise ValueError("ANTHROPIC_API_KEY environment variable not set")
@@ -562,46 +561,17 @@ def extract_text_from_images_batch(
                 },
             }
         )
-        # Add message context if available
-        if message_contents and i <= len(message_contents) and message_contents[i - 1]:
-            image_contents.append(
-                {
-                    "type": "text",
-                    "text": f"[Image {i}]\nDiscord message: {message_contents[i - 1]}",
-                }
-            )
-        else:
-            image_contents.append({"type": "text", "text": f"[Image {i}]"})
+        image_contents.append({"type": "text", "text": f"[Image {i}]"})
 
-    # Build prompt based on whether we have message contents
-    if message_contents:
-        prompt_text = f"""Extract text from each of the {len(image_urls)} images above and identify the capper (person making the pick).
-
-For each image, you're given the Discord message that accompanied the image and the image itself.
-
-Output format for each image:
-[Image 1]
-CAPPER: <capper name - uppercase, e.g., BEEZO WINS, DARTH FADER, HAMMERING HANK>
-TEXT: <extracted text from image>
-
-Capper identification rules (in priority order):
-1. If the Discord message contains a clear name/handle (not a URL or role mention), use that
-2. Look for header text in the image like "NAME Whale Exclusive", "NAME VIP Pick", "NAME's Pick"
-3. First prominent name or handle shown in the image
-4. "UNKNOWN" if no capper can be determined
-
-IMPORTANT: "All In One Cappers" or "AIO Cappers" is NOT a capper - it's the aggregation channel name. Look for the actual capper name within the image.
-
-Example cappers: BEEZO WINS, DARTH FADER, HAMMERING HANK, A11 BETS, ANALYTICS CAPPER, PARDON MY PICK"""
-    else:
-        prompt_text = f"""Extract all text from each of the {len(image_urls)} images above.
+    # Simple OCR prompt - just extract text
+    prompt_text = f"""Extract all text from each of the {len(image_urls)} images above.
 For each image, output in this exact format:
 
 [Image 1]
-CAPPER: <capper name if visible in image header, otherwise UNKNOWN>
-TEXT: <extracted text here>
+<extracted text here>
 
-IMPORTANT: "All In One Cappers" or "AIO Cappers" is NOT a capper - it's the aggregation channel name. Look for the actual capper name.
+[Image 2]
+<extracted text here>
 
 ...and so on. Preserve the layout of each image's text as much as possible."""
 
@@ -623,7 +593,7 @@ IMPORTANT: "All In One Cappers" or "AIO Cappers" is NOT a capper - it's the aggr
     # Track token usage
     log_claude_usage(message)
 
-    # Parse the response to extract capper and text for each image
+    # Parse the response to extract text for each image
     response_text = message.content[0].text
     results = []
 
@@ -631,24 +601,11 @@ IMPORTANT: "All In One Cappers" or "AIO Cappers" is NOT a capper - it's the aggr
     parts = re.split(r"\[Image \d+\]\s*", response_text)
     # First part is empty or intro text, skip it
     for part in parts[1:]:
-        part = part.strip()
-        capper = "UNKNOWN"
-        text = part
+        results.append(part.strip())
 
-        # Try to extract CAPPER: and TEXT: fields
-        capper_match = re.search(r"^CAPPER:\s*(.+?)(?:\n|$)", part, re.IGNORECASE)
-        text_match = re.search(r"TEXT:\s*(.+)", part, re.IGNORECASE | re.DOTALL)
-
-        if capper_match:
-            capper = capper_match.group(1).strip().upper()
-        if text_match:
-            text = text_match.group(1).strip()
-
-        results.append((capper, text))
-
-    # Pad with empty tuples if we got fewer results than images
+    # Pad with empty strings if we got fewer results than images
     while len(results) < len(image_urls):
-        results.append(("UNKNOWN", ""))
+        results.append("")
 
     return results[: len(image_urls)]
 
@@ -1126,9 +1083,8 @@ def backfill_ocr(worksheet):
 
     print(f"Found {len(rows_needing_ocr)} rows needing OCR")
 
-    # Process in batches (no message contents available for backfill)
+    # Process in batches
     all_ocr_updates = []  # Collect all updates for batch
-    all_capper_updates = []  # Also update capper if detected
     for batch_start in range(0, len(rows_needing_ocr), OCR_BATCH_SIZE):
         batch = rows_needing_ocr[batch_start : batch_start + OCR_BATCH_SIZE]
         urls = [url for _, url in batch]
@@ -1136,9 +1092,7 @@ def backfill_ocr(worksheet):
         print(
             f"\nProcessing batch {batch_start // OCR_BATCH_SIZE + 1} ({len(batch)} images)..."
         )
-        ocr_results = extract_text_from_images_batch(
-            urls
-        )  # Returns (capper, text) tuples
+        ocr_results = extract_text_from_images_batch(urls)  # Returns OCR text strings
 
         # Log OCR batch
         log_activity(
@@ -1146,34 +1100,18 @@ def backfill_ocr(worksheet):
         )
 
         # Collect cells to update
-        for (row_idx, url), (ocr_capper, ocr_text) in zip(batch, ocr_results):
+        for (row_idx, url), ocr_text in zip(batch, ocr_results):
             print(
                 f"  Row {row_idx}: {ocr_text[:60]}..."
                 if len(ocr_text) > 60
                 else f"  Row {row_idx}: {ocr_text}"
             )
             all_ocr_updates.append(gspread.Cell(row_idx, 5, ocr_text))
-            # Also update capper (column 3) if OCR detected one and current is UNKNOWN
-            if ocr_capper != "UNKNOWN":
-                # Get current capper from row data
-                current_row = (
-                    all_values[row_idx - 1] if row_idx <= len(all_values) else []
-                )
-                current_capper = current_row[2] if len(current_row) > 2 else "UNKNOWN"
-                if current_capper == "UNKNOWN":
-                    print(f"    Updating capper: {current_capper} -> {ocr_capper}")
-                    all_capper_updates.append(gspread.Cell(row_idx, 3, ocr_capper))
 
     # Batch update all OCR results
     if all_ocr_updates:
         time.sleep(1)  # Rate limit
         worksheet.update_cells(all_ocr_updates)
-
-    # Batch update capper names
-    if all_capper_updates:
-        time.sleep(1)  # Rate limit
-        worksheet.update_cells(all_capper_updates)
-        print(f"  Updated {len(all_capper_updates)} capper names")
 
     print(f"\n✅ Backfilled OCR for {len(rows_needing_ocr)} rows")
 
@@ -1340,23 +1278,17 @@ def main():
                     if url not in urls_with_ocr
                 ]
 
-                # Batch OCR with message contents for capper detection
-                ocr_results = []  # List of (capper, text) tuples
+                # Batch OCR - just extract text (capper comes from Discord embed)
+                ocr_results = []  # List of OCR text strings
                 if needs_ocr:
                     image_urls_for_ocr = [img[0] for img in needs_ocr]
-                    message_contents_for_ocr = [img[3] for img in needs_ocr]
                     print(f"\nRunning batch OCR on {len(image_urls_for_ocr)} images...")
                     for i in range(0, len(image_urls_for_ocr), OCR_BATCH_SIZE):
                         batch_urls = image_urls_for_ocr[i : i + OCR_BATCH_SIZE]
-                        batch_contents = message_contents_for_ocr[
-                            i : i + OCR_BATCH_SIZE
-                        ]
                         print(
                             f"  Processing batch {i // OCR_BATCH_SIZE + 1} ({len(batch_urls)} images)..."
                         )
-                        ocr_results.extend(
-                            extract_text_from_images_batch(batch_urls, batch_contents)
-                        )
+                        ocr_results.extend(extract_text_from_images_batch(batch_urls))
                         # Log OCR batch
                         log_activity(
                             spreadsheet,
@@ -1377,9 +1309,8 @@ def main():
                     print(f"\nProcessing: {capper_name} @ {message_sent_at} ET")
                     print(f"URL: {image_url[:80]}...")
 
-                    # Get OCR text and capper if available
+                    # Get OCR text
                     ocr_text = ""
-                    ocr_capper = "UNKNOWN"
                     if image_url in urls_with_ocr:
                         print("OCR already exists, skipping")
                     else:
@@ -1387,21 +1318,18 @@ def main():
                         try:
                             ocr_idx = [x[0] for x in needs_ocr].index(image_url)
                             if ocr_idx < len(ocr_results):
-                                ocr_capper, ocr_text = ocr_results[ocr_idx]
+                                ocr_text = ocr_results[ocr_idx]
                             print(
                                 f"OCR: {ocr_text[:100]}..."
                                 if len(ocr_text) > 100
                                 else f"OCR: {ocr_text}"
                             )
-                            print(f"OCR detected capper: {ocr_capper}")
                         except (ValueError, IndexError):
                             pass
 
-                    # Use the capper from OCR (Haiku detected from message content + image)
-                    # If OCR returned UNKNOWN, fall back to the message-content capper
-                    if ocr_capper != "UNKNOWN":
-                        final_capper = ocr_capper
-                    elif capper_name != "UNKNOWN":
+                    # Capper always comes from Discord embed description (### heading)
+                    # Fall back to regex extraction from OCR text only if embed didn't have it
+                    if capper_name != "UNKNOWN":
                         final_capper = capper_name
                     else:
                         # Last resort: try regex extraction from OCR text
@@ -1409,7 +1337,7 @@ def main():
                         final_capper = (
                             extracted_capper if extracted_capper else "UNKNOWN"
                         )
-                    print(f"Final capper: {final_capper}")
+                    print(f"Capper: {final_capper}")
 
                     rows_to_insert.append(
                         [
