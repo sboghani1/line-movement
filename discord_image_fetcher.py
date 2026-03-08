@@ -979,6 +979,88 @@ def backfill_ocr(worksheet):
     print(f"\n✅ Backfilled OCR for {len(rows_needing_ocr)} rows")
 
 
+def cleanup_old_rows(spreadsheet, image_pull_ws):
+    """Delete rows older than 1 week from schedules and image_pull."""
+    from datetime import timedelta
+    eastern = ZoneInfo("America/New_York")
+    cutoff_date = datetime.now(eastern).date() - timedelta(days=7)
+    cutoff_str = cutoff_date.strftime("%Y-%m-%d")
+    
+    print(f"\n── Cleanup: Removing rows older than {cutoff_str} ──")
+    
+    # Clean up schedule sheets (game_date in column A)
+    schedule_sheets = [
+        (NBA_SCHEDULE_SHEET, "nba_schedule"),
+        (CBB_SCHEDULE_SHEET, "cbb_schedule"),
+        (NHL_SCHEDULE_SHEET, "nhl_schedule"),
+    ]
+    
+    for sheet_name, log_name in schedule_sheets:
+        try:
+            ws = spreadsheet.worksheet(sheet_name)
+            all_values = ws.get_all_values()
+            if len(all_values) <= 1:  # Only header or empty
+                continue
+            
+            # Find rows to delete (oldest first to maintain indices)
+            rows_to_delete = []
+            for i, row in enumerate(all_values[1:], start=2):  # Skip header
+                if row and row[0]:
+                    try:
+                        game_date = datetime.strptime(row[0], "%Y-%m-%d").date()
+                        if game_date < cutoff_date:
+                            rows_to_delete.append(i)
+                    except ValueError:
+                        continue
+            
+            if rows_to_delete:
+                # Delete rows in reverse order to maintain indices
+                for row_idx in reversed(rows_to_delete):
+                    ws.delete_rows(row_idx)
+                    time.sleep(0.5)  # Rate limit
+                
+                remaining_rows = len(all_values) - 1 - len(rows_to_delete)
+                print(f"  {log_name}: Deleted {len(rows_to_delete)} old rows, {remaining_rows} remaining")
+                log_activity(spreadsheet, "cleanup", f"{log_name}: Deleted {len(rows_to_delete)} rows, {remaining_rows} remaining")
+            else:
+                remaining_rows = len(all_values) - 1
+                print(f"  {log_name}: No old rows to delete, {remaining_rows} remaining")
+        except gspread.WorksheetNotFound:
+            continue
+    
+    # Clean up image_pull (message_sent_at in column B - format: "2026-03-08 10:30:00")
+    try:
+        all_values = image_pull_ws.get_all_values()
+        if len(all_values) <= 2:  # Timestamp row + header row
+            return
+        
+        rows_to_delete = []
+        for i, row in enumerate(all_values[2:], start=3):  # Skip timestamp and header
+            if row and len(row) >= 2 and row[1]:
+                try:
+                    # Parse datetime from column B (format: YYYY-MM-DD HH:MM:SS)
+                    message_date = datetime.strptime(row[1][:10], "%Y-%m-%d").date()
+                    if message_date < cutoff_date:
+                        rows_to_delete.append(i)
+                except ValueError:
+                    continue
+        
+        if rows_to_delete:
+            # Delete rows in reverse order to maintain indices
+            for row_idx in reversed(rows_to_delete):
+                image_pull_ws.delete_rows(row_idx)
+                time.sleep(0.5)  # Rate limit
+            
+            remaining_rows = len(all_values) - 2 - len(rows_to_delete)
+            print(f"  image_pull: Deleted {len(rows_to_delete)} old rows, {remaining_rows} remaining")
+            log_activity(spreadsheet, "cleanup", f"image_pull: Deleted {len(rows_to_delete)} rows, {remaining_rows} remaining")
+        else:
+            remaining_rows = len(all_values) - 2
+            print(f"  image_pull: No old rows to delete, {remaining_rows} remaining")
+    except Exception as e:
+        print(f"  image_pull cleanup failed: {e}")
+
+
 def main():
     eastern = ZoneInfo("America/New_York")
     utc = ZoneInfo("UTC")
@@ -986,7 +1068,7 @@ def main():
     now_utc = datetime.now(utc)
     timestamp = now_eastern.strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n[{timestamp}] Fetching Discord images...")
-    print(f"Claude API usage tracking: Starting run (tokens: 0, cost: $0.00)")
+    print("Claude API usage tracking: Starting run (tokens: 0, cost: $0.00)")
     
     try:
         # Get the spreadsheet and worksheet
@@ -1093,16 +1175,27 @@ def main():
         # Backfill OCR for any existing rows that don't have it
         backfill_ocr(worksheet)
         
+        # Log OCR cost (before Stage 1/2 parsing)
+        ocr_tokens = CLAUDE_USAGE["input_tokens"] + CLAUDE_USAGE["output_tokens"]
+        ocr_cost = get_claude_cost()
+        if ocr_tokens > 0:
+            print(f"\n── OCR Processing Cost ──")
+            print(f"  Tokens: {ocr_tokens:,} | Cost: ${ocr_cost:.4f}")
+            log_activity(spreadsheet, "process_ocr", f"Tokens: {ocr_tokens:,} | Cost: ${ocr_cost:.4f}")
+        
         # Run Stage 1: Parse OCR to structured picks
         run_stage1(spreadsheet, worksheet)
         
         # Run Stage 2: Finalize picks (only if 1+ hour since last run)
         run_stage2(spreadsheet, worksheet)
         
+        # Run cleanup: delete old rows from schedules and image_pull
+        cleanup_old_rows(spreadsheet, worksheet)
+        
         # Log Claude API usage summary
         total_tokens = CLAUDE_USAGE["input_tokens"] + CLAUDE_USAGE["output_tokens"]
         total_cost = get_claude_cost()
-        print(f"\n── Claude API Usage Summary ──")
+        print("\n── Claude API Usage Summary ──")
         print(f"  Input tokens:  {CLAUDE_USAGE['input_tokens']:,}")
         print(f"  Output tokens: {CLAUDE_USAGE['output_tokens']:,}")
         print(f"  Total tokens:  {total_tokens:,}")
