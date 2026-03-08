@@ -97,16 +97,16 @@ def log_claude_usage(message):
 
 # Example rows for prompts (spread, ML, total per sport)
 EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State,-11.5,Iowa State vs Kansas State,Iowa State -12,Iowa State,
-2026-02-01,DARTH FADER,NBA,Clippers,+2,Clippers @ Suns,Suns -2,Clippers,
-2026-02-01,A11 BETS,NBA,Clippers,ML,Clippers @ Suns,,Clippers,
+2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
+2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,LA Clippers,
 2026-02-01,PARDON MY PICK,CBB,Illinois/Nebraska,O 151,Illinois @ Nebraska,O/U 151,,
-2026-02-03,ANALYTICS CAPPER,NHL,Flyers,ML,Capitals @ Flyers,,Flyers,
-2026-02-03,HAMMERING HANK,NBA,Nets,+8.5,Lakers @ Nets,Lakers -8.5,Nets,
+2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
+2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,Brooklyn Nets,
 2026-02-01,HAMMERING HANK,CBB,Florida,-8.5,Florida vs Alabama,Florida -8.5,Florida,"""
 
 EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State,-11.5,Iowa State vs Kansas State,Iowa State -12,Iowa State,
-2026-02-01,DARTH FADER,NBA,Clippers,+2,Clippers @ Suns,Suns -2,Clippers,
-2026-02-03,ANALYTICS CAPPER,NHL,Flyers,ML,Capitals @ Flyers,,Flyers,
+2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
+2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
 2026-02-01,HAMMERING HANK,CBB,Florida,-8.5,Florida vs Alabama,Florida -8.5,Florida,"""
 
 
@@ -666,7 +666,7 @@ COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
 - sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
-- pick: Team name being bet on
+- pick: Team name being bet on. Use FULL team names for NBA (e.g., "LA Clippers" not "Clippers", "New York Knicks" not "Knicks") and NHL (e.g., "Philadelphia Flyers" not "Flyers"). Use short names for CBB (e.g., "Purdue" not "Purdue Boilermakers").
 - line: The line taken (e.g., +3.5, -110, ML, O 220.5)
 - game: Leave empty for now (will be filled later)
 - spread: Leave empty for now (will be filled later)  
@@ -717,7 +717,7 @@ def build_stage2_prompt(rows_to_finalize: List[str], schedule_data: dict) -> str
 RULES:
 - game: Build as "away_team @ home_team" using the EXACT team names from columns C (away_team) and D (home_team) in the schedule
 - spread: The official spread from schedule (e.g., "Team -3.5") or leave empty for ML/totals
-- side: The team being bet on (should match the 'pick' column)
+- side: The team being bet on (should match the 'pick' column). Leave EMPTY for total bets (O/U).
 - IMPORTANT: Use team names EXACTLY as they appear in the schedule for consistency (e.g., if schedule says "LA Clippers", use "LA Clippers" not "Clippers")
 - Update the 'pick' and 'side' columns to match the schedule's team naming
 - Keep all other columns exactly as they are
