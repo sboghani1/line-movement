@@ -273,8 +273,13 @@ def update_last_run_timestamp(worksheet, utc_time: datetime):
 # ── Discord API ──────────────────────────────────────────────────────────────
 
 
-def fetch_recent_messages(limit: int = 100) -> list:
-    """Fetch recent messages from the Discord channel using user token."""
+def fetch_recent_messages(limit: int = 100, before: Optional[str] = None) -> list:
+    """Fetch recent messages from the Discord channel using user token.
+    
+    Args:
+        limit: Number of messages to fetch (max 100)
+        before: Message ID to fetch messages before (for pagination)
+    """
     if not DISCORD_USER_TOKEN:
         raise ValueError("DISCORD_USER_TOKEN environment variable not set")
 
@@ -285,6 +290,8 @@ def fetch_recent_messages(limit: int = 100) -> list:
 
     url = f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages"
     params = {"limit": limit}
+    if before:
+        params["before"] = before
 
     response = requests.get(url, headers=headers, params=params)
 
@@ -296,6 +303,52 @@ def fetch_recent_messages(limit: int = 100) -> list:
         raise ValueError(f"Discord API error: {response.status_code} - {response.text}")
 
     return response.json()
+
+
+def fetch_all_messages_since(since_timestamp: Optional[datetime], max_pages: int = 10) -> list:
+    """Fetch all messages since the given timestamp using pagination.
+    
+    Args:
+        since_timestamp: Fetch messages newer than this timestamp
+        max_pages: Maximum number of API calls to make (safety limit)
+    
+    Returns:
+        List of all messages since the timestamp, newest first
+    """
+    all_messages = []
+    last_message_id = None
+    
+    for page in range(max_pages):
+        messages = fetch_recent_messages(limit=100, before=last_message_id)
+        
+        if not messages:
+            break
+        
+        # Check if we've gone past the since_timestamp
+        reached_cutoff = False
+        for msg in messages:
+            msg_time_str = msg.get("timestamp", "")
+            if msg_time_str:
+                msg_dt = datetime.fromisoformat(msg_time_str.replace("Z", "+00:00"))
+                if since_timestamp and msg_dt <= since_timestamp:
+                    reached_cutoff = True
+                    break
+            all_messages.append(msg)
+        
+        if reached_cutoff:
+            print(f"  Pagination: Reached cutoff after {page + 1} page(s), {len(all_messages)} messages")
+            break
+        
+        # Get the ID of the last message for pagination
+        last_message_id = messages[-1].get("id")
+        
+        # Rate limit - be respectful to Discord API
+        time.sleep(0.5)
+        
+        if page > 0:
+            print(f"  Pagination: Fetched page {page + 1}, {len(all_messages)} messages so far...")
+    
+    return all_messages
 
 
 def parse_discord_timestamp(timestamp_str: str) -> str:
@@ -345,7 +398,8 @@ def get_messages_with_images_since(
 
     Returns list of (image_url, message_sent_at_eastern, capper_name, message_content, message_datetime_utc) tuples.
     """
-    messages = fetch_recent_messages(limit=100)
+    # Use pagination to get ALL messages since the timestamp
+    messages = fetch_all_messages_since(since_timestamp)
     results = []
 
     for message in messages:
