@@ -70,7 +70,7 @@ PICKS_COLUMNS = [
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 
 # Maximum number of messages to process per run
-MAX_MESSAGES_PER_RUN = 100
+MAX_MESSAGES_PER_RUN = 500
 
 # Maximum images per OCR batch (Claude supports up to 20)
 OCR_BATCH_SIZE = 15
