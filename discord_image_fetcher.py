@@ -99,7 +99,7 @@ def log_claude_usage(message):
 EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
 2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,LA Clippers,
-2026-02-01,PARDON MY PICK,CBB,Illinois Fighting Illini/Nebraska Cornhuskers,O 151,Illinois Fighting Illini @ Nebraska Cornhuskers,O/U 151,,
+2026-02-01,PARDON MY PICK,CBB,,O 151,Illinois Fighting Illini @ Nebraska Cornhuskers,O/U 151,,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,Brooklyn Nets,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
@@ -107,6 +107,7 @@ EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa
 EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
+2026-02-01,PARDON MY PICK,CBB,,O 151,Illinois Fighting Illini @ Nebraska Cornhuskers,O/U 151,,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
 
 
@@ -763,7 +764,7 @@ COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
 - sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
-- pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format - that goes in the game column. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans", "OKC -5" means "Oklahoma City Thunder"). Use FULL team names from the schedule.
+- pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans"). Leave EMPTY for total bets (O/U).
 - line: The line taken exactly as shown (e.g., +3.5, -6.5, ML, O 220.5, TROY -6.5)
 - game: Leave empty for now
 - spread: Leave empty for now  
@@ -773,7 +774,7 @@ COLUMN DEFINITIONS:
 CRITICAL - PICK COLUMN MUST BE:
 - A single team name like "Troy Trojans" or "Oklahoma City Thunder"
 - NEVER a game format like "Georgia Southern Eagles @ Troy Trojans"
-- For totals (O/U bets), use "Team1/Team2" format
+- EMPTY for total bets (O/U) - both pick and side should be empty for totals
 
 FILTERING RULES - ONLY INCLUDE:
 - Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
@@ -816,17 +817,20 @@ CRITICAL RULES:
 1. FIX pick column: If pick contains "@" (game format), it's WRONG. Extract the single team name from the line column:
    - Line "TROY -6.5" → pick should be "Troy Trojans" (find in schedule)
    - Line "OKC -5" → pick should be "Oklahoma City Thunder"
-   - The team abbreviation in the line tells you which team was bet on
+   - For total bets (O/U in line), pick should be EMPTY
 
 2. game: "away_team @ home_team" using EXACT team names from schedule columns C and D
 
-3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty. For totals (O/U), leave empty.
+3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty. For totals (O/U), put "O/U [number]".
 
 4. side: Copy the corrected pick value. Leave EMPTY for total bets (O/U).
 
+5. For totals (O/U): pick=empty, side=empty, spread="O/U [number]"
+
 VALIDATION:
-- pick column must NEVER contain "@" 
-- spread column should have format like "Team Name -3.5" or "Team Name +3.5"
+- pick column must NEVER contain "@"
+- pick and side should BOTH be empty for O/U bets
+- spread column should have format like "Team Name -3.5" or "Team Name +3.5" or "O/U 220.5"
 - side should match pick exactly
 
 NBA SCHEDULE:
@@ -876,6 +880,7 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
     
     The pick column should be a single team name, not a game format.
     If pick contains '@', we try to extract the correct team from the line column.
+    For total bets (O/U), pick and side should both be empty.
     """
     fixed_rows = []
     for row in rows:
@@ -883,11 +888,19 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
         pick = row[3] if len(row) > 3 else ""
         line = row[4] if len(row) > 4 else ""
         
+        # Check if this is a total bet (O/U) - pick and side should be empty
+        line_upper = line.upper().strip()
+        if line_upper.startswith("O ") or line_upper.startswith("U ") or "/U" in line_upper:
+            row[3] = ""  # Clear pick
+            if len(row) > 7:
+                row[7] = ""  # Clear side
+            fixed_rows.append(row)
+            continue
+        
         # If pick contains '@', it's a game format - try to fix it
         if "@" in pick:
             # Try to extract team name from line column
-            # Line formats: "TROY -6.5", "OKC -5", "PHI -135", "O 220.5", "ML"
-            line_upper = line.upper().strip()
+            # Line formats: "TROY -6.5", "OKC -5", "PHI -135", "ML"
             
             # Extract abbreviation from start of line (before space or +/-)
             abbrev_match = re.match(r'^([A-Z]{2,5})\s*[+-]', line_upper)
