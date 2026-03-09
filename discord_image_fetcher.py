@@ -275,7 +275,7 @@ def update_last_run_timestamp(worksheet, utc_time: datetime):
 
 def fetch_recent_messages(limit: int = 100, before: Optional[str] = None) -> list:
     """Fetch recent messages from the Discord channel using user token.
-    
+
     Args:
         limit: Number of messages to fetch (max 100)
         before: Message ID to fetch messages before (for pagination)
@@ -305,25 +305,27 @@ def fetch_recent_messages(limit: int = 100, before: Optional[str] = None) -> lis
     return response.json()
 
 
-def fetch_all_messages_since(since_timestamp: Optional[datetime], max_pages: int = 10) -> list:
+def fetch_all_messages_since(
+    since_timestamp: Optional[datetime], max_pages: int = 10
+) -> list:
     """Fetch all messages since the given timestamp using pagination.
-    
+
     Args:
         since_timestamp: Fetch messages newer than this timestamp
         max_pages: Maximum number of API calls to make (safety limit)
-    
+
     Returns:
         List of all messages since the timestamp, newest first
     """
     all_messages = []
     last_message_id = None
-    
+
     for page in range(max_pages):
         messages = fetch_recent_messages(limit=100, before=last_message_id)
-        
+
         if not messages:
             break
-        
+
         # Check if we've gone past the since_timestamp
         reached_cutoff = False
         for msg in messages:
@@ -334,20 +336,24 @@ def fetch_all_messages_since(since_timestamp: Optional[datetime], max_pages: int
                     reached_cutoff = True
                     break
             all_messages.append(msg)
-        
+
         if reached_cutoff:
-            print(f"  Pagination: Reached cutoff after {page + 1} page(s), {len(all_messages)} messages")
+            print(
+                f"  Pagination: Reached cutoff after {page + 1} page(s), {len(all_messages)} messages"
+            )
             break
-        
+
         # Get the ID of the last message for pagination
         last_message_id = messages[-1].get("id")
-        
+
         # Rate limit - be respectful to Discord API
         time.sleep(0.5)
-        
+
         if page > 0:
-            print(f"  Pagination: Fetched page {page + 1}, {len(all_messages)} messages so far...")
-    
+            print(
+                f"  Pagination: Fetched page {page + 1}, {len(all_messages)} messages so far..."
+            )
+
     return all_messages
 
 
@@ -573,12 +579,14 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     # Download and encode all images
     # Claude's 5MB limit applies to base64-encoded data, which is ~33% larger than raw bytes
     # So we limit raw bytes to 3.5MB which becomes ~4.7MB after base64 encoding
-    MAX_IMAGE_SIZE = 3.5 * 1024 * 1024  # 3.5MB raw = ~4.7MB base64 (under Claude's 5MB limit)
+    MAX_IMAGE_SIZE = (
+        3.5 * 1024 * 1024
+    )  # 3.5MB raw = ~4.7MB base64 (under Claude's 5MB limit)
 
     image_contents = []
     skipped_indices = set()  # Track which images were skipped
     processed_count = 0
-    
+
     for i, url in enumerate(image_urls):
         response = requests.get(url)
         response.raise_for_status()
@@ -591,7 +599,7 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
         if len(image_bytes) > MAX_IMAGE_SIZE:
             original_size_mb = len(image_bytes) / (1024 * 1024)
             print(
-                f"  ⚠️ Image {i+1} exceeds 3.5MB ({original_size_mb:.2f}MB): {url[:100]}..."
+                f"  ⚠️ Image {i + 1} exceeds 3.5MB ({original_size_mb:.2f}MB): {url[:100]}..."
             )
             img = Image.open(io.BytesIO(image_bytes))
             # Convert to RGB if necessary (for PNG with alpha)
@@ -607,23 +615,26 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
                 buffer = io.BytesIO()
                 img.save(buffer, format="JPEG", quality=quality, optimize=True)
                 image_bytes = buffer.getvalue()
-                
+
                 if len(image_bytes) <= MAX_IMAGE_SIZE:
                     break
-                    
+
                 # Reduce quality first
                 if quality > 20:
                     quality -= 10
                 else:
                     # Quality is already low, reduce dimensions
                     img = img.resize(
-                        (img.width * 3 // 4, img.height * 3 // 4), Image.Resampling.LANCZOS
+                        (img.width * 3 // 4, img.height * 3 // 4),
+                        Image.Resampling.LANCZOS,
                     )
                     quality = 50  # Reset quality after resize
 
             new_size_mb = len(image_bytes) / (1024 * 1024)
             if len(image_bytes) > MAX_IMAGE_SIZE:
-                print(f"    ⚠️ Could not compress below 3.5MB ({new_size_mb:.2f}MB), skipping image")
+                print(
+                    f"    ⚠️ Could not compress below 3.5MB ({new_size_mb:.2f}MB), skipping image"
+                )
                 skipped_indices.add(i)
                 continue
             print(f"    Compressed to {new_size_mb:.2f}MB (quality={quality})")
@@ -752,7 +763,7 @@ COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
 - sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
-- pick: Team name being bet on. Use FULL team names for ALL sports - NBA (e.g., "LA Clippers" not "Clippers"), NHL (e.g., "Philadelphia Flyers" not "Flyers"), and CBB (e.g., "Purdue Boilermakers" not "Purdue", "Michigan Wolverines" not "Michigan").
+- pick: The SINGLE team name being bet on (NEVER a game format like "Team A @ Team B"). Use FULL team names for ALL sports - NBA (e.g., "LA Clippers" not "Clippers"), NHL (e.g., "Philadelphia Flyers" not "Flyers"), and CBB (e.g., "Purdue Boilermakers" not "Purdue", "Michigan Wolverines" not "Michigan"). For totals, use "Team1/Team2" format (e.g., "Boston Celtics/Miami Heat O 220.5").
 - line: The line taken (e.g., +3.5, -110, ML, O 220.5)
 - game: Leave empty for now (will be filled later)
 - spread: Leave empty for now (will be filled later)  
@@ -804,6 +815,7 @@ RULES:
 - game: Build as "away_team @ home_team" using the EXACT team names from columns C (away_team) and D (home_team) in the schedule
 - spread: The official spread from schedule (e.g., "Team -3.5") or leave empty for ML/totals
 - side: The team being bet on (should match the 'pick' column). Leave EMPTY for total bets (O/U).
+- pick: If the pick column contains a game format ("Team A @ Team B"), extract the CORRECT single team name based on the line (e.g., if line is "TROY -6.5", pick should be "Troy Trojans" not the game string)
 - IMPORTANT: Use team names EXACTLY as they appear in the schedule for consistency (e.g., if schedule says "LA Clippers", use "LA Clippers" not "Clippers")
 - Update the 'pick' and 'side' columns to match the schedule's team naming
 - Keep all other columns exactly as they are
@@ -1098,9 +1110,7 @@ def run_stage2(spreadsheet, image_pull_ws):
             # Also append to master_sheet
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_ws.append_rows(
-                finalized_rows, value_input_option="USER_ENTERED"
-            )
+            master_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(finalized_rows)} rows to master_sheet")
 
             # Update timestamp in finalized_picks A1
