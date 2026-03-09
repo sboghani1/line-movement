@@ -763,28 +763,27 @@ COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
 - sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
-- pick: The SINGLE team name being bet on (NEVER a game format like "Team A @ Team B"). Use FULL team names for ALL sports - NBA (e.g., "LA Clippers" not "Clippers"), NHL (e.g., "Philadelphia Flyers" not "Flyers"), and CBB (e.g., "Purdue Boilermakers" not "Purdue", "Michigan Wolverines" not "Michigan"). For totals, use "Team1/Team2" format (e.g., "Boston Celtics/Miami Heat O 220.5").
-- line: The line taken (e.g., +3.5, -110, ML, O 220.5)
-- game: Leave empty for now (will be filled later)
-- spread: Leave empty for now (will be filled later)  
-- side: Leave empty for now (will be filled later)
+- pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format - that goes in the game column. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans", "OKC -5" means "Oklahoma City Thunder"). Use FULL team names from the schedule.
+- line: The line taken exactly as shown (e.g., +3.5, -6.5, ML, O 220.5, TROY -6.5)
+- game: Leave empty for now
+- spread: Leave empty for now  
+- side: Leave empty for now
 - result: Leave empty
+
+CRITICAL - PICK COLUMN MUST BE:
+- A single team name like "Troy Trojans" or "Oklahoma City Thunder"
+- NEVER a game format like "Georgia Southern Eagles @ Troy Trojans"
+- For totals (O/U bets), use "Team1/Team2" format
 
 FILTERING RULES - ONLY INCLUDE:
 - Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
 - Bet types: Spread, Moneyline (ML), or Game Total (O/U) ONLY
 - Skip: Player props, team totals, first half bets, quarter bets, parlays, live bets
 
-IMPORTANT:
-- Each individual pick should be a separate row
-- If one image has multiple picks, output multiple rows for qualifying picks only
-- Skip any non-betting content (promotional text, headers, etc.)
-- If no picks qualify after filtering, output nothing
-
-EXAMPLE ROWS:
+EXAMPLE ROWS (note pick column is always a single team):
 {EXAMPLE_PICKS_ROWS}
 
-TODAY'S SCHEDULE:
+TODAY'S SCHEDULE (use to resolve team name abbreviations):
 NBA: {schedule_data.get("nba", "No games")}
 CBB: {schedule_data.get("cbb", "No games")}
 NHL: {schedule_data.get("nhl", "No games")}
@@ -811,15 +810,24 @@ def build_stage2_prompt(rows_to_finalize: List[str], schedule_data: dict) -> str
 
     prompt = f"""Finalize these parsed betting picks by filling in the 'game', 'spread', and 'side' columns based on the scheduled games.
 
-RULES:
-- game: Build as "away_team @ home_team" using the EXACT team names from columns C (away_team) and D (home_team) in the schedule
-- spread: The official spread from schedule (e.g., "Team -3.5") or leave empty for ML/totals
-- side: The team being bet on (should match the 'pick' column). Leave EMPTY for total bets (O/U).
-- pick: If the pick column contains a game format ("Team A @ Team B"), extract the CORRECT single team name based on the line (e.g., if line is "TROY -6.5", pick should be "Troy Trojans" not the game string)
-- IMPORTANT: Use team names EXACTLY as they appear in the schedule for consistency (e.g., if schedule says "LA Clippers", use "LA Clippers" not "Clippers")
-- Update the 'pick' and 'side' columns to match the schedule's team naming
-- Keep all other columns exactly as they are
-- If you can't match a game to the schedule, leave game/spread empty but still include the row
+COLUMN ORDER: date,capper,sport,pick,line,game,spread,side,result
+
+CRITICAL RULES:
+1. FIX pick column: If pick contains "@" (game format), it's WRONG. Extract the single team name from the line column:
+   - Line "TROY -6.5" → pick should be "Troy Trojans" (find in schedule)
+   - Line "OKC -5" → pick should be "Oklahoma City Thunder"
+   - The team abbreviation in the line tells you which team was bet on
+
+2. game: "away_team @ home_team" using EXACT team names from schedule columns C and D
+
+3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty. For totals (O/U), leave empty.
+
+4. side: Copy the corrected pick value. Leave EMPTY for total bets (O/U).
+
+VALIDATION:
+- pick column must NEVER contain "@" 
+- spread column should have format like "Team Name -3.5" or "Team Name +3.5"
+- side should match pick exactly
 
 NBA SCHEDULE:
 {schedule_data.get("nba", "No games")}
@@ -861,6 +869,50 @@ def parse_csv_response(response: str) -> List[List[str]]:
         except Exception:
             continue
     return rows
+
+
+def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
+    """Fix any rows where pick column incorrectly contains game format (Team A @ Team B).
+    
+    The pick column should be a single team name, not a game format.
+    If pick contains '@', we try to extract the correct team from the line column.
+    """
+    fixed_rows = []
+    for row in rows:
+        # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), spread(6), side(7), result(8)
+        pick = row[3] if len(row) > 3 else ""
+        line = row[4] if len(row) > 4 else ""
+        
+        # If pick contains '@', it's a game format - try to fix it
+        if "@" in pick:
+            # Try to extract team name from line column
+            # Line formats: "TROY -6.5", "OKC -5", "PHI -135", "O 220.5", "ML"
+            line_upper = line.upper().strip()
+            
+            # Extract abbreviation from start of line (before space or +/-)
+            abbrev_match = re.match(r'^([A-Z]{2,5})\s*[+-]', line_upper)
+            if abbrev_match:
+                abbrev = abbrev_match.group(1)
+                # Try to find matching team in the game column
+                game = row[5] if len(row) > 5 else ""
+                if game:
+                    teams = game.split(" @ ")
+                    for team in teams:
+                        # Check if abbreviation matches team name
+                        team_words = team.upper().split()
+                        for word in team_words:
+                            if abbrev in word or word.startswith(abbrev):
+                                row[3] = team  # Fix the pick column
+                                if len(row) > 7 and not row[7]:  # Fix side too if empty
+                                    row[7] = team
+                                break
+                        else:
+                            continue
+                        break
+        
+        fixed_rows.append(row)
+    
+    return fixed_rows
 
 
 def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
@@ -1091,6 +1143,10 @@ def run_stage2(spreadsheet, image_pull_ws):
     try:
         response = call_haiku_text(prompt)
         finalized_rows = parse_csv_response(response)
+        
+        # Validate and fix any rows where pick column has game format
+        finalized_rows = validate_and_fix_pick_column(finalized_rows)
+        
         print(f"Finalized {len(finalized_rows)} pick row(s)")
 
         if finalized_rows:
