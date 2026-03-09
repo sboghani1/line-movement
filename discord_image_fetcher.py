@@ -571,10 +571,15 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
         return []
 
     # Download and encode all images
-    MAX_IMAGE_SIZE = 4 * 1024 * 1024  # 4MB limit (Claude max is 5MB)
+    # Claude's 5MB limit applies to base64-encoded data, which is ~33% larger than raw bytes
+    # So we limit raw bytes to 3.5MB which becomes ~4.7MB after base64 encoding
+    MAX_IMAGE_SIZE = 3.5 * 1024 * 1024  # 3.5MB raw = ~4.7MB base64 (under Claude's 5MB limit)
 
     image_contents = []
-    for i, url in enumerate(image_urls, 1):
+    skipped_indices = set()  # Track which images were skipped
+    processed_count = 0
+    
+    for i, url in enumerate(image_urls):
         response = requests.get(url)
         response.raise_for_status()
 
@@ -586,7 +591,7 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
         if len(image_bytes) > MAX_IMAGE_SIZE:
             original_size_mb = len(image_bytes) / (1024 * 1024)
             print(
-                f"  ⚠️ Image {i} exceeds 4MB ({original_size_mb:.2f}MB): {url[:100]}..."
+                f"  ⚠️ Image {i+1} exceeds 3.5MB ({original_size_mb:.2f}MB): {url[:100]}..."
             )
             img = Image.open(io.BytesIO(image_bytes))
             # Convert to RGB if necessary (for PNG with alpha)
@@ -595,24 +600,37 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
 
             # Reduce quality/size until under limit
             quality = 85
-            while quality >= 20:
+            attempts = 0
+            max_attempts = 20  # Safety limit
+            while len(image_bytes) > MAX_IMAGE_SIZE and attempts < max_attempts:
+                attempts += 1
                 buffer = io.BytesIO()
                 img.save(buffer, format="JPEG", quality=quality, optimize=True)
                 image_bytes = buffer.getvalue()
+                
                 if len(image_bytes) <= MAX_IMAGE_SIZE:
                     break
-                quality -= 10
-                # Also reduce dimensions if still too large
-                if quality < 50:
+                    
+                # Reduce quality first
+                if quality > 20:
+                    quality -= 10
+                else:
+                    # Quality is already low, reduce dimensions
                     img = img.resize(
-                        (img.width // 2, img.height // 2), Image.Resampling.LANCZOS
+                        (img.width * 3 // 4, img.height * 3 // 4), Image.Resampling.LANCZOS
                     )
+                    quality = 50  # Reset quality after resize
 
             new_size_mb = len(image_bytes) / (1024 * 1024)
+            if len(image_bytes) > MAX_IMAGE_SIZE:
+                print(f"    ⚠️ Could not compress below 3.5MB ({new_size_mb:.2f}MB), skipping image")
+                skipped_indices.add(i)
+                continue
             print(f"    Compressed to {new_size_mb:.2f}MB (quality={quality})")
             media_type = "image/jpeg"
 
         image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+        processed_count += 1
 
         image_contents.append(
             {
@@ -624,10 +642,14 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
                 },
             }
         )
-        image_contents.append({"type": "text", "text": f"[Image {i}]"})
+        image_contents.append({"type": "text", "text": f"[Image {processed_count}]"})
+
+    # If all images were skipped, return empty strings
+    if processed_count == 0:
+        return [""] * len(image_urls)
 
     # Simple OCR prompt - just extract text
-    prompt_text = f"""Extract all text from each of the {len(image_urls)} images above.
+    prompt_text = f"""Extract all text from each of the {processed_count} images above.
 For each image, output in this exact format:
 
 [Image 1]
@@ -658,19 +680,29 @@ For each image, output in this exact format:
 
     # Parse the response to extract text for each image
     response_text = message.content[0].text
-    results = []
+    ocr_results = []
 
     # Split by [Image N] markers
     parts = re.split(r"\[Image \d+\]\s*", response_text)
     # First part is empty or intro text, skip it
     for part in parts[1:]:
-        results.append(part.strip())
+        ocr_results.append(part.strip())
 
-    # Pad with empty strings if we got fewer results than images
-    while len(results) < len(image_urls):
-        results.append("")
+    # Pad with empty strings if we got fewer results than processed images
+    while len(ocr_results) < processed_count:
+        ocr_results.append("")
 
-    return results[: len(image_urls)]
+    # Now rebuild full results list, inserting empty strings for skipped images
+    results = []
+    ocr_idx = 0
+    for i in range(len(image_urls)):
+        if i in skipped_indices:
+            results.append("")
+        else:
+            results.append(ocr_results[ocr_idx] if ocr_idx < len(ocr_results) else "")
+            ocr_idx += 1
+
+    return results
 
 
 # ── Pick Parsing (Stage 1 & Stage 2) ─────────────────────────────────────────
