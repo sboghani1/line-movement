@@ -96,16 +96,19 @@ def log_claude_usage(message):
 
 
 # Example rows for prompts (spread and ML per sport - NO totals)
+# Includes examples for tricky formats: Porter Picks "O opponent" and Analytics Capper "v opponent"
 EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
 2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,LA Clippers,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
+2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,Alabama Crimson Tide,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,Brooklyn Nets,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
 
 EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
+2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,Alabama Crimson Tide,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
 
 
@@ -763,22 +766,37 @@ COLUMN DEFINITIONS:
 - capper: Name of the person making the pick (provided with each pick)
 - sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
 - pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
-- line: The line taken exactly as shown (e.g., +3.5, -6.5, ML, TROY -6.5)
+- line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
 - spread: Leave empty for now  
 - side: Leave empty for now
 - result: Leave empty
 
+COMMON PARSING PATTERNS (may appear with ANY capper):
+- "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
+- "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
+- Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
+
+ABBREVIATION RESOLUTION (MANDATORY):
+- The pick column MUST contain the FULL official team name from the schedule (e.g., "Oklahoma City Thunder" not "OKC")
+- ALWAYS resolve abbreviations using the schedule provided below
+- Common examples: BKN=Brooklyn Nets, CHI=Chicago Bulls, NO/NOP=New Orleans Pelicans, MEM=Memphis Grizzlies, IND=Indiana Pacers, CBJ=Columbus Blue Jackets, EDM=Edmonton Oilers, OKC=Oklahoma City Thunder, PHI=Philadelphia 76ers/Flyers
+
+TOTAL BET DETECTION (SKIP THESE ENTIRELY):
+- O or U followed by a number with OR without space: O 220.5, O220.5, O5.5, U5.5, U 150
+- These are total bets - do NOT include them in output
+
 CRITICAL - PICK COLUMN MUST BE:
-- A single team name like "Troy Trojans" or "Oklahoma City Thunder"
+- A single FULL team name like "Troy Trojans" or "Oklahoma City Thunder"
 - NEVER a game format like "Georgia Southern Eagles @ Troy Trojans"
+- NEVER an abbreviation like "OKC" or "BKN"
 
 FILTERING RULES - ONLY INCLUDE:
 - Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
 - Bet types: Spread or Moneyline (ML) ONLY
 - Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets
 
-EXAMPLE ROWS (note pick column is always a single team):
+EXAMPLE ROWS (note pick column is always a single FULL team name):
 {EXAMPLE_PICKS_ROWS}
 
 TODAY'S SCHEDULE (use to resolve team name abbreviations):
@@ -811,22 +829,29 @@ def build_stage2_prompt(rows_to_finalize: List[str], schedule_data: dict) -> str
 COLUMN ORDER: date,capper,sport,pick,line,game,spread,side,result
 
 CRITICAL RULES:
-1. FIX pick column: If pick contains "@" (game format), it's WRONG. Extract the single team name:
+1. FIX pick column: If pick contains "@" (game format) OR is an abbreviation, it's WRONG. Use FULL team name:
    - Line "TROY -6.5" → pick should be "Troy Trojans" (find in schedule)
    - Line "OKC -5" → pick should be "Oklahoma City Thunder"
-   - Line "ML" → use the SPREAD column to identify the favorite, then determine which team was bet on
+   - pick "BKN" → should be "Brooklyn Nets"
+   - pick "CBJ" → should be "Columbus Blue Jackets"
+   - Line "ML" → use the game column to identify which team, use FULL name
 
 2. game: "away_team @ home_team" using EXACT team names from schedule columns C and D
 
 3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty.
 
-4. side: Copy the corrected pick value. For ML bets, side MUST match pick.
+4. side: Copy the corrected pick value (FULL team name). For ML bets, side MUST match pick.
 
 5. For ML bets: pick=team name, side=team name (same as pick), spread=empty
 
+ABBREVIATION RESOLUTION (MANDATORY):
+- pick and side columns MUST contain FULL official team names from the schedule
+- NEVER leave abbreviations like OKC, BKN, CHI, CBJ, EDM, NO, MEM, IND in pick or side
+- Resolve using the schedules below
+
 VALIDATION:
-- pick column must NEVER contain "@"
-- pick and side should BOTH have the team name
+- pick column must NEVER contain "@" or be an abbreviation
+- pick and side should BOTH have the FULL team name
 - spread column should have format like "Team Name -3.5" or "Team Name +3.5"
 - side should match pick exactly
 
