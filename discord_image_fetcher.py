@@ -95,11 +95,10 @@ def log_claude_usage(message):
         CLAUDE_USAGE["output_tokens"] += message.usage.output_tokens
 
 
-# Example rows for prompts (spread, ML, total per sport)
+# Example rows for prompts (spread and ML per sport - NO totals)
 EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
 2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,LA Clippers,
-2026-02-01,PARDON MY PICK,CBB,,O 151,Illinois Fighting Illini @ Nebraska Cornhuskers,O/U 151,,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,Brooklyn Nets,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
@@ -107,7 +106,6 @@ EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa
 EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
-2026-02-01,PARDON MY PICK,CBB,,O 151,Illinois Fighting Illini @ Nebraska Cornhuskers,O/U 151,,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
 
 
@@ -764,8 +762,8 @@ COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
 - sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
-- pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans"). Leave EMPTY for total bets (O/U).
-- line: The line taken exactly as shown (e.g., +3.5, -6.5, ML, O 220.5, TROY -6.5)
+- pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
+- line: The line taken exactly as shown (e.g., +3.5, -6.5, ML, TROY -6.5)
 - game: Leave empty for now
 - spread: Leave empty for now  
 - side: Leave empty for now
@@ -774,12 +772,11 @@ COLUMN DEFINITIONS:
 CRITICAL - PICK COLUMN MUST BE:
 - A single team name like "Troy Trojans" or "Oklahoma City Thunder"
 - NEVER a game format like "Georgia Southern Eagles @ Troy Trojans"
-- EMPTY for total bets (O/U) - both pick and side should be empty for totals
 
 FILTERING RULES - ONLY INCLUDE:
 - Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
-- Bet types: Spread, Moneyline (ML), or Game Total (O/U) ONLY
-- Skip: Player props, team totals, first half bets, quarter bets, parlays, live bets
+- Bet types: Spread or Moneyline (ML) ONLY
+- Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets
 
 EXAMPLE ROWS (note pick column is always a single team):
 {EXAMPLE_PICKS_ROWS}
@@ -818,23 +815,19 @@ CRITICAL RULES:
    - Line "TROY -6.5" → pick should be "Troy Trojans" (find in schedule)
    - Line "OKC -5" → pick should be "Oklahoma City Thunder"
    - Line "ML" → use the SPREAD column to identify the favorite, then determine which team was bet on
-   - For total bets (O/U in line), pick should be EMPTY
 
 2. game: "away_team @ home_team" using EXACT team names from schedule columns C and D
 
-3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty. For totals (O/U), put "O/U [number]".
+3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty.
 
-4. side: Copy the corrected pick value. Leave EMPTY for total bets (O/U). For ML bets, side MUST match pick.
+4. side: Copy the corrected pick value. For ML bets, side MUST match pick.
 
-5. For totals (O/U): pick=empty, side=empty, spread="O/U [number]"
-
-6. For ML bets: pick=team name, side=team name (same as pick), spread=empty
+5. For ML bets: pick=team name, side=team name (same as pick), spread=empty
 
 VALIDATION:
 - pick column must NEVER contain "@"
-- pick and side should BOTH be empty for O/U bets
-- pick and side should BOTH have the team name for ML bets
-- spread column should have format like "Team Name -3.5" or "Team Name +3.5" or "O/U 220.5"
+- pick and side should BOTH have the team name
+- spread column should have format like "Team Name -3.5" or "Team Name +3.5"
 - side should match pick exactly
 
 NBA SCHEDULE:
@@ -884,7 +877,6 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
     
     The pick column should be a single team name, not a game format.
     If pick contains '@', we try to extract the correct team from the line column.
-    For total bets (O/U), pick and side should both be empty.
     For ML bets, pick and side should both have the team name.
     """
     fixed_rows = []
@@ -896,14 +888,7 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
         spread = row[6] if len(row) > 6 else ""
         side = row[7] if len(row) > 7 else ""
         
-        # Check if this is a total bet (O/U) - pick and side should be empty
         line_upper = line.upper().strip()
-        if line_upper.startswith("O ") or line_upper.startswith("U ") or "/U" in line_upper:
-            row[3] = ""  # Clear pick
-            if len(row) > 7:
-                row[7] = ""  # Clear side
-            fixed_rows.append(row)
-            continue
         
         # If pick contains '@', it's a game format - try to fix it
         if "@" in pick:
@@ -950,8 +935,6 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
                 row[7] = row[3]  # Copy pick to side
         
         fixed_rows.append(row)
-    
-    return fixed_rows
     
     return fixed_rows
 
