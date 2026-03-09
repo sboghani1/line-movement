@@ -814,22 +814,26 @@ def build_stage2_prompt(rows_to_finalize: List[str], schedule_data: dict) -> str
 COLUMN ORDER: date,capper,sport,pick,line,game,spread,side,result
 
 CRITICAL RULES:
-1. FIX pick column: If pick contains "@" (game format), it's WRONG. Extract the single team name from the line column:
+1. FIX pick column: If pick contains "@" (game format), it's WRONG. Extract the single team name:
    - Line "TROY -6.5" → pick should be "Troy Trojans" (find in schedule)
    - Line "OKC -5" → pick should be "Oklahoma City Thunder"
+   - Line "ML" → use the SPREAD column to identify the favorite, then determine which team was bet on
    - For total bets (O/U in line), pick should be EMPTY
 
 2. game: "away_team @ home_team" using EXACT team names from schedule columns C and D
 
 3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty. For totals (O/U), put "O/U [number]".
 
-4. side: Copy the corrected pick value. Leave EMPTY for total bets (O/U).
+4. side: Copy the corrected pick value. Leave EMPTY for total bets (O/U). For ML bets, side MUST match pick.
 
 5. For totals (O/U): pick=empty, side=empty, spread="O/U [number]"
+
+6. For ML bets: pick=team name, side=team name (same as pick), spread=empty
 
 VALIDATION:
 - pick column must NEVER contain "@"
 - pick and side should BOTH be empty for O/U bets
+- pick and side should BOTH have the team name for ML bets
 - spread column should have format like "Team Name -3.5" or "Team Name +3.5" or "O/U 220.5"
 - side should match pick exactly
 
@@ -881,12 +885,16 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
     The pick column should be a single team name, not a game format.
     If pick contains '@', we try to extract the correct team from the line column.
     For total bets (O/U), pick and side should both be empty.
+    For ML bets, pick and side should both have the team name.
     """
     fixed_rows = []
     for row in rows:
         # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), spread(6), side(7), result(8)
         pick = row[3] if len(row) > 3 else ""
         line = row[4] if len(row) > 4 else ""
+        game = row[5] if len(row) > 5 else ""
+        spread = row[6] if len(row) > 6 else ""
+        side = row[7] if len(row) > 7 else ""
         
         # Check if this is a total bet (O/U) - pick and side should be empty
         line_upper = line.upper().strip()
@@ -899,31 +907,51 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
         
         # If pick contains '@', it's a game format - try to fix it
         if "@" in pick:
-            # Try to extract team name from line column
-            # Line formats: "TROY -6.5", "OKC -5", "PHI -135", "ML"
+            fixed_team = None
             
-            # Extract abbreviation from start of line (before space or +/-)
-            abbrev_match = re.match(r'^([A-Z]{2,5})\s*[+-]', line_upper)
-            if abbrev_match:
-                abbrev = abbrev_match.group(1)
-                # Try to find matching team in the game column
-                game = row[5] if len(row) > 5 else ""
-                if game:
-                    teams = game.split(" @ ")
-                    for team in teams:
-                        # Check if abbreviation matches team name
-                        team_words = team.upper().split()
-                        for word in team_words:
-                            if abbrev in word or word.startswith(abbrev):
-                                row[3] = team  # Fix the pick column
-                                if len(row) > 7 and not row[7]:  # Fix side too if empty
-                                    row[7] = team
+            # For ML bets, use side if it has a valid team name
+            if line_upper == "ML":
+                if side and "@" not in side:
+                    fixed_team = side
+                # Otherwise try to extract from spread
+                elif spread:
+                    # Spread might be like "Team Name -3.5" - extract team
+                    spread_match = re.match(r'^(.+?)\s*[+-][\d.]+', spread)
+                    if spread_match:
+                        fixed_team = spread_match.group(1).strip()
+            else:
+                # Try to extract team name from line column
+                # Line formats: "TROY -6.5", "OKC -5", "PHI -135"
+                abbrev_match = re.match(r'^([A-Z]{2,5})\s*[+-]', line_upper)
+                if abbrev_match:
+                    abbrev = abbrev_match.group(1)
+                    # Try to find matching team in the game column
+                    if game:
+                        teams = game.split(" @ ")
+                        for team in teams:
+                            # Check if abbreviation matches team name
+                            team_words = team.upper().split()
+                            for word in team_words:
+                                if abbrev in word or word.startswith(abbrev):
+                                    fixed_team = team
+                                    break
+                            if fixed_team:
                                 break
-                        else:
-                            continue
-                        break
+            
+            # Apply the fix
+            if fixed_team:
+                row[3] = fixed_team  # Fix the pick column
+                if len(row) > 7:
+                    row[7] = fixed_team  # Fix side too
+        
+        # For ML bets, ensure side matches pick (if pick is valid)
+        if line_upper == "ML" and len(row) > 7:
+            if row[3] and "@" not in row[3] and not row[7]:
+                row[7] = row[3]  # Copy pick to side
         
         fixed_rows.append(row)
+    
+    return fixed_rows
     
     return fixed_rows
 

@@ -158,60 +158,174 @@ NHL_TEAMS = {
     "Minnesota Wild": "Minnesota Wild",
 }
 
-# CBB teams - just map common abbreviations
+# CBB teams - map abbreviations and full mascot names to short names
 CBB_ABBREVS = {
     "UNC": "North Carolina",
     "UCLA": "UCLA",
     "USC": "USC",
     "UConn": "UConn",
+    "UCONN": "UConn",
     "ETSU": "East Tennessee State",
     "FAU": "Florida Atlantic",
     "SFA": "Stephen F. Austin",
+    "SF Austin": "Stephen F. Austin",
+    "Stephen F Austin": "Stephen F. Austin",
     "SMU": "SMU",
     "TCU": "TCU",
     "BYU": "BYU",
     "Wichita St": "Wichita State",
     "Cleveland St": "Cleveland State",
     "Wisconsin Green Bay": "Green Bay",
+    # Full mascot names -> short names
+    "Purdue Boilermakers": "Purdue",
+    "NC State Wolfpack": "NC State",
+    "Ohio State Buckeyes": "Ohio State",
+    "Michigan Wolverines": "Michigan",
+    "Indiana Hoosiers": "Indiana",
+    "Illinois Fighting Illini": "Illinois",
+    "Iowa Hawkeyes": "Iowa",
+    "Wisconsin Badgers": "Wisconsin",
+    "Minnesota Golden Gophers": "Minnesota",
+    "Nebraska Cornhuskers": "Nebraska",
+    "Northwestern Wildcats": "Northwestern",
+    "Penn State Nittany Lions": "Penn State",
+    "Rutgers Scarlet Knights": "Rutgers",
+    "Maryland Terrapins": "Maryland",
+    "Duke Blue Devils": "Duke",
+    "North Carolina Tar Heels": "North Carolina",
+    "Virginia Cavaliers": "Virginia",
+    "Louisville Cardinals": "Louisville",
+    "Kentucky Wildcats": "Kentucky",
+    "Kansas Jayhawks": "Kansas",
+    "Baylor Bears": "Baylor",
+    "Texas Longhorns": "Texas",
+    "Texas Tech Red Raiders": "Texas Tech",
+    "Oklahoma Sooners": "Oklahoma",
+    "Oklahoma State Cowboys": "Oklahoma State",
+    "UCF Knights": "UCF",
+    "Houston Cougars": "Houston",
+    # More mascot names
+    "Alabama Crimson Tide": "Alabama",
+    "Georgia Southern Eagles": "Georgia Southern",
+    "Seton Hall Pirates": "Seton Hall",
+    "Florida Gators": "Florida",
+    "Auburn Tigers": "Auburn",
+    "Tennessee Volunteers": "Tennessee",
+    "Georgia Bulldogs": "Georgia",
+    "Missouri Tigers": "Missouri",
+    "Arkansas Razorbacks": "Arkansas",
+    "Mississippi State Bulldogs": "Mississippi State",
+    "Ole Miss Rebels": "Ole Miss",
+    "South Carolina Gamecocks": "South Carolina",
+    "Vanderbilt Commodores": "Vanderbilt",
+    "LSU Tigers": "LSU",
+    "Texas A&M Aggies": "Texas A&M",
+    "Arizona Wildcats": "Arizona",
+    "Arizona State Sun Devils": "Arizona State",
+    "Colorado Buffaloes": "Colorado",
+    "Utah Utes": "Utah",
+    "Washington Huskies": "Washington",
+    "Oregon Ducks": "Oregon",
+    "Oregon State Beavers": "Oregon State",
+    "Stanford Cardinal": "Stanford",
+    "California Golden Bears": "California",
+    "Gonzaga Bulldogs": "Gonzaga",
+    "Creighton Bluejays": "Creighton",
+    "Villanova Wildcats": "Villanova",
+    "Xavier Musketeers": "Xavier",
+    "St. John's Red Storm": "St. John's",
+    "Providence Friars": "Providence",
+    "Georgetown Hoyas": "Georgetown",
+    "Butler Bulldogs": "Butler",
+    "Marquette Golden Eagles": "Marquette",
+    "Clemson Tigers": "Clemson",
+    "Miami Hurricanes": "Miami",
+    "Syracuse Orange": "Syracuse",
+    "Pittsburgh Panthers": "Pittsburgh",
+    "Wake Forest Demon Deacons": "Wake Forest",
+    "NC State Wolfpack": "NC State",
+    "Boston College Eagles": "Boston College",
+    "Florida State Seminoles": "Florida State",
+    "Notre Dame Fighting Irish": "Notre Dame",
 }
 
 
 def normalize_team_name(team: str, sport: str) -> str:
     """Normalize a team name to ESPN's full name."""
     team = team.strip()
-    
+
     if sport == "NBA":
         if team in NBA_TEAMS:
             return NBA_TEAMS[team]
     elif sport == "NHL":
         if team in NHL_TEAMS:
             return NHL_TEAMS[team]
-    elif sport == "CBB":
+    elif sport in ("CBB", "NCAAB"):
         if team in CBB_ABBREVS:
             return CBB_ABBREVS[team]
-    
+
     return team  # Return as-is if not found
+
+
+def normalize_pick(pick: str, sport: str) -> str:
+    """Normalize a pick value, handling special patterns like Team1/Team2."""
+    pick = pick.strip()
+
+    # Handle "OVER Team1/Team2" or "O Team1/Team2" patterns
+    over_prefix = ""
+    under_prefix = ""
+    if pick.upper().startswith("OVER "):
+        over_prefix = "OVER "
+        pick = pick[5:].strip()
+    elif pick.upper().startswith("O "):
+        over_prefix = "O "
+        pick = pick[2:].strip()
+    elif pick.upper().startswith("UNDER "):
+        under_prefix = "UNDER "
+        pick = pick[6:].strip()
+    elif pick.upper().startswith("U "):
+        under_prefix = "U "
+        pick = pick[2:].strip()
+
+    prefix = over_prefix or under_prefix
+
+    # Handle "Team1/Team2" pattern for totals
+    if "/" in pick:
+        parts = pick.split("/")
+        if len(parts) == 2:
+            team1 = normalize_team_name(parts[0].strip(), sport)
+            team2 = normalize_team_name(parts[1].strip(), sport)
+            return f"{prefix}{team1}/{team2}"
+
+    # Regular team name
+    return prefix + normalize_team_name(pick, sport)
 
 
 def is_total_bet(pick: str, line: str) -> bool:
     """Check if this is a total (O/U) bet."""
     pick_lower = pick.lower()
     line_lower = line.lower()
-    
+
     # Check for over/under patterns
     if any(x in pick_lower for x in ["o ", "u ", "over", "under", "o/u", "/"]):
         return True
     if any(x in line_lower for x in ["o ", "u ", "over", "under", "o/u"]):
         return True
-    
+
     return False
 
 
 def normalize_game_teams(game: str, sport: str) -> str:
     """Normalize team names within a game string."""
-    if not game or "game" in game.lower():
-        return game  # Leave incomplete games as-is
-    
+    if not game:
+        return game
+
+    # Handle incomplete games like "Knicks game" -> "New York Knicks game"
+    if " game" in game.lower():
+        team_part = game.replace(" game", "").replace(" Game", "").strip()
+        normalized_team = normalize_team_name(team_part, sport)
+        return f"{normalized_team} game"
+
     # Split by @ or vs
     if " @ " in game:
         parts = game.split(" @ ")
@@ -221,12 +335,12 @@ def normalize_game_teams(game: str, sport: str) -> str:
         sep = " vs "  # Keep vs as-is since we don't know home/away
     else:
         return game
-    
+
     if len(parts) == 2:
         away = normalize_team_name(parts[0].strip(), sport)
         home = normalize_team_name(parts[1].strip(), sport)
         return f"{away}{sep}{home}"
-    
+
     return game
 
 
@@ -234,7 +348,7 @@ def normalize_spread_teams(spread: str, sport: str) -> str:
     """Normalize team names in spread column."""
     if not spread:
         return spread
-    
+
     # Match patterns like "Team -3.5" or "Team +3.5" or "O/U 151"
     match = re.match(r"^(.+?)\s*([+-]\d+\.?\d*|O/U.*)$", spread)
     if match:
@@ -242,19 +356,19 @@ def normalize_spread_teams(spread: str, sport: str) -> str:
         rest = match.group(2)
         normalized = normalize_team_name(team, sport)
         return f"{normalized} {rest}"
-    
+
     return spread
 
 
 def process_csv(input_path: str, output_path: str):
     """Process the CSV file and apply fixes."""
     incomplete_games = defaultdict(list)  # date -> list of game descriptions
-    
+
     with open(input_path, "r") as infile:
         reader = csv.DictReader(infile)
         fieldnames = reader.fieldnames
         rows = list(reader)
-    
+
     fixed_rows = []
     for row in rows:
         date = row.get("date", "")
@@ -264,34 +378,43 @@ def process_csv(input_path: str, output_path: str):
         game = row.get("game", "")
         spread = row.get("spread", "")
         side = row.get("side", "")
-        
+
         # Track incomplete games
         if game and "game" in game.lower():
             incomplete_games[date].append(game)
-        
+
         # Normalize team names
-        new_pick = normalize_team_name(pick, sport) if pick else pick
+        new_pick = normalize_pick(pick, sport) if pick else pick
         new_game = normalize_game_teams(game, sport)
         new_spread = normalize_spread_teams(spread, sport)
-        new_side = normalize_team_name(side, sport) if side else side
-        
-        # Clear side for total bets
+
+        # For non-total bets, side should match pick exactly
+        # For total bets, side should be empty
         if is_total_bet(pick, line):
             new_side = ""
-        
+        elif side:
+            # Side should match the pick (team being bet on)
+            # But if pick has prefix like "OVER", use just the team name
+            if "/" not in new_pick:
+                new_side = new_pick
+            else:
+                new_side = ""  # Team1/Team2 pattern shouldn't have side
+        else:
+            new_side = ""
+
         row["pick"] = new_pick
         row["game"] = new_game
         row["spread"] = new_spread
         row["side"] = new_side
-        
+
         fixed_rows.append(row)
-    
+
     # Write output
     with open(output_path, "w", newline="") as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(fixed_rows)
-    
+
     # Report incomplete games
     print("\n=== INCOMPLETE GAMES REPORT ===")
     total_incomplete = 0
@@ -303,7 +426,7 @@ def process_csv(input_path: str, output_path: str):
         for g in sorted(unique_games):
             count = games.count(g)
             print(f"  - {g} ({count}x)")
-    
+
     print(f"\n=== TOTAL: {total_incomplete} incomplete game entries ===")
     print(f"\nFixed file written to: {output_path}")
 
