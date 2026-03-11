@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
 """
-Discord Picks Parser
-Fetches images from a Discord channel, uses Claude to OCR/parse betting picks,
-and inserts them into a Google Sheet.
-Designed to run hourly via GitHub Actions.
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║  DEPRECATED - OUR FALLEN FRIEND                                               ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  Discord Picks Parser (Bot-based)                                             ║
+║                                                                               ║
+║  WHAT IT DID:                                                                 ║
+║  - Used Discord BOT token to fetch images from a channel                      ║
+║  - OCR'd images with Claude to extract betting picks                          ║
+║  - Inserted parsed picks into Google Sheets                                   ║
+║                                                                               ║
+║  WHY DEPRECATED:                                                              ║
+║  - Discord bot tokens require server integration/permissions                  ║
+║  - Replaced by discord_image_fetcher.py which uses USER token                 ║
+║  - User token approach is simpler for personal automation                     ║
+║                                                                               ║
+║  REPLACEMENT: discord_image_fetcher.py                                        ║
+║  - Uses DISCORD_USER_TOKEN instead of DISCORD_BOT_TOKEN                       ║
+║  - Same OCR/parsing logic, better channel access                              ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
 """
 
 import os
