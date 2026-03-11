@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'gh-pages/**'
+  repository_dispatch:
+    types: [csv-updated]
   workflow_dispatch:
 
 permissions:
