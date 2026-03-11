@@ -80,6 +80,77 @@ CLAUDE_USAGE = {"input_tokens": 0, "output_tokens": 0}
 HAIKU_INPUT_COST_PER_M = 0.80
 HAIKU_OUTPUT_COST_PER_M = 4.00
 
+# Local CSV path for GitHub Pages
+LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
+
+# Track if any rows were appended to local CSV
+LOCAL_CSV_APPENDED = False
+
+
+def append_to_local_csv(rows: List[List[str]]) -> int:
+    """Append rows to the local master_sheet.csv file.
+    
+    Args:
+        rows: List of rows to append (each row is a list of strings)
+        
+    Returns:
+        Number of rows appended
+    """
+    global LOCAL_CSV_APPENDED
+    if not rows:
+        return 0
+    
+    try:
+        with open(LOCAL_CSV_PATH, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerows(rows)
+        LOCAL_CSV_APPENDED = True
+        print(f"  Appended {len(rows)} rows to local {LOCAL_CSV_PATH}")
+        return len(rows)
+    except Exception as e:
+        print(f"  Warning: Failed to append to local CSV: {e}")
+        return 0
+
+
+def git_commit_and_push() -> bool:
+    """Commit and push changes to the local CSV file.
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    import subprocess
+    
+    try:
+        # Check if there are changes to commit
+        result = subprocess.run(
+            ["git", "diff", "--quiet", LOCAL_CSV_PATH],
+            capture_output=True
+        )
+        if result.returncode == 0:
+            print("No changes to commit")
+            return True
+        
+        # Stage the file
+        subprocess.run(["git", "add", LOCAL_CSV_PATH], check=True)
+        
+        # Commit
+        subprocess.run(
+            ["git", "commit", "-m", "Auto-append picks from Discord"],
+            check=True
+        )
+        
+        # Push
+        subprocess.run(["git", "push"], check=True)
+        
+        print(f"  Pushed changes to {LOCAL_CSV_PATH}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"  Warning: Git operation failed: {e}")
+        return False
+    except Exception as e:
+        print(f"  Warning: Git commit/push failed: {e}")
+        return False
+
 
 def get_claude_cost():
     """Calculate estimated cost from token usage."""
@@ -899,7 +970,7 @@ def parse_csv_response(response: str) -> List[List[str]]:
 
 def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
     """Fix any rows where pick column incorrectly contains game format (Team A @ Team B).
-    
+
     The pick column should be a single team name, not a game format.
     If pick contains '@', we try to extract the correct team from the line column.
     For ML bets, pick and side should both have the team name.
@@ -912,13 +983,13 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
         game = row[5] if len(row) > 5 else ""
         spread = row[6] if len(row) > 6 else ""
         side = row[7] if len(row) > 7 else ""
-        
+
         line_upper = line.upper().strip()
-        
+
         # If pick contains '@', it's a game format - try to fix it
         if "@" in pick:
             fixed_team = None
-            
+
             # For ML bets, use side if it has a valid team name
             if line_upper == "ML":
                 if side and "@" not in side:
@@ -926,13 +997,13 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
                 # Otherwise try to extract from spread
                 elif spread:
                     # Spread might be like "Team Name -3.5" - extract team
-                    spread_match = re.match(r'^(.+?)\s*[+-][\d.]+', spread)
+                    spread_match = re.match(r"^(.+?)\s*[+-][\d.]+", spread)
                     if spread_match:
                         fixed_team = spread_match.group(1).strip()
             else:
                 # Try to extract team name from line column
                 # Line formats: "TROY -6.5", "OKC -5", "PHI -135"
-                abbrev_match = re.match(r'^([A-Z]{2,5})\s*[+-]', line_upper)
+                abbrev_match = re.match(r"^([A-Z]{2,5})\s*[+-]", line_upper)
                 if abbrev_match:
                     abbrev = abbrev_match.group(1)
                     # Try to find matching team in the game column
@@ -947,20 +1018,20 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
                                     break
                             if fixed_team:
                                 break
-            
+
             # Apply the fix
             if fixed_team:
                 row[3] = fixed_team  # Fix the pick column
                 if len(row) > 7:
                     row[7] = fixed_team  # Fix side too
-        
+
         # For ML bets, ensure side matches pick (if pick is valid)
         if line_upper == "ML" and len(row) > 7:
             if row[3] and "@" not in row[3] and not row[7]:
                 row[7] = row[3]  # Copy pick to side
-        
+
         fixed_rows.append(row)
-    
+
     return fixed_rows
 
 
@@ -1192,10 +1263,10 @@ def run_stage2(spreadsheet, image_pull_ws):
     try:
         response = call_haiku_text(prompt)
         finalized_rows = parse_csv_response(response)
-        
+
         # Validate and fix any rows where pick column has game format
         finalized_rows = validate_and_fix_pick_column(finalized_rows)
-        
+
         print(f"Finalized {len(finalized_rows)} pick row(s)")
 
         if finalized_rows:
@@ -1217,6 +1288,9 @@ def run_stage2(spreadsheet, image_pull_ws):
             time.sleep(1)  # Rate limit
             master_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(finalized_rows)} rows to master_sheet")
+
+            # Append to local CSV for GitHub Pages
+            append_to_local_csv(finalized_rows)
 
             # Update timestamp in finalized_picks A1
             time.sleep(1)  # Rate limit
@@ -1615,6 +1689,11 @@ def main():
             "claude_usage",
             f"Tokens: {total_tokens:,} | Cost: ${total_cost:.4f}",
         )
+
+        # Commit and push local CSV changes if any rows were appended
+        if LOCAL_CSV_APPENDED:
+            print("\n── Git Commit & Push ──")
+            git_commit_and_push()
 
     except ValueError as e:
         print(f"Error: {e}")
