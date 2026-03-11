@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fade Finder - Capper Consensus Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useMemo, useEffect, useCallback, memo } = React;
+
+function getBetType(line) {
+  if (!line) return null;
+  const l = line.toString().trim().toUpperCase();
+  if (/PTS|REB|AST|PRA|1H|1Q|FH|PARLAY|SET|GOAL|3S|DBL|MARGIN|BTTS|ANYTIME/.test(l)) return null;
+  if (l === 'ML' || l.includes('ML')) return 'ML';
+  if (l.startsWith('O ') || /^O\s?\d/.test(l)) return 'Over';
+  if (l.startsWith('U ') || /^U\s?\d/.test(l)) return 'Under';
+  const m = l.match(/^([+-]?\d+\.?\d*)/);
+  if (m) return parseFloat(m[1]) < 0 ? 'Fav' : 'Dog';
+  return null;
+}
+function formatRecord(r) { return r ? `${r.wins}-${r.losses}${r.pushes>0?`-${r.pushes}`:''}` : '0-0'; }
+function formatLast20(r) { return r && r.last20.length > 0 ? r.last20.join('') : ''; }
+function getBetTypeLabel(bt) { return {ML:'ML',Fav:'Fav',Dog:'Dog',Over:'Over',Under:'Under'}[bt]||bt; }
+
+function getRatioLabel(h, t) {
+  if (!h||!t||h<5||t<5) return null;
+  const r=h/t;
+  if (r===1) return h>=10?'100x10':'100';
+  if (r>=0.9) return '90'; if (r>=0.8) return '80';
+  if (r>=0.7) return '70'; if (r>=0.6) return '60';
+  if (r>=0.5) return '50'; return null;
+}
+const VERBOSE_BUCKETS = [
+  {label:'100x10',min:1.0,exact:true,minTotal:10},{label:'100',min:1.0,exact:true,minTotal:5},
+  {label:'95',min:0.95},{label:'90',min:0.90},{label:'85',min:0.85},{label:'80',min:0.80},
+  {label:'75',min:0.75},{label:'70',min:0.70},{label:'65',min:0.65},{label:'60',min:0.60},
+  {label:'55',min:0.55},{label:'50',min:0.50},
+];
+const VERBOSE_BUCKET_LABELS = VERBOSE_BUCKETS.map(b=>b.label).filter((l,i,a)=>a.indexOf(l)===i);
+const COARSE_LABELS = ['100x10','100','90','80','70','60','50'];
+const BET_TYPES = ['Fav','Dog','Over','Under'];
+const SPORT_COLORS = {NBA:{bg:'#1d428a',text:'#fff'},NHL:{bg:'#000',text:'#fff'},CBB:{bg:'#ff6b00',text:'#fff'},NCAAB:{bg:'#ff6b00',text:'#fff'},Tennis:{bg:'#2e7d32',text:'#fff'},Soccer:{bg:'#326295',text:'#fff'},UFC:{bg:'#d20a0a',text:'#fff'},TGL:{bg:'#006400',text:'#fff'},default:{bg:'#333',text:'#fff'}};
+
+function getVerboseRatioLabel(h,t) {
+  if (!h||!t||t<3) return null;
+  const r=h/t;
+  for (const b of VERBOSE_BUCKETS) {
+    if (b.exact) { if (r===1.0&&(!b.minTotal||t>=b.minTotal)) return b.label; }
+    else { if (r>=b.min) return b.label; }
+  }
+  return null;
+}
+function parseGameTeams(gameTitle) {
+  return gameTitle.toLowerCase().split(/\s+@\s+|\s+vs\.?\s+/i)
+    .map(t=>new Set(t.trim().split(/\s+/).filter(w=>w.length>3)));
+}
+function sideMatchesGame(sideName,gameTeams) {
+  const tokens=sideName.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+  if (!tokens.length) return true;
+  return gameTeams.some(tt=>tokens.every(w=>tt.has(w)));
+}
+function classifySides(sides,gameTeams) {
+  const sideCounts={};let overCount=0,underCount=0;
+  Object.entries(sides).forEach(([sn,sd])=>{
+    const l=sn.toLowerCase(),n=sd.cappers.length;if(!n)return;
+    if (l.includes('over')||/^o\s?\d/.test(l)){overCount+=n;return;}
+    if (l.includes('under')||/^u\s?\d/.test(l)){underCount+=n;return;}
+    if (sd.cappers.every(c=>c.betType==='Over'||c.betType==='Under')){sd.cappers.forEach(c=>{if(c.betType==='Over')overCount++;else underCount++;});return;}
+    const ouCappers=sd.cappers.filter(c=>c.betType==='Over'||c.betType==='Under');
+    if(ouCappers.length>0&&ouCappers.length<sd.cappers.length){ouCappers.forEach(c=>{if(c.betType==='Over')overCount++;else underCount++;});const remaining=sd.cappers.filter(c=>c.betType!=='Over'&&c.betType!=='Under');if(remaining.length>0)sideCounts[sn]=(sideCounts[sn]||0)+remaining.length;return;}
+    const tokens=sn.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+    if (tokens.length>=2&&!sideMatchesGame(sn,gameTeams)) return;
+    sideCounts[sn]=(sideCounts[sn]||0)+n;
+  });
+  return {sideCounts,overCount,underCount};
+}
+function filterCapperData(btData,gameCappers) {
+  if (!btData) return null;
+  const result={};
+  for (const [label,d] of Object.entries(btData)) {
+    let wins=0,losses=0;
+    for (const g of d.games) { if (![...g.cappers].some(c=>gameCappers.has(c))) continue; if(g.win)wins++;else losses++; }
+    if (wins+losses>0) result[label]={wins,losses};
+  }
+  return Object.keys(result).length>0?result:null;
+}
+function buildVerboseHistory(picksSubset) {
+  const gameGroups={};
+  picksSubset.forEach(pick=>{
+    if (!pick.result||!pick.game||!pick.capper) return;
+    const res=pick.result.toLowerCase();
+    if (res!=='win'&&res!=='lose') return;
+    const bt=getBetType(pick.line);if(!bt)return;
+    const key=`${pick.date}-${pick.game}`;
+    if (!gameGroups[key]) gameGroups[key]={sport:pick.sport,cappers:new Set(),fav:[],dog:[],over:[],under:[]};
+    const g=gameGroups[key];
+    g.cappers.add(pick.capper);
+    if(bt==='Over')g.over.push(res);else if(bt==='Under')g.under.push(res);
+    else if(bt==='Fav')g.fav.push(res);else if(bt==='Dog')g.dog.push(res);
+    else if(bt==='ML')(pick.line?.includes('-')?g.fav:g.dog).push(res);
+  });
+  const history={};
+  const addEntry=(key,bt,label,win,cappers)=>{
+    if(!history[key])history[key]={Fav:{},Dog:{},Over:{},Under:{}};
+    if(!history[key][bt])history[key][bt]={};
+    if(!history[key][bt][label])history[key][bt][label]={wins:0,losses:0,games:[]};
+    history[key][bt][label].games.push({win,cappers:new Set(cappers)});
+    if(win)history[key][bt][label].wins++;else history[key][bt][label].losses++;
+  };
+  Object.values(gameGroups).forEach(g=>{
+    const{sport,cappers}=g;
+    const process=(heavy,heavyBt,lightLen)=>{
+      const total=heavy.length+lightLen;
+      const label=getVerboseRatioLabel(heavy.length,total);if(!label)return;
+      const w=heavy.filter(r=>r==='win').length,l=heavy.filter(r=>r==='lose').length;
+      if(w===l)return;const win=w>l;
+      addEntry(sport,heavyBt,label,win,cappers);addEntry('All',heavyBt,label,win,cappers);
+      addEntry(`${sport}_cappers`,heavyBt,label,win,cappers);addEntry('All_cappers',heavyBt,label,win,cappers);
+    };
+    if(g.fav.length>g.dog.length&&g.fav.length>0)process(g.fav,'Fav',g.dog.length);
+    else if(g.dog.length>g.fav.length&&g.dog.length>0)process(g.dog,'Dog',g.fav.length);
+    if(g.over.length>g.under.length&&g.over.length>0)process(g.over,'Over',g.under.length);
+    else if(g.under.length>g.over.length&&g.under.length>0)process(g.under,'Under',g.over.length);
+  });
+  return history;
+}
+
+const InfoIcon=memo(({text})=>{
+  const[hovered,setHovered]=useState(false);
+  return(<span style={{position:'relative',display:'inline-flex',alignItems:'center',marginLeft:'6px'}}>
+    <span onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:'16px',height:'16px',borderRadius:'50%',background:'rgba(255,255,255,0.2)',border:'1px solid rgba(255,255,255,0.4)',fontSize:'0.65rem',fontWeight:'700',cursor:'help',color:'#fff',flexShrink:0}}>ℹ</span>
+    {hovered&&<div style={{position:'absolute',top:'22px',left:0,zIndex:200,background:'#1a1a2e',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',padding:'10px 14px',fontSize:'0.72rem',color:'rgba(255,255,255,0.9)',width:'300px',boxShadow:'0 4px 20px rgba(0,0,0,0.6)',lineHeight:'1.6',fontWeight:'400'}}>{text}</div>}
+  </span>);
+});
+
+const ConsensusLabel=memo(({game})=>{
+  const[hovered,setHovered]=useState(false);
+  if(!game.consensusSide)return null;
+  const label=[game.consensusSide,game.consensusSpreadRange].filter(Boolean).join(' ');
+  return(<div style={{position:'relative',display:'inline-flex',alignItems:'center',gap:'6px'}}>
+    <span style={{padding:'4px 12px',background:'rgba(255,255,255,0.2)',borderRadius:'6px',fontSize:'0.85rem',fontWeight:'600',color:'#fff',border:'1px solid rgba(255,255,255,0.4)'}}>
+      📊 {label} <span style={{opacity:0.75,fontWeight:'400'}}>({game.consensusSideCount}/{game.consensusTotalCappers} · {game.consensusRatio}%)</span>
+    </span>
+    <span onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:'18px',height:'18px',borderRadius:'50%',background:'rgba(255,255,255,0.25)',border:'1px solid rgba(255,255,255,0.5)',fontSize:'0.7rem',fontWeight:'700',cursor:'help',color:'#fff',flexShrink:0}}>ℹ</span>
+    {hovered&&<div style={{position:'absolute',top:'28px',left:0,zIndex:100,background:'#1a1a2e',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',padding:'10px 14px',fontSize:'0.75rem',color:'rgba(255,255,255,0.9)',width:'280px',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',lineHeight:'1.6'}}>
+      <strong style={{color:'#FFD700'}}>📊 Consensus Side</strong><br/>Shows the side the majority of cappers are on, with the range of spreads.
+    </div>}
+  </div>);
+});
+
+const RatioRows=memo(({data,activeBucket,bucketList})=>{
+  if(!data)return null;
+  const rows=bucketList.filter(l=>data[l]);
+  if(!rows.length)return null;
+  return rows.map(label=>{
+    const d=data[label];
+    const winRate=d.wins+d.losses>0?(d.wins/(d.wins+d.losses)*100).toFixed(0):0;
+    const isActive=activeBucket&&label===activeBucket;
+    return(<div key={label} style={{fontSize:'0.7rem',marginLeft:'12px',display:'flex',alignItems:'center',gap:'4px',padding:isActive?'2px 6px':'2px 0',background:isActive?'rgba(255,215,0,0.15)':'transparent',borderRadius:isActive?'4px':'0',borderLeft:isActive?'2px solid #FFD700':'2px solid transparent'}}>
+      {isActive?<span style={{color:'#FFD700',fontSize:'0.65rem'}}>➤</span>:<span style={{width:'10px',display:'inline-block'}}/>}
+      <span style={{color:isActive?'#FFD700':'rgba(255,255,255,0.85)'}}>{label}:</span>{' '}
+      <span style={{color:isActive?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):'rgba(255,255,255,0.85)',fontWeight:isActive?'700':'400'}}>{d.wins}-{d.losses}</span>
+      <span style={{color:isActive?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.5)',fontSize:'0.6rem'}}> ({winRate}%)</span>
+    </div>);
+  });
+});
+
+const ThisGameBadge=memo(({ratio})=>{
+  if(!ratio?.label)return null;
+  return(<div style={{fontSize:'0.7rem',color:'#FFD700',fontWeight:'700',marginBottom:'6px',padding:'3px 8px',background:'rgba(255,215,0,0.15)',borderRadius:'4px',borderLeft:'2px solid #FFD700',display:'inline-flex',gap:'6px',alignItems:'center'}}>
+    <span>➤ This game:</span>
+    <span>{ratio.label} ({ratio.count}/{ratio.total} · {Math.round(ratio.count/ratio.total*100)}%)</span>
+  </div>);
+});
+
+const CapperRatioHistory=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL30,l30Days})=>{
+  const[standardOpen,setStandardOpen]=useState(true);
+  const[verboseOpen,setVerboseOpen]=useState(false);
+  const[expandedStd,setExpandedStd]=useState({});
+  const[expandedVrb,setExpandedVrb]=useState({});
+  const gameCappers=useMemo(()=>new Set(game.picks.map(p=>p.capper)),[game.picks]);
+
+  const currentGameRatios=useMemo(()=>{
+    const ratios={Fav:null,Dog:null,Over:null,Under:null};
+    const gameTeams=parseGameTeams(game.game);
+    const{sideCounts,overCount,underCount}=classifySides(game.sides,gameTeams);
+    const sideEntries=Object.entries(sideCounts);
+    if(sideEntries.length>0){
+      const totalSide=sideEntries.reduce((s,[,c])=>s+c,0);
+      const effectiveTotal=Math.max(totalSide,totalSide+overCount+underCount);
+      const[heavySideName,heavyCount]=sideEntries.reduce((a,b)=>b[1]>a[1]?b:a);
+      const spread=game.spread||'';
+      const spreadNum=parseFloat((spread.match(/([+-]?\d+\.?\d*)/)||[])[1]);
+      const lastToken=heavySideName.trim().split(/\s+/).pop().toLowerCase();
+      const spreadLower=spread.toLowerCase();
+      let isFav;
+      if(spreadLower.includes(lastToken)){const after=spreadLower.slice(spreadLower.indexOf(lastToken)+lastToken.length);isFav=after.includes('-')||(!after.includes('+')&&!isNaN(spreadNum)&&spreadNum<0);}
+      else{isFav=!isNaN(spreadNum)&&spreadNum<0;}
+      const bt=isFav?'Fav':'Dog',otherBt=isFav?'Dog':'Fav';
+      ratios[bt]={label:getRatioLabel(heavyCount,effectiveTotal),verboseLabel:getVerboseRatioLabel(heavyCount,effectiveTotal),count:heavyCount,total:effectiveTotal};
+      ratios[otherBt]={label:null,verboseLabel:null};
+    }
+    const totalTotal=overCount+underCount;
+    if(totalTotal>0){
+      const bt=overCount>=underCount?'Over':'Under',hc=bt==='Over'?overCount:underCount,otherBt=bt==='Over'?'Under':'Over';
+      ratios[bt]={label:getRatioLabel(hc,totalTotal),verboseLabel:getVerboseRatioLabel(hc,totalTotal),count:hc,total:totalTotal};
+      ratios[otherBt]={label:null,verboseLabel:null};
+    }
+    return ratios;
+  },[game]);
+
+  const relevantBetTypes=useMemo(()=>{const s=new Set();BET_TYPES.forEach(bt=>{if(currentGameRatios[bt]?.label||currentGameRatios[bt]?.verboseLabel)s.add(bt);});return s;},[currentGameRatios]);
+  const toggleStd=useCallback(bt=>setExpandedStd(p=>({...p,[bt]:!p[bt]})),[]);
+  const toggleVrb=useCallback(bt=>setExpandedVrb(p=>({...p,[bt]:!p[bt]})),[]);
+
+  const hasAnyStandard=BET_TYPES.some(bt=>{
+    const sd=ratioHistory[game.sport]?.[bt],ad=ratioHistory['All']?.[bt];
+    return(sd&&Object.keys(sd).length)||(ad&&Object.keys(ad).length)||currentGameRatios[bt]?.label;
+  });
+  if(!hasAnyStandard)return null;
+
+  return(<div style={{borderBottom:'1px solid rgba(0,33,165,0.4)'}}>
+    <button onClick={()=>setStandardOpen(o=>!o)} style={{width:'100%',display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(0,0,0,0.15)',border:'none',cursor:'pointer',color:'#BB8FCE',fontSize:'0.75rem',fontWeight:'700',textAlign:'left'}}>
+      <span style={{fontSize:'0.6rem',display:'inline-block',transform:standardOpen?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.2s'}}>▶</span>
+      📈 CAPPER RATIO HISTORY
+      <InfoIcon text="When X% of cappers agreed on a side, how did it go? The ➤ marker shows which bucket this game's consensus falls into."/>
+    </button>
+    {standardOpen&&<div style={{padding:'12px 20px'}}>
+      {BET_TYPES.map(bt=>{
+        const sd=ratioHistory[game.sport]?.[bt],ad=ratioHistory['All']?.[bt];
+        const hasSport=sd&&Object.keys(sd).length,hasAll=ad&&Object.keys(ad).length;
+        const cr=currentGameRatios[bt],isRelevant=relevantBetTypes.has(bt),isExpanded=!!expandedStd[bt];
+        if(!hasSport&&!hasAll&&!cr?.label)return null;
+        return(<div key={bt} style={{marginBottom:'8px'}}>
+          <button onClick={()=>toggleStd(bt)} style={{display:'flex',alignItems:'center',gap:'6px',background:'none',border:'none',cursor:'pointer',padding:'2px 0',color:isRelevant?'#FFD700':'#BB8FCE',fontSize:'0.7rem',fontWeight:'700'}}>
+            <span style={{fontSize:'0.55rem',display:'inline-block',transform:isExpanded?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.15s'}}>▶</span>
+            {bt} {game.sport}
+          </button>
+          {isExpanded&&<div style={{marginTop:'4px',marginLeft:'12px'}}>
+            {cr?.label&&<ThisGameBadge ratio={cr}/>}
+            {hasSport&&<><div style={{fontSize:'0.7rem',color:'#BB8FCE',fontWeight:'600'}}>{bt} {game.sport}:</div><RatioRows data={sd} activeBucket={cr?.label} bucketList={COARSE_LABELS}/></>}
+            {hasAll&&<><div style={{fontSize:'0.7rem',color:'#888',fontWeight:'600',marginTop:'4px'}}>{bt} All:</div><RatioRows data={ad} activeBucket={cr?.label} bucketList={COARSE_LABELS}/></>}
+            {!hasSport&&!hasAll&&<div style={{fontSize:'0.7rem',color:'#888'}}>No history yet</div>}
+          </div>}
+        </div>);
+      })}
+    </div>}
+
+    <button onClick={()=>setVerboseOpen(o=>!o)} style={{width:'100%',display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'rgba(0,0,0,0.1)',border:'none',borderTop:'1px solid rgba(0,33,165,0.3)',cursor:'pointer',color:'#85C1E9',fontSize:'0.75rem',fontWeight:'700',textAlign:'left'}}>
+      <span style={{fontSize:'0.6rem',display:'inline-block',transform:verboseOpen?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.2s'}}>▶</span>
+      📊 CAPPER RATIO HISTORY VERBOSE
+      <InfoIcon text="5% buckets (50–100x10). 'These Cappers' only counts games with at least one capper from this game. Bottom half is the configurable lookback window."/>
+    </button>
+    {verboseOpen&&<div style={{padding:'12px 20px'}}>
+      {BET_TYPES.map(bt=>{
+        const cr=currentGameRatios[bt],isRelevant=relevantBetTypes.has(bt),isExpanded=!!expandedVrb[bt];
+        const sd=ratioHistoryVerbose[game.sport]?.[bt],scf=filterCapperData(ratioHistoryVerbose[`${game.sport}_cappers`]?.[bt],gameCappers);
+        const ad=ratioHistoryVerbose['All']?.[bt],acf=filterCapperData(ratioHistoryVerbose['All_cappers']?.[bt],gameCappers);
+        const sdL=ratioHistoryVerboseL30[game.sport]?.[bt],scfL=filterCapperData(ratioHistoryVerboseL30[`${game.sport}_cappers`]?.[bt],gameCappers);
+        const adL=ratioHistoryVerboseL30['All']?.[bt],acfL=filterCapperData(ratioHistoryVerboseL30['All_cappers']?.[bt],gameCappers);
+        const allSec=[
+          {key:'sport',label:`${bt} ${game.sport}`,data:sd,has:!!(sd&&Object.keys(sd).length)},
+          {key:'sportCap',label:`${bt} ${game.sport} These Cappers`,data:scf,has:!!scf},
+          {key:'all',label:`${bt} All Sports`,data:ad,has:!!(ad&&Object.keys(ad).length)},
+          {key:'allCap',label:`${bt} All Sports These Cappers`,data:acf,has:!!acf},
+        ];
+        const l30Sec=[
+          {key:'sport_l',label:`${bt} ${game.sport} L${l30Days}`,data:sdL,has:!!(sdL&&Object.keys(sdL).length)},
+          {key:'sportCap_l',label:`${bt} ${game.sport} These Cappers L${l30Days}`,data:scfL,has:!!scfL},
+          {key:'all_l',label:`${bt} All Sports L${l30Days}`,data:adL,has:!!(adL&&Object.keys(adL).length)},
+          {key:'allCap_l',label:`${bt} All Sports These Cappers L${l30Days}`,data:acfL,has:!!acfL},
+        ];
+        if(!allSec.some(s=>s.has)&&!l30Sec.some(s=>s.has)&&!cr?.verboseLabel)return null;
+        return(<div key={bt} style={{marginBottom:'8px'}}>
+          <button onClick={()=>toggleVrb(bt)} style={{display:'flex',alignItems:'center',gap:'6px',background:'none',border:'none',cursor:'pointer',padding:'2px 0',color:isRelevant?'#FFD700':'#85C1E9',fontSize:'0.7rem',fontWeight:'700'}}>
+            <span style={{fontSize:'0.55rem',display:'inline-block',transform:isExpanded?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.15s'}}>▶</span>
+            {bt} {game.sport}
+          </button>
+          {isExpanded&&<div style={{marginTop:'4px',marginLeft:'12px'}}>
+            {cr?.verboseLabel&&<ThisGameBadge ratio={{...cr,label:cr.verboseLabel}}/>}
+            {allSec.map(sec=>(
+              <div key={sec.key} style={{marginBottom:'4px'}}>
+                <div style={{fontSize:'0.7rem',color:sec.key.includes('Cap')?'rgba(255,255,255,0.6)':'#fff',fontWeight:'600',marginTop:'4px'}}>{sec.label}:</div>
+                {sec.has?<RatioRows data={sec.data} activeBucket={cr?.verboseLabel} bucketList={VERBOSE_BUCKET_LABELS}/>:<div style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.4)',marginLeft:'12px'}}>No history</div>}
+              </div>
+            ))}
+            <hr style={{border:'none',borderTop:'1px solid rgba(255,255,255,0.15)',margin:'10px 0'}}/>
+            {l30Sec.every(s=>!s.has)
+              ?<div style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.4)',marginLeft:'12px'}}>No L{l30Days} data</div>
+              :l30Sec.map(sec=>(
+                <div key={sec.key} style={{marginBottom:'4px'}}>
+                  <div style={{fontSize:'0.7rem',color:sec.key.includes('Cap')?'rgba(255,255,255,0.6)':'#fff',fontWeight:'600',marginTop:'4px'}}>{sec.label}:</div>
+                  {sec.has?<RatioRows data={sec.data} activeBucket={cr?.verboseLabel} bucketList={VERBOSE_BUCKET_LABELS}/>:<div style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.4)',marginLeft:'12px'}}>No history</div>}
+                </div>
+              ))
+            }
+          </div>}
+        </div>);
+      })}
+    </div>}
+  </div>);
+});
+
+const CapperCard=memo(({c})=>(
+  <div style={{display:'flex',flexDirection:'column',padding:'6px 10px',background:'#fff',border:`4px solid ${c.capperColor}`,borderRadius:'6px',color:'#000',minWidth:'140px'}}>
+    <div style={{fontWeight:'700',fontSize:'0.75rem',marginBottom:'4px',display:'flex',justifyContent:'space-between'}}>
+      <span>{c.capper}</span>{c.line&&<span style={{fontSize:'0.7rem',opacity:0.7}}>({c.line})</span>}
+    </div>
+    {c.betType&&<div style={{fontSize:'0.6rem',color:'#333',lineHeight:'1.4'}}>
+      <div><span style={{fontWeight:'600',color:'#0021A5'}}>{c.sport} {getBetTypeLabel(c.betType)}:</span> {formatRecord(c.sportRecord)} {c.sportRecord&&<span style={{fontFamily:'monospace',letterSpacing:'-1px'}}>{formatLast20(c.sportRecord)}</span>}</div>
+      <div><span style={{fontWeight:'600',color:'#666'}}>All {getBetTypeLabel(c.betType)}:</span> {formatRecord(c.allRecord)} {c.allRecord&&<span style={{fontFamily:'monospace',letterSpacing:'-1px'}}>{formatLast20(c.allRecord)}</span>}</div>
+    </div>}
+  </div>
+));
+
+const GameCard=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL30,l30Days})=>{
+  const colors=SPORT_COLORS[game.sport]||SPORT_COLORS.default;
+  const sides=Object.entries(game.sides);
+  const totalPicks=sides.reduce((s,[,sd])=>s+sd.cappers.length,0);
+  const maxCount=sides.reduce((mx,[,sd])=>Math.max(mx,sd.cappers.length),0);
+  const isFade=maxCount>=3;
+  return(<div style={{background:isFade?'linear-gradient(135deg,rgba(0,33,165,0.5),rgba(0,33,165,0.3))':'rgba(0,33,165,0.25)',borderRadius:'12px',border:isFade?'3px solid #0021A5':'2px solid rgba(0,33,165,0.4)',overflow:'hidden',boxShadow:isFade?'0 4px 20px rgba(0,33,165,0.4)':'none'}}>
+    <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'16px 20px',borderBottom:'1px solid rgba(0,33,165,0.4)',flexWrap:'wrap'}}>
+      <span style={{padding:'4px 10px',background:colors.bg,color:colors.text,borderRadius:'4px',fontSize:'0.75rem',fontWeight:'700'}}>{game.sport}</span>
+      <span style={{fontWeight:'600',fontSize:'1.1rem'}}>{game.game}</span>
+      <ConsensusLabel game={game}/>
+      {isFade&&<span style={{marginLeft:'auto',padding:'4px 12px',background:'linear-gradient(135deg,#0021A5,#001580)',borderRadius:'20px',fontSize:'0.75rem',fontWeight:'700',border:'2px solid #fff'}}>🎯 FADE ALERT</span>}
+    </div>
+    <CapperRatioHistory game={game} ratioHistory={ratioHistory} ratioHistoryVerbose={ratioHistoryVerbose} ratioHistoryVerboseL30={ratioHistoryVerboseL30} l30Days={l30Days}/>
+    <div style={{padding:'16px 20px'}}>
+      {sides.map(([side,sideData],si)=>{
+        const cappers=sideData.cappers,pct=Math.round((cappers.length/totalPicks)*100);
+        const isHeavy=cappers.length===maxCount&&cappers.length>=2;
+        const{wins,losses}=sideData,hasResults=wins>0||losses>0;
+        const sideBg=hasResults?(wins>losses?'rgba(144,238,144,0.25)':losses>wins?'rgba(255,107,107,0.25)':'transparent'):'transparent';
+        return(<div key={si} style={{marginBottom:si<sides.length-1?'16px':0,background:sideBg,borderRadius:'8px',padding:hasResults?'12px':'0'}}>
+          <div style={{display:'flex',alignItems:'flex-start',gap:'12px',marginBottom:'4px'}}>
+            <span style={{fontWeight:'600',color:isHeavy?'#FFD700':'#90EE90',minWidth:'140px',textShadow:'1px 1px 2px rgba(0,0,0,0.5)',paddingTop:'4px'}}>{side}</span>
+            <div style={{flex:1}}/>
+            <span style={{padding:'4px 10px',background:isHeavy?'rgba(255,215,0,0.3)':'rgba(144,238,144,0.2)',borderRadius:'4px',fontSize:'0.8rem',fontWeight:'600',color:isHeavy?'#FFD700':'#90EE90',border:`1px solid ${isHeavy?'#FFD700':'#90EE90'}`}}>{cappers.length} ({pct}%)</span>
+          </div>
+          {hasResults&&<div style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.9)',marginBottom:'8px',marginLeft:'140px'}}>
+            {wins>losses?<><span style={{color:'#90EE90'}}>{wins} winning</span>, <span style={{color:'#FF6B6B'}}>{losses} losing</span>{losses>0&&<span style={{color:'#FF6B6B'}}> ({sideData.losingCappers.join(', ')})</span>}</>:<><span style={{color:'#90EE90'}}>{wins} winning</span>{wins>0&&<span style={{color:'#90EE90'}}> ({sideData.winningCappers.join(', ')})</span>}, <span style={{color:'#FF6B6B'}}>{losses} losing</span></>}
+          </div>}
+          <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
+            <div style={{minWidth:'140px'}}/>
+            <div style={{display:'flex',gap:'6px',flexWrap:'wrap',flex:1}}>
+              {cappers.map((c,ci)=><CapperCard key={ci} c={c}/>)}
+            </div>
+          </div>
+        </div>);
+      })}
+    </div>
+  </div>);
+});
+
+function CapperConsensusTracker() {
+  const [picks,setPicks]=useState([]);
+  const [selectedSport,setSelectedSport]=useState('ALL');
+  const [selectedDate,setSelectedDate]=useState(null);
+  const [selectedCappers,setSelectedCappers]=useState([]);
+  const [capperFilterOpen,setCapperFilterOpen]=useState(false);
+  const [l30Input,setL30Input]=useState('30');
+  const [l30Days,setL30Days]=useState(30);
+  const [loading,setLoading]=useState(true);
+  const [loadError,setLoadError]=useState(null);
+  const [lastLoaded,setLastLoaded]=useState(null);
+
+  const capperColors=useMemo(()=>['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE','#85C1E9','#F8B500','#00CED1','#FF69B4','#32CD32','#FF8C00','#9370DB','#20B2AA','#FFB6C1','#87CEEB','#DEB887','#FA8072','#7B68EE','#00FA9A','#FF6347','#4682B4','#D2691E','#6495ED','#DC143C','#00BFFF','#228B22'],[]);
+
+  const parseCsv=useCallback((text,setDate)=>{
+    const lines=text.trim().split('\n');if(lines.length<2)return;
+    const headers=lines[0].split(',').map(h=>h.trim().toLowerCase());
+    const data=[];
+    for(let i=1;i<lines.length;i++){
+      const values=lines[i].split(',').map(v=>v.trim());
+      if(values.length>=4){const row={};headers.forEach((h,idx)=>{row[h]=values[idx]||'';});data.push(row);}
+    }
+    setPicks(data);
+    if(setDate){const dates=[...new Set(data.map(p=>p.date))].filter(Boolean).sort().reverse();if(dates.length>0)setSelectedDate(dates[0]);}
+  },[]);
+
+  // Auto-load CSV from data/master_sheet.csv
+  useEffect(()=>{
+    const loadCsv=async()=>{
+      try{
+        const response=await fetch('data/master_sheet.csv?t='+Date.now());
+        if(!response.ok)throw new Error('Failed to load CSV');
+        const text=await response.text();
+        parseCsv(text,true);
+        setLastLoaded(new Date().toLocaleString());
+      }catch(err){
+        setLoadError('Failed to load data: '+err.message);
+      }finally{
+        setLoading(false);
+      }
+    };
+    loadCsv();
+  },[parseCsv]);
+
+  const handleFileUpload=useCallback((e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{const text=ev.target.result;parseCsv(text,true);setLastLoaded(new Date().toLocaleString()+' (uploaded)');};
+    reader.readAsText(file);
+  },[parseCsv]);
+
+  const capperMap=useMemo(()=>{
+    const unique=[...new Set(picks.map(p=>p.capper))].filter(Boolean).sort();
+    const map={};unique.forEach((c,i)=>{map[c]={color:capperColors[i%capperColors.length]};});return map;
+  },[picks,capperColors]);
+
+  const sports=useMemo(()=>['ALL',...[...new Set(picks.map(p=>p.sport))].filter(s=>s&&!s.toUpperCase().startsWith('NCAA')).sort()],[picks]);
+  const dates=useMemo(()=>[...new Set(picks.map(p=>p.date))].filter(Boolean).sort().reverse(),[picks]);
+  const allCappers=useMemo(()=>[...new Set(picks.map(p=>p.capper))].filter(Boolean).sort(),[picks]);
+
+  const toggleCapper=useCallback((capper)=>{
+    setSelectedCappers(prev=>prev.includes(capper)?prev.filter(c=>c!==capper):[...prev,capper]);
+  },[]);
+
+  const getCapperRecords=useMemo(()=>{
+    const records={};
+    picks.forEach(pick=>{
+      if(!pick.result||!pick.capper)return;
+      const bt=getBetType(pick.line);if(!bt)return;
+      const{capper,sport,result}=pick,r=result.toLowerCase();
+      if(!records[capper])records[capper]={all:{},bySport:{}};
+      if(!records[capper].all[bt])records[capper].all[bt]={wins:0,losses:0,pushes:0,last20:[]};
+      if(!records[capper].bySport[sport])records[capper].bySport[sport]={};
+      if(!records[capper].bySport[sport][bt])records[capper].bySport[sport][bt]={wins:0,losses:0,pushes:0,last20:[]};
+      const aR=records[capper].all[bt],sR=records[capper].bySport[sport][bt];
+      if(r==='win'){aR.wins++;sR.wins++;aR.last20.push('w');sR.last20.push('w');}
+      else if(r==='lose'){aR.losses++;sR.losses++;aR.last20.push('l');sR.last20.push('l');}
+      else if(r==='push'){aR.pushes++;sR.pushes++;aR.last20.push('_');sR.last20.push('_');}
+      if(aR.last20.length>20)aR.last20=aR.last20.slice(-20);
+      if(sR.last20.length>20)sR.last20=sR.last20.slice(-20);
+    });
+    return records;
+  },[picks]);
+
+  const getCapperRatioHistory=useMemo(()=>{
+    const history={All:{Fav:{},Dog:{},Over:{},Under:{}}};
+    const gameGroups={};
+    picks.forEach(pick=>{
+      if(!pick.result||!pick.game)return;
+      const res=pick.result.toLowerCase();if(res!=='win'&&res!=='lose')return;
+      const bt=getBetType(pick.line);if(!bt)return;
+      const key=`${pick.date}-${pick.game}`;
+      if(!gameGroups[key])gameGroups[key]={sport:pick.sport,fav:[],dog:[],over:[],under:[]};
+      const g=gameGroups[key];
+      if(bt==='Over')g.over.push(res);else if(bt==='Under')g.under.push(res);
+      else if(bt==='Fav')g.fav.push(res);else if(bt==='Dog')g.dog.push(res);
+      else if(bt==='ML')(pick.line?.includes('-')?g.fav:g.dog).push(res);
+    });
+    Object.values(gameGroups).forEach(g=>{
+      const sport=g.sport;if(!history[sport])history[sport]={Fav:{},Dog:{},Over:{},Under:{}};
+      const process=(heavy,heavyBt,lightLen)=>{
+        const total=heavy.length+lightLen,label=getRatioLabel(heavy.length,total);if(!label)return;
+        const w=heavy.filter(r=>r==='win').length,l=heavy.filter(r=>r==='lose').length;if(w===l)return;
+        const win=w>l;
+        ['All',sport].forEach(s=>{if(!history[s])history[s]={Fav:{},Dog:{},Over:{},Under:{}};if(!history[s][heavyBt][label])history[s][heavyBt][label]={wins:0,losses:0};if(win)history[s][heavyBt][label].wins++;else history[s][heavyBt][label].losses++;});
+      };
+      if(g.fav.length>g.dog.length&&g.fav.length>0)process(g.fav,'Fav',g.dog.length);
+      else if(g.dog.length>g.fav.length&&g.dog.length>0)process(g.dog,'Dog',g.fav.length);
+      if(g.over.length>g.under.length&&g.over.length>0)process(g.over,'Over',g.under.length);
+      else if(g.under.length>g.over.length&&g.under.length>0)process(g.under,'Under',g.over.length);
+    });
+    return history;
+  },[picks]);
+
+  const getCapperRatioHistoryVerbose=useMemo(()=>buildVerboseHistory(picks),[picks]);
+
+  const getCapperRatioHistoryVerboseL30=useMemo(()=>{
+    if(!selectedDate)return{};
+    const cutoff=new Date(selectedDate);cutoff.setDate(cutoff.getDate()-l30Days);
+    const cutoffStr=cutoff.toISOString().slice(0,10);
+    return buildVerboseHistory(picks.filter(p=>p.date<selectedDate&&p.date>=cutoffStr));
+  },[picks,selectedDate,l30Days]);
+
+  const filteredPicks=useMemo(()=>picks.filter(p=>{
+    if(selectedSport!=='ALL'&&p.sport!==selectedSport)return false;
+    if(selectedDate&&p.date!==selectedDate)return false;
+    return true;
+  }),[picks,selectedSport,selectedDate]);
+
+  const gameConsensus=useMemo(()=>{
+    const games={};
+    filteredPicks.forEach(pick=>{
+      const gameKey=pick.game||`${pick.pick} game`;
+      if(!games[gameKey])games[gameKey]={game:gameKey,sport:pick.sport,sides:{},picks:[],spread:pick.spread||'',cappers:new Set()};
+      if(pick.spread&&!games[gameKey].spread)games[gameKey].spread=pick.spread;
+      const side=pick.side||pick.pick;
+      if(!games[gameKey].sides[side])games[gameKey].sides[side]={cappers:[],wins:0,losses:0,winningCappers:[],losingCappers:[]};
+      const bt=getBetType(pick.line),capRec=getCapperRecords[pick.capper];
+      games[gameKey].sides[side].cappers.push({capper:pick.capper,line:pick.line,pick:pick.pick,capperColor:capperMap[pick.capper]?.color||'#888',betType:bt,sport:pick.sport,sportRecord:capRec?.bySport[pick.sport]?.[bt]||null,allRecord:capRec?.all[bt]||null,result:pick.result?.toLowerCase()||null});
+      const res=pick.result?.toLowerCase();
+      if(res==='win'){games[gameKey].sides[side].wins++;games[gameKey].sides[side].winningCappers.push(pick.capper);}
+      else if(res==='lose'){games[gameKey].sides[side].losses++;games[gameKey].sides[side].losingCappers.push(pick.capper);}
+      games[gameKey].picks.push(pick);games[gameKey].cappers.add(pick.capper);
+    });
+    Object.values(games).forEach(game=>{
+      Object.keys(game.sides).forEach(s=>game.sides[s].cappers.sort((a,b)=>a.capper.localeCompare(b.capper)));
+      const sc=Object.entries(game.sides).map(([s,d])=>({side:s,count:d.cappers.length})).sort((a,b)=>b.count-a.count);
+      const total=sc.reduce((s,x)=>s+x.count,0),maj=sc[0];
+      if(maj){
+        const mp=game.picks.filter(p=>(p.side||p.pick)===maj.side&&p.spread);
+        const nums=mp.map(p=>{const m=p.spread.match(/([+-]?\d+\.?\d*)/);return m?parseFloat(m[1]):null;}).filter(n=>n!==null).sort((a,b)=>a-b);
+        const fmt=n=>n>0?`+${n}`:`${n}`;
+        game.consensusSide=maj.side;game.consensusRatio=total>0?Math.round((maj.count/total)*100):0;
+        game.consensusSpreadRange=nums.length>0?(nums[0]===nums[nums.length-1]?fmt(nums[0]):`${fmt(nums[0])} to ${fmt(nums[nums.length-1])}`): '';
+        game.consensusTotalCappers=total;game.consensusSideCount=maj.count;
+      }
+    });
+    let filtered=Object.values(games);
+    if(selectedCappers.length>0)filtered=filtered.filter(g=>selectedCappers.some(c=>g.cappers.has(c)));
+    return filtered.sort((a,b)=>b.picks.length-a.picks.length);
+  },[filteredPicks,capperMap,selectedCappers,getCapperRecords]);
+
+  const applyL30=useCallback(()=>{const v=parseInt(l30Input);if(!isNaN(v)&&v>0)setL30Days(v);},[l30Input]);
+
+  const answerKey = useMemo(() => {
+    return gameConsensus.map(game => {
+      const gameTeams = parseGameTeams(game.game);
+      const { sideCounts, overCount, underCount } = classifySides(game.sides, gameTeams);
+      const sideEntries = Object.entries(sideCounts);
+      let consensusBt = null;
+      let verboseLabel = null;
+
+      if (sideEntries.length > 0) {
+        const totalSide = sideEntries.reduce((s,[,c])=>s+c,0);
+        const effectiveTotal = Math.max(totalSide, totalSide+overCount+underCount);
+        const [heavySideName, heavyCount] = sideEntries.reduce((a,b)=>b[1]>a[1]?b:a);
+        const spread = game.spread||'';
+        const spreadNum = parseFloat((spread.match(/([+-]?\d+\.?\d*)/)||[])[1]);
+        const lastToken = heavySideName.trim().split(/\s+/).pop().toLowerCase();
+        const spreadLower = spread.toLowerCase();
+        let isFav;
+        if (spreadLower.includes(lastToken)) {
+          const after = spreadLower.slice(spreadLower.indexOf(lastToken)+lastToken.length);
+          isFav = after.includes('-')||(!after.includes('+')&&!isNaN(spreadNum)&&spreadNum<0);
+        } else { isFav = !isNaN(spreadNum)&&spreadNum<0; }
+        consensusBt = isFav?'Fav':'Dog';
+        verboseLabel = getVerboseRatioLabel(heavyCount, effectiveTotal);
+      }
+      if (!consensusBt && overCount+underCount>0) {
+        consensusBt = overCount>=underCount?'Over':'Under';
+        const hc = consensusBt==='Over'?overCount:underCount;
+        verboseLabel = getVerboseRatioLabel(hc, overCount+underCount);
+      }
+      if (!verboseLabel) return null;
+
+      const gameCappers = new Set(game.picks.map(p=>p.capper));
+      const bt = consensusBt;
+
+      const l30Data = [
+        getCapperRatioHistoryVerboseL30[game.sport]?.[bt],
+        filterCapperData(getCapperRatioHistoryVerboseL30[`${game.sport}_cappers`]?.[bt], gameCappers),
+        getCapperRatioHistoryVerboseL30['All']?.[bt],
+        filterCapperData(getCapperRatioHistoryVerboseL30['All_cappers']?.[bt], gameCappers),
+      ];
+
+      const sectionLabels = [
+        `${game.sport} L${l30Days}`,
+        `${game.sport} These Cappers L${l30Days}`,
+        `All Sports L${l30Days}`,
+        `All Sports These Cappers L${l30Days}`,
+      ];
+      const rates = [];
+      l30Data.forEach((data, si) => {
+        if (!data) return;
+        const entry = data[verboseLabel];
+        if (!entry) return;
+        const total = entry.wins + entry.losses;
+        if (total === 0) return;
+        if (total >= 5) rates.push({ pct: Math.round(entry.wins / total * 100), wins: entry.wins, losses: entry.losses, section: sectionLabels[si] });
+      });
+
+      if (rates.length === 0) return null;
+
+      const mostExtreme = rates.reduce((best, r) => Math.abs(r.pct-50) > Math.abs(best.pct-50) ? r : best, rates[0]);
+
+      return { game: game.game, bt, verboseLabel, mostExtreme, totalGames: rates.length, consensusSideCount: game.consensusSideCount, consensusTotalCappers: game.consensusTotalCappers };
+    }).filter(item => item && item.mostExtreme.wins + item.mostExtreme.losses >= 5)
+    .sort((a,b) => Math.abs(b.mostExtreme.pct-50) - Math.abs(a.mostExtreme.pct-50));
+  }, [gameConsensus, getCapperRatioHistoryVerboseL30, l30Days]);
+
+  return(<div style={{minHeight:'100vh',background:'linear-gradient(135deg,#FA4616 0%,#d63a0f 40%,#0021A5 100%)',fontFamily:"'Segoe UI',system-ui,sans-serif",color:'#fff',padding:'20px'}}>
+    <div style={{textAlign:'center',marginBottom:'30px',padding:'20px',background:'rgba(0,33,165,0.3)',borderRadius:'16px',border:'2px solid rgba(0,33,165,0.5)'}}>
+      <h1 style={{fontSize:'2.5rem',fontWeight:'800',background:'linear-gradient(90deg,#fff,#0021A5,#fff)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',marginBottom:'8px'}}>🎯 FADE FINDER</h1>
+      <p style={{color:'rgba(255,255,255,0.8)',fontSize:'0.9rem',margin:0}}>Capper Consensus Tracker</p>
+    </div>
+
+    <div style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
+      <div style={{display:'flex',gap:'16px',alignItems:'center',flexWrap:'wrap'}}>
+        <label style={{display:'inline-block',padding:'12px 24px',background:'linear-gradient(135deg,#0021A5,#001a8c)',borderRadius:'8px',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem',boxShadow:'0 4px 15px rgba(0,33,165,0.5)',border:'2px solid rgba(255,255,255,0.3)'}}>
+          📁 Upload CSV (override)<input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}}/>
+        </label>
+        {lastLoaded&&<span style={{color:'rgba(255,255,255,0.7)',fontSize:'0.85rem'}}>Last updated: {lastLoaded}</span>}
+        {loadError&&<span style={{color:'#FF6B6B',fontSize:'0.85rem'}}>❌ {loadError}</span>}
+      </div>
+      {loading&&<div style={{marginTop:'12px',color:'#FFD700',fontSize:'0.85rem'}}>⏳ Loading data...</div>}
+      {picks.length>0&&<div style={{marginTop:'12px',color:'#90EE90',fontSize:'0.85rem',fontWeight:'600'}}>✓ Loaded {picks.length} picks from {Object.keys(capperMap).length} cappers</div>}
+    </div>
+
+    {picks.length>0&&<div style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
+      <div style={{display:'flex',gap:'16px',marginBottom:'16px',flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div>
+          <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>SPORT</label>
+          <select value={selectedSport} onChange={e=>setSelectedSport(e.target.value)} style={{padding:'10px 16px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',cursor:'pointer'}}>
+            {sports.map(s=><option key={s} value={s} style={{background:'#0021A5'}}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>DATE</label>
+          <select value={selectedDate||''} onChange={e=>setSelectedDate(e.target.value)} style={{padding:'10px 16px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',cursor:'pointer'}}>
+            {dates.map(d=><option key={d} value={d} style={{background:'#0021A5'}}>{d}</option>)}
+          </select>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <label style={{color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600',whiteSpace:'nowrap'}}>VERBOSE L</label>
+          <input type="number" min="1" max="365" value={l30Input} onChange={e=>setL30Input(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')applyL30();}}
+            style={{width:'60px',padding:'10px 8px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+          <label style={{color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>DAYS</label>
+          <button onClick={applyL30} style={{padding:'10px 16px',background:'linear-gradient(135deg,#0021A5,#001a8c)',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'8px',color:'#fff',fontSize:'0.8rem',fontWeight:'700',cursor:'pointer'}}>↻ Apply</button>
+          <span style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.5)'}}>L{l30Days}</span>
+        </div>
+        <div style={{marginLeft:'auto'}}>
+          <div style={{padding:'10px 20px',background:'rgba(0,33,165,0.4)',borderRadius:'8px',border:'2px solid rgba(0,33,165,0.6)',color:'#fff',fontWeight:'600'}}>{filteredPicks.length} picks • {gameConsensus.length} games</div>
+        </div>
+      </div>
+      <div>
+        <button onClick={()=>setCapperFilterOpen(o=>!o)} style={{display:'flex',alignItems:'center',gap:'8px',background:'none',border:'none',cursor:'pointer',padding:'2px 0',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600',marginBottom:capperFilterOpen?'10px':'0'}}>
+          <span style={{fontSize:'0.6rem',display:'inline-block',transform:capperFilterOpen?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.2s'}}>▶</span>
+          FILTER BY CAPPER
+          {selectedCappers.length>0&&<span style={{fontSize:'0.8rem',color:'#90EE90'}}>({selectedCappers.length} selected)</span>}
+        </button>
+        {capperFilterOpen&&<>
+          <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'10px'}}>
+            <button onClick={()=>setSelectedCappers([...allCappers])} style={{padding:'4px 12px',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'4px',color:'#fff',fontSize:'0.75rem',cursor:'pointer'}}>Select All</button>
+            <button onClick={()=>setSelectedCappers([])} style={{padding:'4px 12px',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'4px',color:'#fff',fontSize:'0.75rem',cursor:'pointer'}}>Clear</button>
+          </div>
+          <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+            {allCappers.map(capper=>{const isSel=selectedCappers.includes(capper),color=capperMap[capper]?.color||'#888';
+              return<button key={capper} onClick={()=>toggleCapper(capper)} style={{padding:'6px 12px',background:isSel?'#fff':'transparent',border:`3px solid ${color}`,borderRadius:'6px',color:isSel?'#000':'#fff',fontSize:'0.75rem',fontWeight:'600',cursor:'pointer',opacity:isSel?1:0.7,transition:'all 0.2s'}}>{capper}</button>;})}
+          </div>
+        </>}
+      </div>
+    </div>}
+
+    {picks.length>0&&selectedCappers.length>0&&<div style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
+      <div style={{fontSize:'0.9rem',fontWeight:'600',marginBottom:'16px'}}>📋 SELECTED CAPPER PICKS ({selectedCappers.length} capper{selectedCappers.length>1?'s':''})</div>
+      {[...selectedCappers].sort().map(capperName=>{
+        const capperPicks=filteredPicks.filter(p=>p.capper===capperName).sort((a,b)=>a.sport!==b.sport?a.sport.localeCompare(b.sport):a.game!==b.game?a.game.localeCompare(b.game):a.pick.localeCompare(b.pick));
+        const color=capperMap[capperName]?.color||'#888',capRec=getCapperRecords[capperName];
+        return(<div key={capperName} style={{marginBottom:'16px'}}>
+          <div style={{display:'inline-block',padding:'6px 12px',background:'#fff',border:`4px solid ${color}`,borderRadius:'6px',fontWeight:'600',fontSize:'0.85rem',color:'#000',marginBottom:'8px'}}>{capperName} ({capperPicks.length} pick{capperPicks.length!==1?'s':''})</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginLeft:'8px'}}>
+            {capperPicks.map((pick,idx)=>{
+              const bt=getBetType(pick.line),sRec=capRec?.bySport[pick.sport]?.[bt]||null,aRec=capRec?.all[bt]||null;
+              return(<div key={idx} style={{padding:'6px 10px',background:'#fff',border:`3px solid ${color}`,borderRadius:'6px',color:'#000',minWidth:'160px'}}>
+                <div style={{fontWeight:'700',fontSize:'0.75rem',marginBottom:'4px'}}>
+                  <span style={{color:'#0021A5',marginRight:'4px'}}>{pick.sport}</span>{pick.pick}{pick.line&&<span style={{opacity:0.7}}> ({pick.line})</span>}
+                </div>
+                {bt&&<div style={{fontSize:'0.6rem',color:'#333',lineHeight:'1.4'}}>
+                  <div><span style={{fontWeight:'600',color:'#0021A5'}}>{pick.sport} {getBetTypeLabel(bt)}:</span> {formatRecord(sRec)} {sRec&&<span style={{fontFamily:'monospace',letterSpacing:'-1px'}}>{formatLast20(sRec)}</span>}</div>
+                  <div><span style={{fontWeight:'600',color:'#666'}}>All {getBetTypeLabel(bt)}:</span> {formatRecord(aRec)} {aRec&&<span style={{fontFamily:'monospace',letterSpacing:'-1px'}}>{formatLast20(aRec)}</span>}</div>
+                </div>}
+              </div>);
+            })}
+          </div>
+        </div>);
+      })}
+    </div>}
+
+    {picks.length>0&&answerKey.length>0&&<div style={{background:'rgba(0,0,0,0.3)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(255,215,0,0.3)'}}>
+      <div style={{fontSize:'0.9rem',fontWeight:'700',marginBottom:'12px',color:'#FFD700',display:'flex',alignItems:'center',gap:'8px'}}>
+        🤫 SHH ANSWER KEY
+        <span style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.5)',fontWeight:'400'}}>— most extreme L{l30Days} win% at consensus bucket</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+        {answerKey.map((item,i) => {
+          const winPct = item.mostExtreme.pct;
+          const { wins, losses } = item.mostExtreme;
+          const isHot = winPct >= 60;
+          const isCold = winPct <= 40;
+          const color = isHot ? '#90EE90' : isCold ? '#FF6B6B' : 'rgba(255,255,255,0.85)';
+          return (
+            <div key={i} style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                <span style={{color:'#FFD700',fontSize:'0.75rem'}}>•</span>
+                <button
+                  onClick={()=>{ const idx=gameConsensus.findIndex(g=>g.game===item.game); const el=document.getElementById(`game-card-${idx}`); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }}
+                  style={{background:'none',border:'none',cursor:'pointer',color:'#85C1E9',fontSize:'0.8rem',fontWeight:'600',textDecoration:'underline',textAlign:'left',padding:0}}>
+                  {item.game}
+                </button>
+                <span style={{fontSize:'0.8rem',fontWeight:'700',color}}>{wins}-{losses} · {winPct}%</span>
+                {(item.mostExtreme.wins + item.mostExtreme.losses === 1) && <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.35)'}}>1 game</span>}
+              </div>
+              <div style={{paddingLeft:'28px',fontSize:'0.7rem',color:'rgba(255,255,255,0.5)'}}>
+                {item.bt} · {item.verboseLabel} · {item.consensusSideCount}/{item.consensusTotalCappers} · {item.mostExtreme.section}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>}
+
+    {picks.length===0&&!loading
+      ?<div style={{textAlign:'center',padding:'60px 20px',background:'rgba(0,33,165,0.25)',borderRadius:'16px',border:'2px dashed rgba(0,33,165,0.5)'}}>
+        <div style={{fontSize:'4rem',marginBottom:'16px'}}>📊</div>
+        <h2 style={{color:'#fff',fontWeight:'400',margin:'0 0 8px 0'}}>No data loaded</h2>
+      </div>
+      :loading
+        ?<div style={{textAlign:'center',padding:'60px 20px',background:'rgba(0,33,165,0.25)',borderRadius:'16px',border:'2px dashed rgba(0,33,165,0.5)'}}>
+          <div style={{fontSize:'4rem',marginBottom:'16px'}}>⏳</div>
+          <h2 style={{color:'#fff',fontWeight:'400'}}>Loading...</h2>
+        </div>
+        :<div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+          {gameConsensus.map((game,idx)=>(
+            <div key={`${game.game}-${idx}`} id={`game-card-${idx}`}>
+              <GameCard game={game} ratioHistory={getCapperRatioHistory} ratioHistoryVerbose={getCapperRatioHistoryVerbose} ratioHistoryVerboseL30={getCapperRatioHistoryVerboseL30} l30Days={l30Days}/>
+            </div>
+          ))}
+        </div>
+    }
+
+    {picks.length>0&&<div style={{marginTop:'32px',padding:'16px 20px',background:'rgba(0,33,165,0.25)',borderRadius:'12px',border:'2px solid rgba(0,33,165,0.4)',display:'flex',gap:'24px',flexWrap:'wrap',fontSize:'0.85rem'}}>
+      {[['w','Win'],['l','Loss'],['_','Push']].map(([k,v])=>(
+        <div key={k} style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <span style={{fontFamily:'monospace',background:'rgba(255,255,255,0.2)',padding:'2px 6px',borderRadius:'4px'}}>{k}</span>
+          <span style={{color:'rgba(255,255,255,0.9)'}}>= {v}</span>
+        </div>
+      ))}
+      <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+        <span style={{padding:'2px 8px',background:'linear-gradient(135deg,#0021A5,#001580)',borderRadius:'12px',fontSize:'0.7rem',fontWeight:'700',border:'2px solid #fff'}}>🎯 FADE ALERT</span>
+        <span style={{color:'rgba(255,255,255,0.9)'}}>= 3+ cappers on one side</span>
+      </div>
+    </div>}
+  </div>);
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<CapperConsensusTracker />);
+  </script>
+</body>
+</html>
