@@ -15,7 +15,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-const { useState, useMemo, useEffect, useCallback, memo } = React;
+const { useState, useMemo, useEffect, useCallback, useRef, memo } = React;
 
 function getBetType(line) {
   if (!line) return null;
@@ -183,7 +183,7 @@ const ThisGameBadge=memo(({ratio})=>{
   </div>);
 });
 
-const CapperRatioHistory=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL30,l30Days})=>{
+const CapperRatioHistory=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL30,l30Days,verboseSetters})=>{
   const[standardOpen,setStandardOpen]=useState(true);
   const[verboseOpen,setVerboseOpen]=useState(false);
   const[expandedStd,setExpandedStd]=useState({});
@@ -323,7 +323,7 @@ const CapperCard=memo(({c})=>(
   </div>
 ));
 
-const GameCard=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL30,l30Days})=>{
+const GameCard=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL30,l30Days,verboseSetters})=>{
   const colors=SPORT_COLORS[game.sport]||SPORT_COLORS.default;
   const sides=Object.entries(game.sides);
   const totalPicks=sides.reduce((s,[,sd])=>s+sd.cappers.length,0);
@@ -336,7 +336,7 @@ const GameCard=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL
       <ConsensusLabel game={game}/>
       {isFade&&<span style={{marginLeft:'auto',padding:'4px 12px',background:'linear-gradient(135deg,#0021A5,#001580)',borderRadius:'20px',fontSize:'0.75rem',fontWeight:'700',border:'2px solid #fff'}}>🎯 FADE ALERT</span>}
     </div>
-    <CapperRatioHistory game={game} ratioHistory={ratioHistory} ratioHistoryVerbose={ratioHistoryVerbose} ratioHistoryVerboseL30={ratioHistoryVerboseL30} l30Days={l30Days}/>
+    <CapperRatioHistory game={game} ratioHistory={ratioHistory} ratioHistoryVerbose={ratioHistoryVerbose} ratioHistoryVerboseL30={ratioHistoryVerboseL30} l30Days={l30Days} verboseSetters={verboseSetters}/>
     <div style={{padding:'16px 20px'}}>
       {sides.map(([side,sideData],si)=>{
         const cappers=sideData.cappers,pct=Math.round((cappers.length/totalPicks)*100);
@@ -366,6 +366,7 @@ const GameCard=memo(({game,ratioHistory,ratioHistoryVerbose,ratioHistoryVerboseL
 
 function CapperConsensusTracker() {
   const [picks,setPicks]=useState([]);
+  const verboseSetters=useRef({});
   const [selectedSport,setSelectedSport]=useState('ALL');
   const [selectedDate,setSelectedDate]=useState(null);
   const [selectedCappers,setSelectedCappers]=useState([]);
@@ -375,6 +376,7 @@ function CapperConsensusTracker() {
   const [loading,setLoading]=useState(true);
   const [loadError,setLoadError]=useState(null);
   const [lastLoaded,setLastLoaded]=useState(null);
+  const [storageStatus,setStorageStatus]=useState('checking');
 
   const capperColors=useMemo(()=>['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE','#85C1E9','#F8B500','#00CED1','#FF69B4','#32CD32','#FF8C00','#9370DB','#20B2AA','#FFB6C1','#87CEEB','#DEB887','#FA8072','#7B68EE','#00FA9A','#FF6347','#4682B4','#D2691E','#6495ED','#DC143C','#00BFFF','#228B22'],[]);
 
@@ -390,17 +392,21 @@ function CapperConsensusTracker() {
     if(setDate){const dates=[...new Set(data.map(p=>p.date))].filter(Boolean).sort().reverse();if(dates.length>0)setSelectedDate(dates[0]);}
   },[]);
 
-  // Auto-load CSV from data/master_sheet.csv
+  // Auto-load CSV - works on GitHub Pages and locally
   useEffect(()=>{
     const loadCsv=async()=>{
       try{
-        const response=await fetch('data/master_sheet.csv?t='+Date.now());
+        const basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
+        const csvPath = basePath + '/data/master_sheet.csv';
+        const response=await fetch(csvPath + '?t='+Date.now());
         if(!response.ok)throw new Error('Failed to load CSV');
         const text=await response.text();
         parseCsv(text,true);
         setLastLoaded(new Date().toLocaleString());
+        setStorageStatus('loaded');
       }catch(err){
         setLoadError('Failed to load data: '+err.message);
+        setStorageStatus('empty');
       }finally{
         setLoading(false);
       }
@@ -590,7 +596,7 @@ function CapperConsensusTracker() {
       const mostExtreme = rates.reduce((best, r) => Math.abs(r.pct-50) > Math.abs(best.pct-50) ? r : best, rates[0]);
 
       return { game: game.game, bt, verboseLabel, mostExtreme, totalGames: rates.length, consensusSideCount: game.consensusSideCount, consensusTotalCappers: game.consensusTotalCappers };
-    }).filter(item => item && item.mostExtreme.wins + item.mostExtreme.losses >= 5)
+    }).filter(item => item && item.consensusSideCount >= 5 && item.mostExtreme.wins + item.mostExtreme.losses >= 5)
     .sort((a,b) => Math.abs(b.mostExtreme.pct-50) - Math.abs(a.mostExtreme.pct-50));
   }, [gameConsensus, getCapperRatioHistoryVerboseL30, l30Days]);
 
@@ -728,7 +734,7 @@ function CapperConsensusTracker() {
         :<div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
           {gameConsensus.map((game,idx)=>(
             <div key={`${game.game}-${idx}`} id={`game-card-${idx}`}>
-              <GameCard game={game} ratioHistory={getCapperRatioHistory} ratioHistoryVerbose={getCapperRatioHistoryVerbose} ratioHistoryVerboseL30={getCapperRatioHistoryVerboseL30} l30Days={l30Days}/>
+              <GameCard game={game} ratioHistory={getCapperRatioHistory} ratioHistoryVerbose={getCapperRatioHistoryVerbose} ratioHistoryVerboseL30={getCapperRatioHistoryVerboseL30} l30Days={l30Days} verboseSetters={verboseSetters}/>
             </div>
           ))}
         </div>
