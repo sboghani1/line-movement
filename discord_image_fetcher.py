@@ -52,6 +52,7 @@ MASTER_SHEET = "master_sheet"
 NBA_SCHEDULE_SHEET = "nba_schedule"
 CBB_SCHEDULE_SHEET = "cbb_schedule"
 NHL_SCHEDULE_SHEET = "nhl_schedule"
+MANUAL_PICKS_QUEUE_SHEET = "manual_picks_queue"
 
 # CSV columns for picks
 PICKS_COLUMNS = [
@@ -259,6 +260,27 @@ def get_or_create_picks_worksheet(spreadsheet, sheet_name: str):
         # Row 3: column headers
         worksheet.append_row(PICKS_COLUMNS)
     return worksheet
+
+
+def get_known_cappers(spreadsheet) -> List[str]:
+    """Get list of known capper names from finalized_picks.
+
+    Returns unique capper names to help normalize manual queue cappers.
+    """
+    try:
+        worksheet = spreadsheet.worksheet(FINALIZED_PICKS_SHEET)
+        all_values = worksheet.get_all_values()
+        # Data starts at row 4 (0-indexed: row 3+)
+        # Column B (index 1) is capper
+        cappers = set()
+        for row in all_values[3:]:
+            if len(row) > 1 and row[1]:
+                capper = row[1].strip()
+                if capper and capper.lower() not in ("capper", "unknown"):
+                    cappers.add(capper)
+        return sorted(cappers)
+    except gspread.WorksheetNotFound:
+        return []
 
 
 def get_schedule_for_date(spreadsheet, sheet_name: str, target_date: str) -> List[dict]:
@@ -883,21 +905,40 @@ OUTPUT (CSV rows only, no headers, no explanation):"""
     return prompt
 
 
-def build_stage2_prompt(rows_to_finalize: List[str], schedule_data: dict) -> str:
+def build_stage2_prompt(
+    rows_to_finalize: List[str],
+    schedule_data: dict,
+    known_cappers: Optional[List[str]] = None,
+) -> str:
     """Build the Stage 2 finalization prompt.
 
     Args:
         rows_to_finalize: List of CSV row strings to finalize
         schedule_data: Dict with 'nba', 'cbb', 'nhl' schedule strings
+        known_cappers: Optional list of known capper names for normalization
 
     Returns:
         The full prompt string
     """
     rows_section = "\n".join(rows_to_finalize)
 
+    # Build known cappers section if provided
+    cappers_section = ""
+    if known_cappers:
+        cappers_section = f"""
+KNOWN CAPPERS (normalize capper names to these if similar):
+{chr(10).join(f"- {c}" for c in known_cappers)}
+
+CAPPER NORMALIZATION RULES:
+- If input capper name is similar to a known capper (case-insensitive, partial match, or close spelling), use the EXACT known capper name
+- Examples: "anthony walters" → "Anthony Walters", "A. Walters" → "Anthony Walters", "walters" → "Anthony Walters"
+- If no match found, keep the original capper name (properly capitalized)
+"""
+
     prompt = f"""Finalize these parsed betting picks by filling in the 'game', 'spread', and 'side' columns based on the scheduled games.
 
 COLUMN ORDER: date,capper,sport,pick,line,game,spread,side,result
+{cappers_section}
 
 CRITICAL RULES:
 1. FIX pick column: If pick contains "@" (game format) OR is an abbreviation, it's WRONG. Use FULL team name:
@@ -1384,6 +1425,350 @@ def backfill_ocr(worksheet):
     print(f"\n✅ Backfilled OCR for {len(rows_needing_ocr)} rows")
 
 
+def process_manual_picks_queue(spreadsheet):
+    """Process manual picks from the manual_picks_queue sheet.
+
+    Columns in manual_picks_queue (row 3 = headers, row 4+ = data):
+    A: timestamp, B: message_sent_at, C: capper_name, D: manual_text,
+    E: image_url, F: image (skip), G: ocr_text, H: stage
+
+    Stage values:
+    - empty: needs processing
+    - about_to_finalize: OCR done, ready for Stage 1/2
+    - finalized: fully processed
+
+    This function:
+    1. Reads rows where stage is empty
+    2. Uses manual_text as OCR text, or runs OCR on image_url
+    3. Updates ocr_text and sets stage to "about_to_finalize"
+    4. Runs Stage 1 (parse to parsed_picks) on those rows
+    5. Runs Stage 2 (finalize with known cappers)
+    6. Updates stage to "finalized"
+    """
+    eastern = ZoneInfo("America/New_York")
+    now_eastern = datetime.now(eastern)
+
+    # Get manual_picks_queue worksheet
+    try:
+        manual_ws = spreadsheet.worksheet(MANUAL_PICKS_QUEUE_SHEET)
+    except gspread.WorksheetNotFound:
+        print("No manual_picks_queue sheet found, skipping manual processing")
+        return
+
+    # Get all rows (row 3 = headers, row 4+ = data)
+    all_values = manual_ws.get_all_values()
+    if len(all_values) < 4:
+        print("No rows in manual_picks_queue to process")
+        return
+
+    data_rows = all_values[3:]  # Starting from row 4 (0-indexed: 3)
+
+    # Track stats
+    stats = {
+        "ocr_count": 0,
+        "text_count": 0,
+        "stage1_parsed": 0,
+        "stage2_finalized": 0,
+    }
+
+    # Step 1: Find rows needing OCR/text extraction
+    rows_needing_processing = []  # (row_idx, capper, date, manual_text, image_url)
+    for i, row in enumerate(data_rows, start=4):  # Row 4 = first data row
+        # Pad row to 8 columns
+        row = row + [""] * (8 - len(row))
+        stage = row[7].strip() if len(row) > 7 else ""
+
+        # Skip already processed rows
+        if stage in ("about_to_finalize", "finalized"):
+            continue
+
+        capper_name = row[2].strip() if row[2] else "Unknown"
+        message_sent_at = row[1].strip() if row[1] else ""
+        manual_text = row[3].strip() if row[3] else ""
+        image_url = row[4].strip() if row[4] else ""
+        # Skip column F (embedded image) for now
+
+        # Must have either manual_text or image_url
+        if not manual_text and not image_url:
+            continue
+
+        # Extract date from message_sent_at (format: YYYY-MM-DD HH:MM:SS)
+        message_date = message_sent_at.split(" ")[0] if message_sent_at else (
+            now_eastern.strftime("%Y-%m-%d")
+        )
+
+        rows_needing_processing.append(
+            (i, capper_name, message_date, manual_text, image_url)
+        )
+
+    if not rows_needing_processing:
+        print("No rows in manual_picks_queue need processing")
+        return
+
+    print(f"\n── Manual Picks Queue: Processing {len(rows_needing_processing)} row(s) ──")
+
+    # Step 2: Process OCR for rows that need it
+    rows_needing_ocr = [
+        (row_idx, image_url)
+        for row_idx, _, _, manual_text, image_url in rows_needing_processing
+        if not manual_text and image_url
+    ]
+
+    ocr_results = {}  # row_idx -> ocr_text
+    if rows_needing_ocr:
+        print(f"Running batch OCR on {len(rows_needing_ocr)} image(s)...")
+        image_urls = [url for _, url in rows_needing_ocr]
+
+        for batch_start in range(0, len(image_urls), OCR_BATCH_SIZE):
+            batch = image_urls[batch_start : batch_start + OCR_BATCH_SIZE]
+            batch_row_idxs = [row_idx for row_idx, _ in rows_needing_ocr[batch_start:batch_start + OCR_BATCH_SIZE]]
+
+            print(f"  Processing batch {batch_start // OCR_BATCH_SIZE + 1} ({len(batch)} images)...")
+            batch_results = extract_text_from_images_batch(batch)
+
+            for row_idx, ocr_text in zip(batch_row_idxs, batch_results):
+                ocr_results[row_idx] = ocr_text
+                stats["ocr_count"] += 1
+
+        log_activity(
+            spreadsheet,
+            "manual_queue_ocr",
+            f"Completed OCR for {len(rows_needing_ocr)} images",
+        )
+
+    # Step 3: Update ocr_text and stage columns, build Stage 1 input
+    cells_to_update = []
+    picks_to_parse = []  # (capper, date, ocr_text) for Stage 1
+
+    for row_idx, capper_name, message_date, manual_text, image_url in rows_needing_processing:
+        # Determine OCR text
+        if manual_text:
+            ocr_text = manual_text
+            stats["text_count"] += 1
+        elif row_idx in ocr_results:
+            ocr_text = ocr_results[row_idx]
+        else:
+            continue  # Skip if no text available
+
+        # Update ocr_text (column G = 7)
+        cells_to_update.append(gspread.Cell(row_idx, 7, ocr_text))
+        # Update stage (column H = 8)
+        cells_to_update.append(gspread.Cell(row_idx, 8, "about_to_finalize"))
+
+        # Add to Stage 1 input
+        picks_to_parse.append((capper_name, message_date, ocr_text))
+
+    # Batch update cells
+    if cells_to_update:
+        time.sleep(1)  # Rate limit
+        manual_ws.update_cells(cells_to_update)
+        print(f"Updated {len(cells_to_update)} cells (ocr_text + stage)")
+
+    if not picks_to_parse:
+        print("No picks to parse from manual queue")
+        return
+
+    # Step 4: Run Stage 1 - Parse OCR to structured picks
+    print(f"\n── Manual Queue Stage 1: Parsing {len(picks_to_parse)} pick(s) ──")
+
+    # Get unique dates for schedule
+    message_dates = set(date for _, date, _ in picks_to_parse)
+    print(f"Fetching schedules for dates: {sorted(message_dates)}")
+
+    all_nba_games = []
+    all_cbb_games = []
+    all_nhl_games = []
+
+    for msg_date in sorted(message_dates):
+        all_nba_games.extend(
+            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
+        )
+        all_cbb_games.extend(
+            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
+        )
+        all_nhl_games.extend(
+            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
+        )
+
+    schedule_data = {
+        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
+        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
+        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
+    }
+
+    prompt = build_stage1_prompt(picks_to_parse, schedule_data)
+    print(f"Calling Haiku to parse {len(picks_to_parse)} picks...")
+
+    try:
+        response = call_haiku_text(prompt)
+        parsed_rows = parse_csv_response(response)
+        print(f"Parsed {len(parsed_rows)} pick row(s)")
+        stats["stage1_parsed"] = len(parsed_rows)
+
+        if parsed_rows:
+            # Get or create parsed_picks worksheet
+            parsed_picks_ws = get_or_create_picks_worksheet(
+                spreadsheet, PARSED_PICKS_SHEET
+            )
+
+            # Batch append rows to parsed_picks
+            time.sleep(1)  # Rate limit
+            parsed_picks_ws.append_rows(parsed_rows, value_input_option="USER_ENTERED")
+            for row in parsed_rows:
+                print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
+
+            # Update timestamp in parsed_picks A1
+            time.sleep(1)  # Rate limit
+            parsed_picks_ws.update_acell(
+                "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
+            )
+
+        log_activity(
+            spreadsheet,
+            "manual_queue_stage1",
+            f"Parsed {len(picks_to_parse)} rows into {len(parsed_rows)} picks",
+        )
+
+    except Exception as e:
+        print(f"Manual queue Stage 1 parsing failed: {e}")
+        return
+
+    # Step 5: Run Stage 2 - Finalize with known cappers
+    print("\n── Manual Queue Stage 2: Finalizing picks ──")
+
+    try:
+        parsed_picks_ws = spreadsheet.worksheet(PARSED_PICKS_SHEET)
+    except gspread.WorksheetNotFound:
+        print("No parsed_picks sheet found after Stage 1")
+        return
+
+    all_parsed = parsed_picks_ws.get_all_values()
+    if len(all_parsed) < 4:
+        print("No rows in parsed_picks to finalize")
+        return
+
+    parsed_data_rows = all_parsed[3:]  # Row 4+
+    if not parsed_data_rows:
+        print("No rows in parsed_picks to finalize")
+        return
+
+    # Get unique dates for schedules
+    pick_dates = set(row[0] for row in parsed_data_rows if row and row[0])
+    print(f"Fetching schedules for dates: {sorted(pick_dates)}")
+
+    all_nba_games = []
+    all_cbb_games = []
+    all_nhl_games = []
+
+    for pick_date in sorted(pick_dates):
+        all_nba_games.extend(
+            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, pick_date)
+        )
+        all_cbb_games.extend(
+            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, pick_date)
+        )
+        all_nhl_games.extend(
+            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, pick_date)
+        )
+
+    schedule_data = {
+        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
+        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
+        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
+    }
+
+    # Get known cappers for normalization
+    known_cappers = get_known_cappers(spreadsheet)
+    if known_cappers:
+        print(f"Using {len(known_cappers)} known cappers for normalization")
+
+    # Convert rows to CSV strings
+    rows_as_csv = [",".join(row) for row in parsed_data_rows if row]
+
+    # Call Haiku with known cappers
+    prompt = build_stage2_prompt(rows_as_csv, schedule_data, known_cappers)
+    print(f"Calling Haiku to finalize {len(rows_as_csv)} picks...")
+
+    try:
+        response = call_haiku_text(prompt)
+        finalized_rows = parse_csv_response(response)
+        finalized_rows = validate_and_fix_pick_column(finalized_rows)
+        print(f"Finalized {len(finalized_rows)} pick row(s)")
+        stats["stage2_finalized"] = len(finalized_rows)
+
+        if finalized_rows:
+            # Get or create finalized_picks worksheet
+            finalized_picks_ws = get_or_create_picks_worksheet(
+                spreadsheet, FINALIZED_PICKS_SHEET
+            )
+
+            # Batch append rows to finalized_picks
+            time.sleep(1)  # Rate limit
+            finalized_picks_ws.append_rows(
+                finalized_rows, value_input_option="USER_ENTERED"
+            )
+            for row in finalized_rows:
+                print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
+
+            # Also append to master_sheet
+            master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
+            time.sleep(1)  # Rate limit
+            master_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
+            print(f"  Also appended {len(finalized_rows)} rows to master_sheet")
+
+            # Append to local CSV for GitHub Pages
+            append_to_local_csv(finalized_rows)
+
+            # Update timestamp in finalized_picks A1
+            time.sleep(1)  # Rate limit
+            finalized_picks_ws.update_acell(
+                "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
+            )
+
+        # Delete processed rows from parsed_picks (rows 4+)
+        if len(all_parsed) > 3:
+            time.sleep(1)  # Rate limit
+            parsed_picks_ws.delete_rows(4, len(all_parsed))
+
+        log_activity(
+            spreadsheet,
+            "manual_queue_stage2",
+            f"Finalized {len(finalized_rows)} picks",
+        )
+
+    except Exception as e:
+        print(f"Manual queue Stage 2 finalization failed: {e}")
+        return
+
+    # Step 6: Update stage to "finalized" in manual_picks_queue
+    time.sleep(1)  # Rate limit
+    final_cells = []
+    for row_idx, _, _, _, _ in rows_needing_processing:
+        final_cells.append(gspread.Cell(row_idx, 8, "finalized"))
+
+    if final_cells:
+        manual_ws.update_cells(final_cells)
+
+    # Print summary
+    print("\n── Manual Queue Summary ──")
+    print(f"  Text entries used: {stats['text_count']}")
+    print(f"  Images OCR'd: {stats['ocr_count']}")
+    print(f"  Picks parsed (Stage 1): {stats['stage1_parsed']}")
+    print(f"  Picks finalized (Stage 2): {stats['stage2_finalized']}")
+
+    log_activity(
+        spreadsheet,
+        "manual_queue_complete",
+        f"Text: {stats['text_count']}, OCR: {stats['ocr_count']}, Parsed: {stats['stage1_parsed']}, Finalized: {stats['stage2_finalized']}",
+    )
+
+    # Update timestamp in manual_picks_queue A1
+    time.sleep(1)  # Rate limit
+    manual_ws.update_acell("A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S"))
+
+    print("✅ Manual picks queue processing complete")
+
+
 def cleanup_old_rows(spreadsheet, image_pull_ws):
     """Delete rows older than 1 week from schedules and image_pull."""
     from datetime import timedelta
@@ -1678,6 +2063,9 @@ def main():
 
         # Run Stage 2: Finalize picks
         run_stage2(spreadsheet, worksheet)
+
+        # Process manual picks queue
+        process_manual_picks_queue(spreadsheet)
 
         # Run cleanup: delete old rows from schedules and image_pull
         cleanup_old_rows(spreadsheet, worksheet)
