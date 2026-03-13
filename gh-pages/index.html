@@ -490,12 +490,44 @@ function CapperConsensusTracker() {
   const capperColors = useMemo(() => ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE','#85C1E9','#F8B500','#00CED1','#FF69B4','#32CD32','#FF8C00','#9370DB','#20B2AA','#FFB6C1','#87CEEB','#DEB887','#FA8072','#7B68EE','#00FA9A','#FF6347','#4682B4','#D2691E','#6495ED','#DC143C','#00BFFF','#228B22'], []);
 
   const parseCsv = useCallback((text, setDate) => {
-    const lines = text.trim().split('\n'); if (lines.length < 2) return;
-    const headers = lines[0].split(',').map(h=>h.trim().toLowerCase());
+    const lines = text.trim().split('\n'); if (lines.length < 1) return;
+
+    // Parse a single CSV line respecting quoted fields
+    const parseLine = (line) => {
+      const result = []; let cur = ''; let inQuote = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      result.push(cur.trim());
+      return result;
+    };
+
+    // Detect if first row is a header or data
+    const firstRow = parseLine(lines[0]);
+    const KNOWN_HEADERS = ['date','capper','sport','pick','line','game','spread','side','result'];
+    const looksLikeHeader = firstRow.some(v => KNOWN_HEADERS.includes(v.toLowerCase().trim()));
+
+    let headers, dataStartIdx;
+    if (looksLikeHeader) {
+      headers = firstRow.map(h => h.trim().toLowerCase());
+      dataStartIdx = 1;
+    } else {
+      // No header row — assume standard column order
+      headers = KNOWN_HEADERS;
+      dataStartIdx = 0;
+    }
+
     const data = [];
-    for (let i=1; i<lines.length; i++) {
-      const values = lines[i].split(',').map(v=>v.trim());
-      if (values.length >= 4) { const row={}; headers.forEach((h,idx)=>{row[h]=values[idx]||'';}); data.push(row); }
+    for (let i = dataStartIdx; i < lines.length; i++) {
+      const values = parseLine(lines[i]);
+      if (values.length >= 4) {
+        const row = {};
+        headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+        if (row.capper && row.game) data.push(row);
+      }
     }
     setPicks(data);
     if (setDate) { const dates=[...new Set(data.map(p=>p.date))].filter(Boolean).sort().reverse(); if(dates.length>0) setSelectedDate(dates[0]); }
@@ -519,8 +551,13 @@ function CapperConsensusTracker() {
       }
       try {
         const result = await window.storage.get(STORAGE_KEY, true);
-        if (result?.value) { const s=JSON.parse(result.value); parseCsv(s.csv,true); setLastLoaded(s.savedAt||'Previously saved'); setStorageStatus('loaded'); }
-        else setStorageStatus('empty');
+        if (result?.value) {
+          const s = JSON.parse(result.value);
+          // Re-parse to catch previously broken headerless CSVs
+          parseCsv(s.csv, true);
+          setLastLoaded(s.savedAt || 'Previously saved');
+          setStorageStatus('loaded');
+        } else setStorageStatus('empty');
       } catch { setStorageStatus('empty'); } finally { setLoading(false); }
     };
     load();
@@ -655,6 +692,7 @@ function CapperConsensusTracker() {
 
     // First pass: build from filteredPicks to assign stable pickKeys
     filteredPicks.forEach((pick, idx) => {
+      if (!pick.capper || !pick.game) return;
       const gameKey = pick.game||`${pick.pick} game`;
       if (!games[gameKey]) games[gameKey]={game:gameKey,sport:pick.sport,sides:{},picks:[],spread:pick.spread||'',cappers:new Set(),date:pick.date};
       if (pick.spread&&!games[gameKey].spread) games[gameKey].spread=pick.spread;
@@ -698,7 +736,7 @@ function CapperConsensusTracker() {
     });
 
     Object.values(games).forEach(game => {
-      Object.keys(game.sides).forEach(s=>game.sides[s].allCappers.sort((a,b)=>a.capper.localeCompare(b.capper)));
+      Object.keys(game.sides).forEach(s=>game.sides[s].allCappers.sort((a,b)=>(a.capper||'').localeCompare(b.capper||'')));
       const sc=Object.entries(game.sides).map(([s,d])=>({side:s,count:d.cappers.length})).sort((a,b)=>b.count-a.count);
       const total=sc.reduce((s,x)=>s+x.count,0), maj=sc[0];
       if (maj) {
