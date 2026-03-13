@@ -1633,6 +1633,14 @@ def main():
                 if rows_to_insert:
                     next_row = len(worksheet.get_all_values()) + 1
                     end_row = next_row + len(rows_to_insert) - 1
+                    
+                    # Expand sheet if needed
+                    if end_row > worksheet.row_count:
+                        new_row_count = end_row + 100  # Add buffer
+                        print(f"Expanding sheet from {worksheet.row_count} to {new_row_count} rows")
+                        worksheet.resize(rows=new_row_count)
+                        time.sleep(1)  # Rate limit after resize
+                    
                     time.sleep(1)  # Rate limit
                     worksheet.update(
                         range_name=f"A{next_row}:F{end_row}",
