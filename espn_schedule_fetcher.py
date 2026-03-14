@@ -40,6 +40,7 @@ NBA_FIELDNAMES = [
     "over_under",
     "tv_network",
     "venue",
+    "score",
 ]
 CBB_FIELDNAMES = [
     "fetch_date",
@@ -51,6 +52,7 @@ CBB_FIELDNAMES = [
     "over_under",
     "tv_network",
     "venue",
+    "score",
 ]
 NHL_FIELDNAMES = [
     "fetch_date",
@@ -62,6 +64,7 @@ NHL_FIELDNAMES = [
     "over_under",
     "tv_network",
     "venue",
+    "score",
 ]
 
 
