@@ -92,7 +92,9 @@ def get_or_create_worksheet(spreadsheet, worksheet_name: str, fieldnames: List[s
         worksheet = spreadsheet.worksheet(worksheet_name)
         # Check if header row exists and is correct
         first_row = worksheet.row_values(1)
-        if first_row != fieldnames:
+        if first_row != fieldnames and first_row != fieldnames[:len(first_row)]:
+            # Headers are genuinely wrong (not just missing a new trailing column
+            # like 'score' that was added to FIELDNAMES but not yet to the sheet).
             # Clear the sheet and add proper header
             print(f"  Resetting {worksheet_name} with proper headers...")
             worksheet.clear()
