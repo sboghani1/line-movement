@@ -9,7 +9,7 @@ import base64
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, date
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 
@@ -129,6 +129,139 @@ def get_existing_games(worksheet) -> Dict[str, Dict]:
         return games
     except Exception:
         return {}
+
+
+# ── Score Backfill ───────────────────────────────────────────────────────────
+def fetch_espn_results(sport: str, date_str: str) -> Dict:
+    """Fetch completed game scores from ESPN for a given sport and date (YYYYMMDD).
+
+    Returns dict keyed by (away_team_display_name, home_team_display_name)
+    with values like "Memphis Grizzlies 110, Detroit Pistons 126".
+    """
+    if sport == "nba":
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
+    elif sport == "nhl":
+        url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
+    else:
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
+
+    response = requests.get(url)
+    response.raise_for_status()
+    data = response.json()
+    results = {}
+
+    for event in data.get("events", []):
+        if not event.get("status", {}).get("type", {}).get("completed", False):
+            continue
+
+        competition = event.get("competitions", [{}])[0]
+        away_team, home_team, away_score, home_score = "", "", "", ""
+
+        for comp in competition.get("competitors", []):
+            name = comp.get("team", {}).get("displayName", "")
+            score = comp.get("score", "")
+            if comp.get("homeAway") == "away":
+                away_team, away_score = name, score
+            else:
+                home_team, home_score = name, score
+
+        if away_team and home_team:
+            results[(away_team, home_team)] = (
+                f"{away_team} {away_score}, {home_team} {home_score}"
+            )
+
+    return results
+
+
+def update_scores_for_sheet(
+    spreadsheet, worksheet_name: str, sport: str
+) -> tuple[int, List[str]]:
+    """Backfill the score column for any past rows that are missing a result.
+
+    Skips rows where away_team or home_team is 'TBD' (unresolvable bracket
+    placeholders). Groups rows by date so we make one ESPN API call per date
+    rather than one per row.
+
+    Returns (updated_count, change_details).
+    """
+    worksheet = spreadsheet.worksheet(worksheet_name)
+    all_rows = worksheet.get_all_values()
+    headers = all_rows[0]
+
+    try:
+        game_date_col = headers.index("game_date")
+        away_team_col = headers.index("away_team")
+        home_team_col = headers.index("home_team")
+        score_col = headers.index("score")
+    except ValueError as e:
+        print(f"  ❌ Missing column in {worksheet_name}: {e}")
+        return 0, []
+
+    today = date.today()
+
+    # Group rows missing scores by date to minimise ESPN API calls
+    dates_needing_update: Dict[str, List] = {}
+    for i, row in enumerate(all_rows[1:], start=2):
+        while len(row) <= score_col:
+            row.append("")
+
+        game_date_str = row[game_date_col]
+        away_team = row[away_team_col]
+        home_team = row[home_team_col]
+        score = row[score_col]
+
+        if score:
+            continue  # already filled in
+        if away_team == "TBD" or home_team == "TBD":
+            continue  # unresolvable bracket placeholder
+
+        try:
+            game_date = datetime.strptime(game_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+
+        if game_date >= today:
+            continue  # game hasn't happened yet
+
+        date_key = game_date_str.replace("-", "")
+        dates_needing_update.setdefault(date_key, []).append(
+            (i, away_team, home_team)
+        )
+
+    if not dates_needing_update:
+        print(f"  ✅ {worksheet_name}: no missing scores")
+        return 0, []
+
+    print(
+        f"  {worksheet_name}: missing scores on {len(dates_needing_update)} date(s) "
+        f"— {list(dates_needing_update.keys())}"
+    )
+
+    updates = []  # (row_idx, col_idx_1indexed, score_str)
+    change_details = []
+
+    for date_key, rows_for_date in dates_needing_update.items():
+        espn_results = fetch_espn_results(sport, date_key)
+        for row_idx, away_team, home_team in rows_for_date:
+            score_str = espn_results.get((away_team, home_team))
+            if score_str:
+                updates.append((row_idx, score_col + 1, score_str))
+                change_details.append(score_str)
+            else:
+                print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key}")
+
+    if updates:
+        batch = [
+            {
+                "range": gspread.utils.rowcol_to_a1(row_idx, col_idx),
+                "values": [[score_str]],
+            }
+            for row_idx, col_idx, score_str in updates
+        ]
+        worksheet.batch_update(batch)
+        print(f"  ✅ {worksheet_name}: wrote {len(updates)} scores")
+
+    return len(updates), change_details
 
 
 # ── ESPN Schedule Fetching ───────────────────────────────────────────────────
@@ -530,6 +663,7 @@ def write_games_to_sheet(
             game["over_under"],
             game["tv_network"],
             game["venue"],
+            "",  # score — empty for new games, filled in by future backfill runs
         ]
 
         new_rows.append(row)
@@ -568,6 +702,27 @@ def main(target_date: Optional[str] = None):
     try:
         client = get_gspread_client()
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
+
+        # ── Backfill Scores ─────────────────────────────────────────────────
+        # Run before schedule fetch so only one workflow writes to these sheets
+        print("\n📋 Backfilling missing scores from previous days...")
+
+        nba_score_count, nba_score_details = update_scores_for_sheet(
+            spreadsheet, NBA_WORKSHEET_NAME, "nba"
+        )
+        log_activity(spreadsheet, "backfill_scores", f"NBA scores: {nba_score_count} rows updated", {"details": ", ".join(nba_score_details) if nba_score_details else "no updates"})
+
+        cbb_score_count, cbb_score_details = update_scores_for_sheet(
+            spreadsheet, CBB_WORKSHEET_NAME, "cbb"
+        )
+        log_activity(spreadsheet, "backfill_scores", f"CBB scores: {cbb_score_count} rows updated", {"details": ", ".join(cbb_score_details) if cbb_score_details else "no updates"})
+
+        nhl_score_count, nhl_score_details = update_scores_for_sheet(
+            spreadsheet, NHL_WORKSHEET_NAME, "nhl"
+        )
+        log_activity(spreadsheet, "backfill_scores", f"NHL scores: {nhl_score_count} rows updated", {"details": ", ".join(nhl_score_details) if nhl_score_details else "no updates"})
+
+        print(f"\n✅ Scores backfilled — NBA: {nba_score_count}, CBB: {cbb_score_count}, NHL: {nhl_score_count}")
 
         # ── NBA Schedule ────────────────────────────────────────────────────
         print("\n📊 Fetching NBA schedule...")
