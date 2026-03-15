@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
 ESPN Schedule Fetcher
-Fetches NBA, CBB, and NHL schedules from ESPN for the current date.
+Fetches NBA, CBB, NHL, NFL, and CFB schedules from ESPN for the current date.
 Writes new games to Google Sheets and backfills scores for completed past games.
 
 Usage:
-    python espn_schedule_fetcher.py [date] [--sport nba|cbb|nhl]
+    python espn_schedule_fetcher.py [date] [--sport nba|cbb|nhl|nfl|cfb]
 
     date     Optional date override in YYYY-MM-DD format (default: today)
-    --sport  Run only this sport (default: all three)
+    --sport  Run only this sport (default: all five)
 """
 
 import argparse
@@ -34,6 +34,8 @@ GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 NBA_WORKSHEET_NAME = "nba_schedule"
 CBB_WORKSHEET_NAME = "cbb_schedule"
 NHL_WORKSHEET_NAME = "nhl_schedule"
+NFL_WORKSHEET_NAME = "nfl_schedule"
+CFB_WORKSHEET_NAME = "cfb_schedule"
 
 FIELDNAMES = [
     "fetch_date",
@@ -53,6 +55,8 @@ SPORT_WORKSHEETS = {
     "nba": NBA_WORKSHEET_NAME,
     "cbb": CBB_WORKSHEET_NAME,
     "nhl": NHL_WORKSHEET_NAME,
+    "nfl": NFL_WORKSHEET_NAME,
+    "cfb": CFB_WORKSHEET_NAME,
 }
 
 
@@ -127,6 +131,10 @@ def fetch_espn_results(sport: str, date_str: str) -> Dict:
         url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
     elif sport == "cbb":
         url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
+    elif sport == "nfl":
+        url = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={date_str}"
+    elif sport == "cfb":
+        url = f"https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates={date_str}&groups=80"
     else:
         raise ValueError(f"Unsupported sport: {sport!r}")
 
@@ -287,6 +295,10 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
         api_url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
     elif sport == "cbb":
         api_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
+    elif sport == "nfl":
+        api_url = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={date_str}"
+    elif sport == "cfb":
+        api_url = f"https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates={date_str}&groups=80"
     else:
         raise ValueError(f"Unsupported sport: {sport!r}")
 
@@ -532,7 +544,7 @@ def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_l
         client = get_gspread_client()
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
 
-        labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL"}
+        labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL", "nfl": "🏈 NFL", "cfb": "🏈 College Football"}
         for s in sports:
             print(f"\n{labels[s]}...")
             run_sport(spreadsheet, s, date_str, formatted_date, timestamp, score_limit=score_limit)
@@ -547,7 +559,7 @@ def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_l
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fetch ESPN schedules and backfill scores")
     parser.add_argument("date", nargs="?", help="Target date in YYYY-MM-DD format (default: today)")
-    parser.add_argument("--sport", choices=["nba", "cbb", "nhl"], help="Only run this sport (default: all)")
+    parser.add_argument("--sport", choices=["nba", "cbb", "nhl", "nfl", "cfb"], help="Only run this sport (default: all)")
     parser.add_argument("--limit", type=int, help="Max rows to backfill scores for (default: all)")
     args = parser.parse_args()
 

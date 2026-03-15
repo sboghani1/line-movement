@@ -4,7 +4,7 @@ One-time script to backfill historical schedule + score data for every
 sport x date combo found in the live master_sheet.
 
 Usage:
-    python backfill_historical_schedules.py [--dry-run] [--sport nba|cbb|nhl] [--limit N]
+    python backfill_historical_schedules.py [--dry-run] [--sport nba|cbb|nhl|nfl|cfb] [--limit N]
 
     --dry-run   Print what would be fetched/written without touching the sheet.
     --sport     Only process one sport.
@@ -13,6 +13,7 @@ Usage:
 
 import os
 import sys
+import time
 import argparse
 from datetime import date, datetime, timedelta
 from difflib import SequenceMatcher
@@ -27,6 +28,8 @@ from espn_schedule_fetcher import (
     NBA_WORKSHEET_NAME,
     CBB_WORKSHEET_NAME,
     NHL_WORKSHEET_NAME,
+    NFL_WORKSHEET_NAME,
+    CFB_WORKSHEET_NAME,
     GOOGLE_SHEET_ID,
     get_gspread_client,
     get_or_create_worksheet,
@@ -42,12 +45,16 @@ SPORT_CONFIG = {
     "nba": NBA_WORKSHEET_NAME,
     "cbb": CBB_WORKSHEET_NAME,
     "nhl": NHL_WORKSHEET_NAME,
+    "nfl": NFL_WORKSHEET_NAME,
+    "cfb": CFB_WORKSHEET_NAME,
 }
 
 ODDS_API_SPORT_KEYS = {
     "nba": "basketball_nba",
     "cbb": "basketball_ncaab",
     "nhl": "icehockey_nhl",
+    "nfl": "americanfootball_nfl",
+    "cfb": "americanfootball_ncaaf",
 }
 
 PREFERRED_BOOKMAKERS = ["draftkings", "fanduel", "betmgm", "williamhill_us"]
@@ -57,6 +64,8 @@ SEASON_START_DATES = {
     "nba": date(2024, 10, 22),  # 2024-25 NBA season
     "cbb": date(2024, 11, 4),   # 2024-25 CBB season
     "nhl": date(2024, 10, 8),   # 2024-25 NHL season
+    "nfl": date(2024, 9, 5),    # 2024 NFL season opener
+    "cfb": date(2024, 8, 24),   # 2024 CFB early openers
 }
 
 # ESPN name → Odds API name for known mismatches
@@ -349,8 +358,9 @@ def backfill_sport_date(sport: str, game_date: str, worksheet, existing_games: d
         games = fetch_d1_cbb_games(date_str)
     else:
         games = fetch_and_parse_schedule_api(sport, date_str)
-        # Filter out non-competitive events (e.g. NBA All-Star celebrity games)
-        games = [g for g in games if not (g["away_team"].startswith("Team ") or g["home_team"].startswith("Team "))]
+        # Filter out non-competitive events (e.g. NBA All-Star celebrity games, NFL Pro Bowl)
+        if sport in ("nba", "nfl"):
+            games = [g for g in games if not (g["away_team"].startswith("Team ") or g["home_team"].startswith("Team "))]
 
     if not games:
         return 0, None
@@ -425,7 +435,16 @@ _BOX_INNER_WIDTH = 54  # width between the │ chars
 _BOX_HEIGHT = 5
 
 
-def _render_progress_box(sport: str, rows_processed: int, total: int, elapsed: float) -> list[str]:
+def _redraw_box(log_lines: int, box: list[str]) -> None:
+    """Redraw the progress box in-place above the accumulated log lines."""
+    sys.stdout.write(f"\033[{log_lines + _BOX_HEIGHT}A")
+    for line in box:
+        sys.stdout.write(f"\r\033[2K{line}\n")
+    sys.stdout.write(f"\033[{log_lines}B")
+    sys.stdout.flush()
+
+
+def _render_progress_box(sport: str, rows_processed: int, total: int, elapsed: float, label: str = "backfill", unit: str = "rows") -> list[str]:
     pct = rows_processed / total if total else 1.0
     bar_width = _BOX_INNER_WIDTH - 12
     filled = int(bar_width * pct)
@@ -438,9 +457,9 @@ def _render_progress_box(sport: str, rows_processed: int, total: int, elapsed: f
         eta_str = f"eta {int(eta_sec // 60)}m{int(eta_sec % 60):02d}s"
     else:
         eta_str = "eta --"
-    title   = f"  {sport.upper()} — period_scores migration"
+    title   = f"  {sport.upper()} — {label}"
     bar_ln  = f"  {bar}  {pct*100:.0f}%"
-    stat_ln = f"  {rows_processed}/{total} rows · elapsed {elapsed_str} · {eta_str}"
+    stat_ln = f"  {rows_processed}/{total} {unit} · elapsed {elapsed_str} · {eta_str}"
     return [
         f"┌{'─' * _BOX_INNER_WIDTH}┐",
         f"│{title:<{_BOX_INNER_WIDTH}}│",
@@ -458,7 +477,6 @@ def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None
     Returns the number of rows updated.
     """
     import gspread.utils
-    import time
 
     all_rows = worksheet.get_all_values()
     headers = all_rows[0]
@@ -506,7 +524,7 @@ def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None
     live = sys.stdout.isatty()
 
     if live:
-        for line in _render_progress_box(sport, 0, total_to_process, 0):
+        for line in _render_progress_box(sport, 0, total_to_process, 0, label="period_scores migration"):
             print(line)
     log_lines = 0
 
@@ -543,12 +561,8 @@ def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None
         if live:
             print(log_line)
             log_lines += 1
-            box = _render_progress_box(sport, rows_processed, total_to_process, elapsed)
-            sys.stdout.write(f"\033[{log_lines + _BOX_HEIGHT}A")
-            for line in box:
-                sys.stdout.write(f"\r\033[2K{line}\n")
-            sys.stdout.write(f"\033[{log_lines}B")
-            sys.stdout.flush()
+            box = _render_progress_box(sport, rows_processed, total_to_process, elapsed, label="period_scores migration")
+            _redraw_box(log_lines, box)
         else:
             pct = rows_processed / total_to_process * 100 if total_to_process else 100
             eta_str = ""
@@ -563,7 +577,7 @@ def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None
 def main():
     parser = argparse.ArgumentParser(description="Backfill historical schedules from master_sheet")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing to sheets")
-    parser.add_argument("--sport", choices=["nba", "cbb", "nhl"], help="Only process this sport")
+    parser.add_argument("--sport", choices=["nba", "cbb", "nhl", "nfl", "cfb"], help="Only process this sport")
     parser.add_argument("--limit", type=int, help="Stop after processing this many dates/rows")
     parser.add_argument("--start-date", help="Override season start date (YYYY-MM-DD)")
     parser.add_argument("--update-period-scores", action="store_true",
@@ -617,9 +631,22 @@ def main():
     total_combos = sum(len(dates) for dates in combos.values())
     processed = 0
     last_credits = None
+    live = sys.stdout.isatty()
 
     for sport, dates in sorted(combos.items()):
-        for game_date in sorted(dates):
+        sorted_dates = sorted(dates)
+        remaining_limit = (args.limit - processed) if args.limit else None
+        effective_total = min(len(sorted_dates), remaining_limit) if remaining_limit is not None else len(sorted_dates)
+
+        sport_processed = 0
+        sport_start = time.monotonic()
+        log_lines = 0
+
+        if live and effective_total > 0:
+            for line in _render_progress_box(sport, 0, effective_total, 0, label="backfill", unit="dates"):
+                print(line)
+
+        for game_date in sorted_dates:
             if args.limit and processed >= args.limit:
                 print(f"Reached --limit {args.limit}, stopping.")
                 print(f"\nDone. Total rows written: {total_written}")
@@ -628,7 +655,8 @@ def main():
                 return
 
             processed += 1
-            print(f"[{processed}/{total_combos}] {sport} {game_date}...", end=" ", flush=True)
+            sport_processed += 1
+            log_line = f"  [{processed}/{total_combos}] {sport} {game_date}..."
 
             try:
                 written, credits = backfill_sport_date(
@@ -639,13 +667,27 @@ def main():
                     args.dry_run,
                     fetch_timestamp,
                 )
-                print(f"{written} rows written")
+                log_line += f" {written} rows written"
                 total_written += written
                 if credits is not None:
                     last_credits = credits
             except Exception as e:
-                print(f"ERROR: {e}")
+                log_line += f" ERROR: {e}"
 
+            elapsed = time.monotonic() - sport_start
+
+            if live:
+                print(log_line)
+                log_lines += 1
+                box = _render_progress_box(sport, sport_processed, effective_total, elapsed, label="backfill", unit="dates")
+                _redraw_box(log_lines, box)
+            else:
+                pct = sport_processed / effective_total * 100 if effective_total else 100
+                eta_str = ""
+                if sport_processed > 0 and sport_processed < effective_total:
+                    eta_sec = elapsed / sport_processed * (effective_total - sport_processed)
+                    eta_str = f"  eta {int(eta_sec // 60)}m{int(eta_sec % 60):02d}s"
+                print(f"{log_line}  [{pct:.0f}%{eta_str}]")
 
     print(f"\nDone. Total rows written: {total_written}")
     if last_credits is not None:
