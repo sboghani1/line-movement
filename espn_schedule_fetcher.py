@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """
 ESPN Schedule Fetcher
-Fetches NBA and College Basketball schedules from ESPN for the current date.
-Extracts game times, teams, and betting lines, then writes to Google Sheets.
+Fetches NBA, CBB, and NHL schedules from ESPN for the current date.
+Writes new games to Google Sheets and backfills scores for completed past games.
+
+Usage:
+    python espn_schedule_fetcher.py [date] [--sport nba|cbb|nhl]
+
+    date     Optional date override in YYYY-MM-DD format (default: today)
+    --sport  Run only this sport (default: all three)
 """
 
+import argparse
 import base64
 import json
 import os
-import re
 from datetime import datetime, date
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
@@ -19,7 +25,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import gspread
-from bs4 import BeautifulSoup
 from google.oauth2.service_account import Credentials
 
 from activity_logger import log_activity
@@ -30,7 +35,7 @@ NBA_WORKSHEET_NAME = "nba_schedule"
 CBB_WORKSHEET_NAME = "cbb_schedule"
 NHL_WORKSHEET_NAME = "nhl_schedule"
 
-NBA_FIELDNAMES = [
+FIELDNAMES = [
     "fetch_date",
     "game_date",
     "away_team",
@@ -42,30 +47,12 @@ NBA_FIELDNAMES = [
     "venue",
     "score",
 ]
-CBB_FIELDNAMES = [
-    "fetch_date",
-    "game_date",
-    "away_team",
-    "home_team",
-    "game_time",
-    "spread",
-    "over_under",
-    "tv_network",
-    "venue",
-    "score",
-]
-NHL_FIELDNAMES = [
-    "fetch_date",
-    "game_date",
-    "away_team",
-    "home_team",
-    "game_time",
-    "spread",
-    "over_under",
-    "tv_network",
-    "venue",
-    "score",
-]
+
+SPORT_WORKSHEETS = {
+    "nba": NBA_WORKSHEET_NAME,
+    "cbb": CBB_WORKSHEET_NAME,
+    "nhl": NHL_WORKSHEET_NAME,
+}
 
 
 # ── Google Sheets Setup ──────────────────────────────────────────────────────
@@ -86,45 +73,40 @@ def get_gspread_client():
     return gspread.authorize(credentials)
 
 
-def get_or_create_worksheet(spreadsheet, worksheet_name: str, fieldnames: List[str]):
+def get_or_create_worksheet(spreadsheet, worksheet_name: str):
     """Get or create a worksheet with the given name and headers."""
     try:
         worksheet = spreadsheet.worksheet(worksheet_name)
-        # Check if header row exists and is correct
         first_row = worksheet.row_values(1)
-        if first_row != fieldnames and first_row != fieldnames[:len(first_row)]:
-            # Headers are genuinely wrong (not just missing a new trailing column
-            # like 'score' that was added to FIELDNAMES but not yet to the sheet).
-            # Clear the sheet and add proper header
+        if first_row != FIELDNAMES and first_row != FIELDNAMES[:len(first_row)]:
             print(f"  Resetting {worksheet_name} with proper headers...")
             worksheet.clear()
-            worksheet.append_row(fieldnames)
+            worksheet.append_row(FIELDNAMES)
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(
-            title=worksheet_name, rows=1000, cols=len(fieldnames)
+            title=worksheet_name, rows=1000, cols=len(FIELDNAMES)
         )
-        worksheet.append_row(fieldnames)
+        worksheet.append_row(FIELDNAMES)
 
     return worksheet
 
 
 def get_existing_games(worksheet) -> Dict[str, Dict]:
-    """Get existing games with their row index and current odds.
-    
-    Returns dict mapping game key (game_date|away_team|home_team) to:
-    {row_idx, spread, over_under}
+    """Get existing games keyed by game_date|away_team|home_team.
+
+    Returns dict with {row_idx, spread, over_under, score}.
     """
     try:
         all_values = worksheet.get_all_values()
         games = {}
-        for i, row in enumerate(all_values[1:], start=2):  # Skip header, 1-indexed rows
-            if len(row) >= 7:
-                # Key is: game_date + away_team + home_team
+        for i, row in enumerate(all_values[1:], start=2):
+            if len(row) >= 4 and row[1] and row[2] and row[3]:
                 key = f"{row[1]}|{row[2]}|{row[3]}"
                 games[key] = {
-                    'row_idx': i,
-                    'spread': row[5] if len(row) > 5 else '',
-                    'over_under': row[6] if len(row) > 6 else ''
+                    "row_idx": i,
+                    "spread": row[5] if len(row) > 5 else "",
+                    "over_under": row[6] if len(row) > 6 else "",
+                    "score": row[9] if len(row) > 9 else "",
                 }
         return games
     except Exception:
@@ -135,8 +117,8 @@ def get_existing_games(worksheet) -> Dict[str, Dict]:
 def fetch_espn_results(sport: str, date_str: str) -> Dict:
     """Fetch completed game scores from ESPN for a given sport and date (YYYYMMDD).
 
-    Returns dict keyed by (away_team_display_name, home_team_display_name)
-    with values like "Memphis Grizzlies 110, Detroit Pistons 126".
+    Returns dict keyed by (away_team, home_team) with score strings like
+    "Memphis Grizzlies 110, Detroit Pistons 126" (away first).
     """
     if sport == "nba":
         url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
@@ -178,12 +160,10 @@ def fetch_espn_results(sport: str, date_str: str) -> Dict:
 def update_scores_for_sheet(
     spreadsheet, worksheet_name: str, sport: str
 ) -> tuple[int, List[str]]:
-    """Backfill the score column for any past rows that are missing a result.
+    """Backfill the score column for any past rows that are missing a score.
 
-    Skips rows where away_team or home_team is 'TBD' (unresolvable bracket
-    placeholders). Groups rows by date so we make one ESPN API call per date
-    rather than one per row.
-
+    Scans all existing rows where score is blank and game_date < today,
+    groups by date, and makes one ESPN API call per date to fill them in.
     Returns (updated_count, change_details).
     """
     worksheet = spreadsheet.worksheet(worksheet_name)
@@ -201,7 +181,6 @@ def update_scores_for_sheet(
 
     today = date.today()
 
-    # Group rows missing scores by date to minimise ESPN API calls
     dates_needing_update: Dict[str, List] = {}
     for i, row in enumerate(all_rows[1:], start=2):
         while len(row) <= score_col:
@@ -213,9 +192,9 @@ def update_scores_for_sheet(
         score = row[score_col]
 
         if score:
-            continue  # already filled in
+            continue
         if away_team == "TBD" or home_team == "TBD":
-            continue  # unresolvable bracket placeholder
+            continue
 
         try:
             game_date = datetime.strptime(game_date_str, "%Y-%m-%d").date()
@@ -223,7 +202,7 @@ def update_scores_for_sheet(
             continue
 
         if game_date >= today:
-            continue  # game hasn't happened yet
+            continue
 
         date_key = game_date_str.replace("-", "")
         dates_needing_update.setdefault(date_key, []).append(
@@ -239,7 +218,7 @@ def update_scores_for_sheet(
         f"— {list(dates_needing_update.keys())}"
     )
 
-    updates = []  # (row_idx, col_idx_1indexed, score_str)
+    batch = []
     change_details = []
 
     for date_key, rows_for_date in dates_needing_update.items():
@@ -247,260 +226,30 @@ def update_scores_for_sheet(
         for row_idx, away_team, home_team in rows_for_date:
             score_str = espn_results.get((away_team, home_team))
             if score_str:
-                updates.append((row_idx, score_col + 1, score_str))
+                batch.append({
+                    "range": gspread.utils.rowcol_to_a1(row_idx, score_col + 1),
+                    "values": [[score_str]],
+                })
                 change_details.append(score_str)
             else:
-                print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key}")
+                # Mark as N/A so we don't retry on every future run
+                print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key} — marking N/A")
+                batch.append({
+                    "range": gspread.utils.rowcol_to_a1(row_idx, score_col + 1),
+                    "values": [["N/A"]],
+                })
 
-    if updates:
-        batch = [
-            {
-                "range": gspread.utils.rowcol_to_a1(row_idx, col_idx),
-                "values": [[score_str]],
-            }
-            for row_idx, col_idx, score_str in updates
-        ]
+    if batch:
         worksheet.batch_update(batch)
-        print(f"  ✅ {worksheet_name}: wrote {len(updates)} scores")
+        print(f"  ✅ {worksheet_name}: wrote {len(batch)} scores")
 
-    return len(updates), change_details
+    return len(batch), change_details
 
 
 # ── ESPN Schedule Fetching ───────────────────────────────────────────────────
-def fetch_espn_schedule(url: str) -> str:
-    """Fetch the ESPN schedule page HTML."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.text
-
-
-def parse_betting_line(line_text: str) -> tuple[str, str]:
-    """Parse betting line text to extract spread and over/under.
-
-    Example: "Line: UCLA -4.5O/U: 151.5" -> ("-4.5 UCLA", "151.5")
-    """
-    spread = ""
-    over_under = ""
-
-    if not line_text:
-        return spread, over_under
-
-    # Pattern: Line: TEAM -X.X or Line: TEAM +X.X
-    line_match = re.search(r"Line:\s*([A-Z]+)\s*([+-]?\d+\.?\d*)", line_text)
-    if line_match:
-        team_abbr = line_match.group(1)
-        spread_num = line_match.group(2)
-        spread = f"{team_abbr} {spread_num}"
-
-    # Pattern: O/U: XXX.X
-    ou_match = re.search(r"O/U:\s*(\d+\.?\d*)", line_text)
-    if ou_match:
-        over_under = ou_match.group(1)
-
-    return spread, over_under
-
-
-def parse_nba_schedule(html: str, game_date: str) -> List[Dict]:
-    """Parse NBA schedule HTML to extract game information."""
-    soup = BeautifulSoup(html, "html.parser")
-    games = []
-
-    # Find all schedule tables
-    tables = soup.find_all("div", class_="ResponsiveTable")
-    if not tables:
-        # Try alternative approach - look for ScheduleTables
-        tables = soup.find_all("section", class_="Card")
-
-    # Find tbody elements containing game rows
-    for tbody in soup.find_all("tbody", class_="Table__TBODY"):
-        for row in tbody.find_all("tr", class_="Table__TR"):
-            try:
-                cells = row.find_all("td")
-                if len(cells) < 2:
-                    continue
-
-                # Extract teams from the matchup cell
-                matchup_cell = cells[0]
-                teams_text = matchup_cell.get_text(separator=" ", strip=True)
-
-                # Pattern: "Away Team @ Home Team" or similar
-                away_team = ""
-                home_team = ""
-
-                # Find team links
-                team_links = matchup_cell.find_all("a", class_="AnchorLink")
-                if len(team_links) >= 2:
-                    away_team = team_links[0].get_text(strip=True)
-                    home_team = team_links[1].get_text(strip=True)
-                elif "@" in teams_text:
-                    parts = teams_text.split("@")
-                    if len(parts) == 2:
-                        away_team = parts[0].strip()
-                        home_team = parts[1].strip()
-
-                if not away_team or not home_team:
-                    continue
-
-                # Extract time/result
-                game_time = ""
-                if len(cells) > 1:
-                    time_cell = cells[1]
-                    game_time = time_cell.get_text(strip=True)
-                    # Skip completed games (scores have numbers like "119, MIN 92")
-                    if re.search(r"\d{2,3}.*\d{2,3}", game_time):
-                        game_time = "Final"
-
-                # Extract TV network
-                tv_network = ""
-                if len(cells) > 2:
-                    tv_cell = cells[2]
-                    tv_network = tv_cell.get_text(strip=True)
-
-                # Extract betting line
-                spread = ""
-                over_under = ""
-                for cell in cells:
-                    cell_text = cell.get_text(strip=True)
-                    if "Line:" in cell_text:
-                        spread, over_under = parse_betting_line(cell_text)
-                        break
-
-                # Extract venue if present
-                venue = ""
-                for cell in cells:
-                    cell_text = cell.get_text(strip=True)
-                    # Venues often contain Arena, Center, Stadium
-                    if any(
-                        word in cell_text
-                        for word in ["Arena", "Center", "Stadium", "Garden", "Court"]
-                    ):
-                        venue = cell_text
-                        break
-
-                games.append(
-                    {
-                        "game_date": game_date,
-                        "away_team": away_team,
-                        "home_team": home_team,
-                        "game_time": game_time,
-                        "spread": spread,
-                        "over_under": over_under,
-                        "tv_network": tv_network,
-                        "venue": venue,
-                    }
-                )
-
-            except Exception as e:
-                print(f"Error parsing row: {e}")
-                continue
-
-    return games
-
-
-def parse_cbb_schedule(html: str, game_date: str) -> List[Dict]:
-    """Parse College Basketball schedule HTML to extract game information."""
-    # The parsing logic is very similar to NBA
-    return parse_nba_schedule(html, game_date)
-
-
-def parse_schedule_from_text(text: str, game_date: str, sport: str) -> List[Dict]:
-    """Alternative parsing using regex on the raw text content."""
-    games = []
-
-    # Split by date sections and find the target date section
-    date_pattern = r"(Saturday|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday),\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+,\s+\d+"
-
-    # Look for game patterns: "Team1   @   Team2 | Time | TV | Venue | Line"
-    # Pattern variations from ESPN tables
-
-    lines = text.split("\n")
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-
-        # Look for matchup patterns
-        if " @ " in line or " v " in line:
-            # This might be a game line
-            parts = re.split(r"\s+[@v]\s+", line)
-            if len(parts) == 2:
-                away_team = parts[0].strip()
-                remaining = parts[1]
-
-                # Parse the remaining part for home team, time, etc.
-                # Pattern: "Home Team | Time | TV | Venue | Line: X -X.X O/U: XXX"
-                home_parts = re.split(r"\s*\|\s*", remaining)
-                home_team = home_parts[0].strip() if home_parts else ""
-
-                game_time = ""
-                tv_network = ""
-                venue = ""
-                spread = ""
-                over_under = ""
-
-                for part in home_parts[1:]:
-                    part = part.strip()
-                    # Check if it's a time
-                    if re.match(r"\d+:\d+\s*(AM|PM)", part):
-                        game_time = part
-                    # Check for betting line
-                    elif "Line:" in part:
-                        spread, over_under = parse_betting_line(part)
-                    # Check for TV network
-                    elif part in [
-                        "ESPN",
-                        "ESPN2",
-                        "ABC",
-                        "TNT",
-                        "NBATV",
-                        "FS1",
-                        "CBS",
-                        "CBSSN",
-                        "truTV",
-                        "BTN",
-                        "Peacock",
-                        "NBCSN",
-                    ]:
-                        tv_network = part
-                    # Check for venue
-                    elif any(
-                        word in part
-                        for word in [
-                            "Arena",
-                            "Center",
-                            "Stadium",
-                            "Garden",
-                            "Court",
-                            "Coliseum",
-                        ]
-                    ):
-                        venue = part
-
-                if away_team and home_team:
-                    games.append(
-                        {
-                            "game_date": game_date,
-                            "away_team": away_team,
-                            "home_team": home_team,
-                            "game_time": game_time,
-                            "spread": spread,
-                            "over_under": over_under,
-                            "tv_network": tv_network,
-                            "venue": venue,
-                        }
-                    )
-
-        i += 1
-
-    return games
-
-
 def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
-    """Fetch schedule using ESPN's unofficial API endpoint."""
+    """Fetch schedule from ESPN's JSON API for a given sport and date (YYYYMMDD)."""
 
-    # ESPN has an API endpoint that returns JSON for schedules
     if sport == "nba":
         api_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
     elif sport == "nhl":
@@ -510,11 +259,10 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
     else:
         raise ValueError(f"Unsupported sport: {sport!r}")
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-    }
-
-    response = requests.get(api_url, headers=headers)
+    response = requests.get(
+        api_url,
+        headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"},
+    )
     response.raise_for_status()
     data = response.json()
 
@@ -529,7 +277,6 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
             if len(competitors) != 2:
                 continue
 
-            # Find away (home=false) and home (home=true) teams
             away_team = ""
             home_team = ""
             for comp in competitors:
@@ -541,40 +288,50 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
                 else:
                     home_team = team_name
 
-            # Get game time
-            game_time = ""
+            if not away_team or not home_team:
+                continue
+
+            # Game time
             date_obj = event.get("date", "")
-            status = event.get("status", {})
-            status_type = status.get("type", {}).get("name", "")
+            status_type = event.get("status", {}).get("type", {}).get("name", "")
 
             if status_type == "STATUS_SCHEDULED":
-                # Parse the time from the date
                 try:
                     dt = datetime.fromisoformat(date_obj.replace("Z", "+00:00"))
-                    eastern = ZoneInfo("America/New_York")
-                    dt_eastern = dt.astimezone(eastern)
+                    dt_eastern = dt.astimezone(ZoneInfo("America/New_York"))
                     game_time = dt_eastern.strftime("%I:%M %p").lstrip("0")
-                except:
+                except Exception:
                     game_time = "TBD"
-            elif status_type in ["STATUS_IN_PROGRESS", "STATUS_HALFTIME"]:
+            elif status_type in ("STATUS_IN_PROGRESS", "STATUS_HALFTIME"):
                 game_time = "LIVE"
             else:
                 game_time = "Final"
 
-            # Get betting odds
+            # Spread and over/under
+            # odds.details uses abbreviations (e.g. "OKC -9.5"), so we build the
+            # spread string ourselves using the full team names already extracted.
+            # odds.spread is the home team's signed point spread:
+            #   negative = home favored, positive = home is underdog (away favored).
             spread = ""
             over_under = ""
-            odds = competition.get("odds", [])
-            if odds:
-                odds_data = odds[0]
-                spread_line = odds_data.get("details", "")
-                if spread_line:
-                    spread = spread_line
+            odds_list = competition.get("odds", [])
+            if odds_list:
+                odds_data = odds_list[0]
+                spread_val = odds_data.get("spread")  # home team's spread (signed float)
                 ou = odds_data.get("overUnder")
-                if ou:
+                if ou is not None:
                     over_under = str(ou)
+                if spread_val is not None:
+                    if spread_val == 0:
+                        spread = "PK"
+                    elif odds_data.get("homeTeamOdds", {}).get("favorite"):
+                        # home is favored; spread_val is negative
+                        spread = f"{home_team} {spread_val:g}"
+                    elif odds_data.get("awayTeamOdds", {}).get("favorite"):
+                        # away is favored; negate home's positive spread to get away's negative
+                        spread = f"{away_team} {-spread_val:g}"
 
-            # Get venue
+            # Venue
             venue = ""
             venue_data = competition.get("venue", {})
             if venue_data:
@@ -588,7 +345,7 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
                         if state:
                             venue += f", {state}"
 
-            # Get TV network
+            # TV network
             tv_network = ""
             broadcasts = competition.get("broadcasts", [])
             if broadcasts:
@@ -598,18 +355,16 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
                         tv_network = names[0]
                         break
 
-            games.append(
-                {
-                    "game_date": game_date_formatted,
-                    "away_team": away_team,
-                    "home_team": home_team,
-                    "game_time": game_time,
-                    "spread": spread,
-                    "over_under": over_under,
-                    "tv_network": tv_network,
-                    "venue": venue,
-                }
-            )
+            games.append({
+                "game_date": game_date_formatted,
+                "away_team": away_team,
+                "home_team": home_team,
+                "game_time": game_time,
+                "spread": spread,
+                "over_under": over_under,
+                "tv_network": tv_network,
+                "venue": venue,
+            })
 
         except Exception as e:
             print(f"Error parsing event: {e}")
@@ -623,41 +378,39 @@ def write_games_to_sheet(
     games: List[Dict],
     existing_games: Dict[str, Dict],
     fetch_timestamp: str,
-    fieldnames: List[str],
 ) -> tuple[int, int, List[str]]:
     """Write new games and update changed odds. Returns (new_count, updated_count, change_details)."""
     new_rows = []
-    updates = []  # List of (row_idx, col, value) for batch update
-    change_details = []  # Track specific changes for logging
+    odds_updates = []
+    change_details = []
 
     for game in games:
         key = f"{game['game_date']}|{game['away_team']}|{game['home_team']}"
         game_label = f"{game['away_team']} @ {game['home_team']}"
-        
+
         if key in existing_games:
             existing = existing_games[key]
-            # Check if spread or over_under changed
-            spread_changed = game['spread'] and game['spread'] != existing['spread']
-            ou_changed = game['over_under'] and game['over_under'] != existing['over_under']
-            
+            spread_changed = game["spread"] and game["spread"] != existing["spread"]
+            ou_changed = game["over_under"] and game["over_under"] != existing["over_under"]
+
             if spread_changed or ou_changed:
-                row_idx = existing['row_idx']
+                row_idx = existing["row_idx"]
                 if spread_changed:
-                    updates.append((row_idx, 6, game['spread']))  # Column F (1-indexed)
+                    odds_updates.append((row_idx, 6, game["spread"]))
                     change_details.append(f"{game_label}: spread {existing['spread']} → {game['spread']}")
                 if ou_changed:
-                    updates.append((row_idx, 7, game['over_under']))  # Column G (1-indexed)
+                    odds_updates.append((row_idx, 7, game["over_under"]))
                     change_details.append(f"{game_label}: O/U {existing['over_under']} → {game['over_under']}")
                 print(
-                    f"  🔄 Will update: {game['away_team']} @ {game['home_team']} - "
-                    f"Spread: {existing['spread']} → {game['spread']}, "
+                    f"  🔄 {game_label} — "
+                    f"spread: {existing['spread']} → {game['spread']}, "
                     f"O/U: {existing['over_under']} → {game['over_under']}"
                 )
             else:
-                print(f"  Skipping (no changes): {game['away_team']} @ {game['home_team']}")
+                print(f"  Skipping (no changes): {game_label}")
             continue
 
-        row = [
+        new_rows.append([
             fetch_timestamp,
             game["game_date"],
             game["away_team"],
@@ -667,33 +420,70 @@ def write_games_to_sheet(
             game["over_under"],
             game["tv_network"],
             game["venue"],
-            "",  # score — empty for new games, filled in by future backfill runs
-        ]
-
-        new_rows.append(row)
-        existing_games[key] = {'row_idx': -1, 'spread': game['spread'], 'over_under': game['over_under']}
+            "",  # score — filled in by update_scores_for_sheet once game completes
+        ])
+        existing_games[key] = {
+            "row_idx": -1,
+            "spread": game["spread"],
+            "over_under": game["over_under"],
+            "score": "",
+        }
         change_details.append(f"{game_label}: NEW ({game['spread']}, O/U {game['over_under']})")
-        print(
-            f"  ✅ Will add: {game['away_team']} @ {game['home_team']} - {game['game_time']} - {game['spread']} O/U {game['over_under']}"
-        )
+        print(f"  ✅ {game['game_date']}: {game_label} — {game['game_time']} — {game['spread']} O/U {game['over_under']}")
 
-    # Batch write all new rows at once
     if new_rows:
         worksheet.append_rows(new_rows, value_input_option="USER_ENTERED")
-    
-    # Apply updates for changed odds
-    for row_idx, col, value in updates:
-        worksheet.update_cell(row_idx, col, value)
 
-    return len(new_rows), len(updates), change_details
+    if odds_updates:
+        batch = [
+            {
+                "range": gspread.utils.rowcol_to_a1(row_idx, col),
+                "values": [[value]],
+            }
+            for row_idx, col, value in odds_updates
+        ]
+        worksheet.batch_update(batch)
+
+    return len(new_rows), len(odds_updates), change_details
 
 
-def main(target_date: Optional[str] = None):
+def run_sport(
+    spreadsheet, sport: str, date_str: str, formatted_date: str, timestamp: str
+):
+    """Run score backfill + schedule fetch for a single sport."""
+    worksheet_name = SPORT_WORKSHEETS[sport]
+
+    score_count, score_details = update_scores_for_sheet(spreadsheet, worksheet_name, sport)
+    log_activity(
+        spreadsheet,
+        "backfill_scores",
+        f"{sport.upper()} scores: {score_count} rows updated",
+        {"details": ", ".join(score_details) if score_details else "no updates"},
+    )
+
+    worksheet = get_or_create_worksheet(spreadsheet, worksheet_name)
+    existing_games = get_existing_games(worksheet)
+    games = fetch_and_parse_schedule_api(sport, date_str)
+    print(f"Found {len(games)} {sport.upper()} games")
+
+    new_count, updated_count, changes = write_games_to_sheet(
+        worksheet, games, existing_games, timestamp
+    )
+    print(f"✅ {sport.upper()}: Added {new_count} new games, updated {updated_count} odds")
+
+    log_activity(
+        spreadsheet,
+        "fetch_schedule",
+        f"{sport.upper()} {formatted_date}: {new_count} rows added, {updated_count} rows updated",
+        {"games_fetched": len(games), "details": ", ".join(changes) if changes else "no changes"},
+    )
+
+
+def main(target_date: Optional[str] = None, sport: Optional[str] = None):
     eastern = ZoneInfo("America/New_York")
     now_eastern = datetime.now(eastern)
     timestamp = now_eastern.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Use target_date if provided, otherwise use today
     if target_date:
         date_str = target_date.replace("-", "")
         formatted_date = target_date
@@ -701,99 +491,19 @@ def main(target_date: Optional[str] = None):
         date_str = now_eastern.strftime("%Y%m%d")
         formatted_date = now_eastern.strftime("%Y-%m-%d")
 
-    print(f"\n[{timestamp}] Fetching ESPN schedules for {formatted_date}...")
+    sports = [sport] if sport else list(SPORT_WORKSHEETS.keys())
+    print(f"\n[{timestamp}] Fetching ESPN schedules for {formatted_date} — sports: {', '.join(sports)}")
 
     try:
         client = get_gspread_client()
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
 
-        # ── Backfill Scores ─────────────────────────────────────────────────
-        # Run before schedule fetch so only one workflow writes to these sheets
-        print("\n📋 Backfilling missing scores from previous days...")
+        labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL"}
+        for s in sports:
+            print(f"\n{labels[s]}...")
+            run_sport(spreadsheet, s, date_str, formatted_date, timestamp)
 
-        nba_score_count, nba_score_details = update_scores_for_sheet(
-            spreadsheet, NBA_WORKSHEET_NAME, "nba"
-        )
-        log_activity(spreadsheet, "backfill_scores", f"NBA scores: {nba_score_count} rows updated", {"details": ", ".join(nba_score_details) if nba_score_details else "no updates"})
-
-        cbb_score_count, cbb_score_details = update_scores_for_sheet(
-            spreadsheet, CBB_WORKSHEET_NAME, "cbb"
-        )
-        log_activity(spreadsheet, "backfill_scores", f"CBB scores: {cbb_score_count} rows updated", {"details": ", ".join(cbb_score_details) if cbb_score_details else "no updates"})
-
-        nhl_score_count, nhl_score_details = update_scores_for_sheet(
-            spreadsheet, NHL_WORKSHEET_NAME, "nhl"
-        )
-        log_activity(spreadsheet, "backfill_scores", f"NHL scores: {nhl_score_count} rows updated", {"details": ", ".join(nhl_score_details) if nhl_score_details else "no updates"})
-
-        print(f"\n✅ Scores backfilled — NBA: {nba_score_count}, CBB: {cbb_score_count}, NHL: {nhl_score_count}")
-
-        # ── NBA Schedule ────────────────────────────────────────────────────
-        print("\n📊 Fetching NBA schedule...")
-        nba_worksheet = get_or_create_worksheet(
-            spreadsheet, NBA_WORKSHEET_NAME, NBA_FIELDNAMES
-        )
-        nba_existing_games = get_existing_games(nba_worksheet)
-
-        nba_games = fetch_and_parse_schedule_api("nba", date_str)
-        print(f"Found {len(nba_games)} NBA games")
-
-        nba_new, nba_updated, nba_changes = write_games_to_sheet(
-            nba_worksheet, nba_games, nba_existing_games, timestamp, NBA_FIELDNAMES
-        )
-        print(
-            f"✅ NBA: Added {nba_new} new games, updated {nba_updated} odds"
-        )
-        
-        # Log NBA fetch
-        nba_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
-        log_activity(spreadsheet, "fetch_schedule", f"NBA {formatted_date}: {nba_new} rows added, {nba_updated} rows updated", {"url": nba_url, "games_fetched": len(nba_games), "details": ", ".join(nba_changes) if nba_changes else "no changes"})
-
-        # ── College Basketball Schedule ─────────────────────────────────────
-        print("\n🏀 Fetching College Basketball schedule...")
-        cbb_worksheet = get_or_create_worksheet(
-            spreadsheet, CBB_WORKSHEET_NAME, CBB_FIELDNAMES
-        )
-        cbb_existing_games = get_existing_games(cbb_worksheet)
-
-        cbb_games = fetch_and_parse_schedule_api("cbb", date_str)
-        print(f"Found {len(cbb_games)} College Basketball games")
-
-        cbb_new, cbb_updated, cbb_changes = write_games_to_sheet(
-            cbb_worksheet, cbb_games, cbb_existing_games, timestamp, CBB_FIELDNAMES
-        )
-        print(
-            f"✅ CBB: Added {cbb_new} new games, updated {cbb_updated} odds"
-        )
-        
-        # Log CBB fetch
-        cbb_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
-        log_activity(spreadsheet, "fetch_schedule", f"CBB {formatted_date}: {cbb_new} rows added, {cbb_updated} rows updated", {"url": cbb_url, "games_fetched": len(cbb_games), "details": ", ".join(cbb_changes) if cbb_changes else "no changes"})
-
-        # ── NHL Schedule ────────────────────────────────────────────────────
-        print("\n🏒 Fetching NHL schedule...")
-        nhl_worksheet = get_or_create_worksheet(
-            spreadsheet, NHL_WORKSHEET_NAME, NHL_FIELDNAMES
-        )
-        nhl_existing_games = get_existing_games(nhl_worksheet)
-
-        nhl_games = fetch_and_parse_schedule_api("nhl", date_str)
-        print(f"Found {len(nhl_games)} NHL games")
-
-        nhl_new, nhl_updated, nhl_changes = write_games_to_sheet(
-            nhl_worksheet, nhl_games, nhl_existing_games, timestamp, NHL_FIELDNAMES
-        )
-        print(
-            f"✅ NHL: Added {nhl_new} new games, updated {nhl_updated} odds"
-        )
-        
-        # Log NHL fetch
-        nhl_url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
-        log_activity(spreadsheet, "fetch_schedule", f"NHL {formatted_date}: {nhl_new} rows added, {nhl_updated} rows updated", {"url": nhl_url, "games_fetched": len(nhl_games), "details": ", ".join(nhl_changes) if nhl_changes else "no changes"})
-
-        print(
-            f"\n✅ Done! Processed {len(nba_games)} NBA, {len(cbb_games)} CBB, and {len(nhl_games)} NHL games."
-        )
+        print(f"\n✅ Done!")
 
     except ValueError as e:
         print(f"Error: {e}")
@@ -801,7 +511,9 @@ def main(target_date: Optional[str] = None):
 
 
 if __name__ == "__main__":
-    import sys
+    parser = argparse.ArgumentParser(description="Fetch ESPN schedules and backfill scores")
+    parser.add_argument("date", nargs="?", help="Target date in YYYY-MM-DD format (default: today)")
+    parser.add_argument("--sport", choices=["nba", "cbb", "nhl"], help="Only run this sport (default: all)")
+    args = parser.parse_args()
 
-    target_date = sys.argv[1] if len(sys.argv) > 1 else None
-    main(target_date)
+    main(target_date=args.date, sport=args.sport)
