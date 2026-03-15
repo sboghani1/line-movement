@@ -26,9 +26,7 @@ from espn_schedule_fetcher import (
     NBA_WORKSHEET_NAME,
     CBB_WORKSHEET_NAME,
     NHL_WORKSHEET_NAME,
-    NBA_FIELDNAMES,
-    CBB_FIELDNAMES,
-    NHL_FIELDNAMES,
+    FIELDNAMES,
     GOOGLE_SHEET_ID,
     get_gspread_client,
     get_or_create_worksheet,
@@ -41,9 +39,9 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "")
 ODDS_API_BASE = "https://api.the-odds-api.com/v4/historical/sports"
 
 SPORT_CONFIG = {
-    "nba": (NBA_WORKSHEET_NAME, NBA_FIELDNAMES),
-    "cbb": (CBB_WORKSHEET_NAME, CBB_FIELDNAMES),
-    "nhl": (NHL_WORKSHEET_NAME, NHL_FIELDNAMES),
+    "nba": (NBA_WORKSHEET_NAME, FIELDNAMES),
+    "cbb": (CBB_WORKSHEET_NAME, FIELDNAMES),
+    "nhl": (NHL_WORKSHEET_NAME, FIELDNAMES),
 }
 
 ODDS_API_SPORT_KEYS = {
@@ -166,6 +164,7 @@ def fetch_d1_cbb_games(date_str: str) -> list[dict]:
                 "over_under": "",
                 "tv_network": tv_network,
                 "venue": venue,
+                "score": "",
             })
         except Exception:
             continue
@@ -449,7 +448,7 @@ def main():
     for sport, (ws_name, fieldnames) in SPORT_CONFIG.items():
         if sport not in combos:
             continue
-        ws = get_or_create_worksheet(spreadsheet, ws_name, fieldnames)
+        ws = get_or_create_worksheet(spreadsheet, ws_name)
         worksheets[sport] = ws
         existing_games_by_sport[sport] = get_existing_games(ws)
         print(f"  {sport}: {len(existing_games_by_sport[sport])} rows already in sheet")
