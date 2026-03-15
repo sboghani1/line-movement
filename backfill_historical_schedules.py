@@ -30,6 +30,7 @@ from espn_schedule_fetcher import (
     NHL_WORKSHEET_NAME,
     NFL_WORKSHEET_NAME,
     CFB_WORKSHEET_NAME,
+    MLB_WORKSHEET_NAME,
     GOOGLE_SHEET_ID,
     get_gspread_client,
     get_or_create_worksheet,
@@ -47,6 +48,7 @@ SPORT_CONFIG = {
     "nhl": NHL_WORKSHEET_NAME,
     "nfl": NFL_WORKSHEET_NAME,
     "cfb": CFB_WORKSHEET_NAME,
+    "mlb": MLB_WORKSHEET_NAME,
 }
 
 ODDS_API_SPORT_KEYS = {
@@ -55,6 +57,17 @@ ODDS_API_SPORT_KEYS = {
     "nhl": "icehockey_nhl",
     "nfl": "americanfootball_nfl",
     "cfb": "americanfootball_ncaaf",
+    "mlb": "baseball_mlb",
+}
+
+# Primary Odds API market per sport: moneyline (h2h) for hockey/baseball, spread for others
+SPORT_PRIMARY_MARKETS = {
+    "nba": "spreads",
+    "cbb": "spreads",
+    "nhl": "h2h",
+    "nfl": "spreads",
+    "cfb": "spreads",
+    "mlb": "h2h",
 }
 
 PREFERRED_BOOKMAKERS = ["draftkings", "fanduel", "betmgm", "williamhill_us"]
@@ -66,6 +79,7 @@ SEASON_START_DATES = {
     "nhl": date(2024, 10, 8),   # 2024-25 NHL season
     "nfl": date(2024, 9, 5),    # 2024 NFL season opener
     "cfb": date(2024, 8, 24),   # 2024 CFB early openers
+    "mlb": date(2025, 3, 27),   # 2025 MLB season opener
 }
 
 # ESPN name → Odds API name for known mismatches
@@ -199,8 +213,7 @@ def fetch_odds_api_lines(sport: str, game_date: str) -> tuple[dict, int | None]:
 
     odds_sport = ODDS_API_SPORT_KEYS[sport]
     snapshot_time = f"{game_date}T16:00:00Z"
-    # NHL: moneyline (h2h) is the primary line; NBA/CBB: point spread
-    primary_market = "h2h" if sport == "nhl" else "spreads"
+    primary_market = SPORT_PRIMARY_MARKETS[sport]
 
     try:
         resp = requests.get(
@@ -577,7 +590,7 @@ def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None
 def main():
     parser = argparse.ArgumentParser(description="Backfill historical schedules from master_sheet")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing to sheets")
-    parser.add_argument("--sport", choices=["nba", "cbb", "nhl", "nfl", "cfb"], help="Only process this sport")
+    parser.add_argument("--sport", choices=list(SPORT_CONFIG), help="Only process this sport")
     parser.add_argument("--limit", type=int, help="Stop after processing this many dates/rows")
     parser.add_argument("--start-date", help="Override season start date (YYYY-MM-DD)")
     parser.add_argument("--update-period-scores", action="store_true",
