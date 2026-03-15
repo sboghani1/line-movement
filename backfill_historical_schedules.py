@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import sys
 import argparse
 from datetime import date, datetime, timedelta
 from difflib import SequenceMatcher
@@ -26,7 +27,6 @@ from espn_schedule_fetcher import (
     NBA_WORKSHEET_NAME,
     CBB_WORKSHEET_NAME,
     NHL_WORKSHEET_NAME,
-    FIELDNAMES,
     GOOGLE_SHEET_ID,
     get_gspread_client,
     get_or_create_worksheet,
@@ -39,9 +39,9 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "")
 ODDS_API_BASE = "https://api.the-odds-api.com/v4/historical/sports"
 
 SPORT_CONFIG = {
-    "nba": (NBA_WORKSHEET_NAME, FIELDNAMES),
-    "cbb": (CBB_WORKSHEET_NAME, FIELDNAMES),
-    "nhl": (NHL_WORKSHEET_NAME, FIELDNAMES),
+    "nba": NBA_WORKSHEET_NAME,
+    "cbb": CBB_WORKSHEET_NAME,
+    "nhl": NHL_WORKSHEET_NAME,
 }
 
 ODDS_API_SPORT_KEYS = {
@@ -359,8 +359,9 @@ def backfill_sport_date(sport: str, game_date: str, worksheet, existing_games: d
     # away_team/home_team/score columns are always consistent.
     raw_scores = fetch_espn_results(sport, date_str)
     for game in games:
-        raw = raw_scores.get((game["away_team"], game["home_team"]), "")
-        if raw:
+        result = raw_scores.get((game["away_team"], game["home_team"]))
+        if result:
+            raw, period_scores_str = result
             parts = raw.split(", ")
             if len(parts) == 2:
                 away_score = parts[0].rsplit(" ", 1)[-1]
@@ -368,8 +369,10 @@ def backfill_sport_date(sport: str, game_date: str, worksheet, existing_games: d
                 game["score"] = f"{game['away_team']} {away_score}, {game['home_team']} {home_score}"
             else:
                 game["score"] = raw
+            game["period_scores"] = period_scores_str
         else:
             game["score"] = ""
+            game["period_scores"] = ""
 
     # Fetch odds — spread label uses ESPN names via match_odds_to_games
     credits_remaining = None
@@ -407,6 +410,7 @@ def backfill_sport_date(sport: str, game_date: str, worksheet, existing_games: d
             game["tv_network"],
             game["venue"],
             game.get("score", ""),
+            game.get("period_scores", ""),
         ]
         new_rows.append(row)
         existing_games[key] = {"row_idx": -1, "spread": game.get("spread", ""), "over_under": game.get("over_under", "")}
@@ -417,16 +421,170 @@ def backfill_sport_date(sport: str, game_date: str, worksheet, existing_games: d
     return len(new_rows), credits_remaining
 
 
+_BOX_INNER_WIDTH = 54  # width between the │ chars
+_BOX_HEIGHT = 5
+
+
+def _render_progress_box(sport: str, rows_processed: int, total: int, elapsed: float) -> list[str]:
+    pct = rows_processed / total if total else 1.0
+    bar_width = _BOX_INNER_WIDTH - 12
+    filled = int(bar_width * pct)
+    bar = "█" * filled + "░" * (bar_width - filled)
+    elapsed_str = f"{int(elapsed // 60)}m{int(elapsed % 60):02d}s"
+    if rows_processed >= total:
+        eta_str = "done"
+    elif rows_processed > 0:
+        eta_sec = elapsed / rows_processed * (total - rows_processed)
+        eta_str = f"eta {int(eta_sec // 60)}m{int(eta_sec % 60):02d}s"
+    else:
+        eta_str = "eta --"
+    title   = f"  {sport.upper()} — period_scores migration"
+    bar_ln  = f"  {bar}  {pct*100:.0f}%"
+    stat_ln = f"  {rows_processed}/{total} rows · elapsed {elapsed_str} · {eta_str}"
+    return [
+        f"┌{'─' * _BOX_INNER_WIDTH}┐",
+        f"│{title:<{_BOX_INNER_WIDTH}}│",
+        f"│{bar_ln:<{_BOX_INNER_WIDTH}}│",
+        f"│{stat_ln:<{_BOX_INNER_WIDTH}}│",
+        f"└{'─' * _BOX_INNER_WIDTH}┘",
+    ]
+
+
+def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None) -> int:
+    """Fill in period_scores for existing rows that have a score but no period_scores.
+
+    Groups qualifying rows by date and makes one ESPN API call per date.
+    Writes to the sheet incrementally (one batch_update per date).
+    Returns the number of rows updated.
+    """
+    import gspread.utils
+    import time
+
+    all_rows = worksheet.get_all_values()
+    headers = all_rows[0]
+
+    try:
+        game_date_col = headers.index("game_date")
+        away_team_col = headers.index("away_team")
+        home_team_col = headers.index("home_team")
+        score_col = headers.index("score")
+        period_scores_col = headers.index("period_scores")
+    except ValueError as e:
+        print(f"  ❌ Missing column: {e}")
+        return 0
+
+    today = date.today()
+    dates_needing_update: dict[str, list] = {}
+
+    for i, row in enumerate(all_rows[1:], start=2):
+        score = row[score_col] if len(row) > score_col else ""
+        period_scores = row[period_scores_col] if len(row) > period_scores_col else ""
+        if not score or score == "N/A" or period_scores:
+            continue
+        game_date_str = row[game_date_col]
+        away_team = row[away_team_col]
+        home_team = row[home_team_col]
+        try:
+            if datetime.strptime(game_date_str, "%Y-%m-%d").date() >= today:
+                continue
+        except ValueError:
+            continue
+        dates_needing_update.setdefault(game_date_str.replace("-", ""), []).append(
+            (i, away_team, home_team)
+        )
+
+    total_qualifying = sum(len(v) for v in dates_needing_update.values())
+    print(f"  {sport}: {total_qualifying} rows across {len(dates_needing_update)} date(s) need period_scores")
+
+    if dry_run or not dates_needing_update:
+        return 0
+
+    rows_processed = 0
+    total_updated = 0
+    total_to_process = min(limit, total_qualifying) if limit is not None else total_qualifying
+    start_time = time.monotonic()
+    live = sys.stdout.isatty()
+
+    if live:
+        for line in _render_progress_box(sport, 0, total_to_process, 0):
+            print(line)
+    log_lines = 0
+
+    for date_key, rows_for_date in sorted(dates_needing_update.items()):
+        if limit is not None and rows_processed >= limit:
+            break
+        try:
+            espn_results = fetch_espn_results(sport, date_key)
+        except Exception as e:
+            print(f"    {date_key}: skipped — {e}")
+            rows_processed += len(rows_for_date)
+            continue
+        date_batch = []
+        for row_idx, away_team, home_team in rows_for_date:
+            if limit is not None and rows_processed >= limit:
+                break
+            rows_processed += 1
+            result = espn_results.get((away_team, home_team))
+            if result:
+                _, period_scores_str = result
+                if period_scores_str:
+                    date_batch.append({
+                        "range": gspread.utils.rowcol_to_a1(row_idx, period_scores_col + 1),
+                        "values": [[period_scores_str]],
+                    })
+        if date_batch:
+            worksheet.batch_update(date_batch)
+            total_updated += len(date_batch)
+            time.sleep(1)
+
+        elapsed = time.monotonic() - start_time
+        log_line = f"    {date_key}: updated {len(date_batch)} rows"
+
+        if live:
+            print(log_line)
+            log_lines += 1
+            box = _render_progress_box(sport, rows_processed, total_to_process, elapsed)
+            sys.stdout.write(f"\033[{log_lines + _BOX_HEIGHT}A")
+            for line in box:
+                sys.stdout.write(f"\r\033[2K{line}\n")
+            sys.stdout.write(f"\033[{log_lines}B")
+            sys.stdout.flush()
+        else:
+            pct = rows_processed / total_to_process * 100 if total_to_process else 100
+            eta_str = ""
+            if rows_processed > 0 and rows_processed < total_to_process:
+                eta_sec = elapsed / rows_processed * (total_to_process - rows_processed)
+                eta_str = f"  eta {int(eta_sec // 60)}m{int(eta_sec % 60):02d}s"
+            print(f"{log_line}  [{pct:.0f}%{eta_str}]")
+
+    return total_updated
+
+
 def main():
     parser = argparse.ArgumentParser(description="Backfill historical schedules from master_sheet")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing to sheets")
     parser.add_argument("--sport", choices=["nba", "cbb", "nhl"], help="Only process this sport")
-    parser.add_argument("--limit", type=int, help="Stop after processing this many dates")
+    parser.add_argument("--limit", type=int, help="Stop after processing this many dates/rows")
     parser.add_argument("--start-date", help="Override season start date (YYYY-MM-DD)")
+    parser.add_argument("--update-period-scores", action="store_true",
+                        help="Fill period_scores for existing rows that have a score but no period_scores")
     args = parser.parse_args()
 
     if args.dry_run:
         print("--- DRY RUN MODE — no writes will happen ---\n")
+
+    if args.update_period_scores:
+        sports = [args.sport] if args.sport else list(SPORT_CONFIG.keys())
+        client = get_gspread_client()
+        spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
+        total = 0
+        for sport in sports:
+            ws_name = SPORT_CONFIG[sport]
+            ws = get_or_create_worksheet(spreadsheet, ws_name)
+            print(f"\n{sport.upper()}...")
+            total += update_period_scores(sport, ws, args.dry_run, args.limit)
+        print(f"\nDone. Total rows updated: {total}")
+        return
 
     fetch_timestamp = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -445,7 +603,7 @@ def main():
     # Pre-load worksheets and existing games once per sport
     worksheets = {}
     existing_games_by_sport = {}
-    for sport, (ws_name, fieldnames) in SPORT_CONFIG.items():
+    for sport, ws_name in SPORT_CONFIG.items():
         if sport not in combos:
             continue
         ws = get_or_create_worksheet(spreadsheet, ws_name)

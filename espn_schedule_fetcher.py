@@ -46,6 +46,7 @@ FIELDNAMES = [
     "tv_network",
     "venue",
     "score",
+    "period_scores",
 ]
 
 SPORT_WORKSHEETS = {
@@ -76,7 +77,12 @@ def get_gspread_client():
 def get_or_create_worksheet(spreadsheet, worksheet_name: str):
     """Get or create a worksheet with the given name and headers."""
     try:
-        return spreadsheet.worksheet(worksheet_name)
+        worksheet = spreadsheet.worksheet(worksheet_name)
+        first_row = worksheet.row_values(1)
+        if len(first_row) < len(FIELDNAMES):
+            for col_idx, name in enumerate(FIELDNAMES[len(first_row):], start=len(first_row) + 1):
+                worksheet.update_cell(1, col_idx, name)
+        return worksheet
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(
             title=worksheet_name, rows=1000, cols=len(FIELDNAMES)
@@ -101,6 +107,7 @@ def get_existing_games(worksheet) -> Dict[str, Dict]:
                     "spread": row[5] if len(row) > 5 else "",
                     "over_under": row[6] if len(row) > 6 else "",
                     "score": row[9] if len(row) > 9 else "",
+                    "period_scores": row[10] if len(row) > 10 else "",
                 }
         return games
     except Exception:
@@ -134,25 +141,36 @@ def fetch_espn_results(sport: str, date_str: str) -> Dict:
 
         competition = event.get("competitions", [{}])[0]
         away_team, home_team, away_score, home_score = "", "", "", ""
+        away_linescores, home_linescores = [], []
 
         for comp in competition.get("competitors", []):
             name = comp.get("team", {}).get("displayName", "")
             score = comp.get("score", "")
+            period_vals = [str(int(ls.get("value", 0))) for ls in comp.get("linescores", [])]
             if comp.get("homeAway") == "away":
                 away_team, away_score = name, score
+                away_linescores = period_vals
             else:
                 home_team, home_score = name, score
+                home_linescores = period_vals
 
         if away_team and home_team:
+            period_scores = ""
+            if away_linescores and home_linescores and len(away_linescores) == len(home_linescores):
+                period_scores = " | ".join(
+                    f"{away_team} {a}, {home_team} {h}"
+                    for a, h in zip(away_linescores, home_linescores)
+                )
             results[(away_team, home_team)] = (
-                f"{away_team} {away_score}, {home_team} {home_score}"
+                f"{away_team} {away_score}, {home_team} {home_score}",
+                period_scores,
             )
 
     return results
 
 
 def update_scores_for_sheet(
-    spreadsheet, worksheet_name: str, sport: str
+    spreadsheet, worksheet_name: str, sport: str, limit: Optional[int] = None
 ) -> tuple[int, List[str]]:
     """Backfill the score column for any past rows that are missing a score.
 
@@ -160,7 +178,7 @@ def update_scores_for_sheet(
     groups by date, and makes one ESPN API call per date to fill them in.
     Returns (updated_count, change_details).
     """
-    worksheet = spreadsheet.worksheet(worksheet_name)
+    worksheet = get_or_create_worksheet(spreadsheet, worksheet_name)
     all_rows = worksheet.get_all_values()
     headers = all_rows[0]
 
@@ -172,6 +190,8 @@ def update_scores_for_sheet(
     except ValueError as e:
         print(f"  ❌ Missing column in {worksheet_name}: {e}")
         return 0, []
+
+    period_scores_col = headers.index("period_scores") if "period_scores" in headers else None
 
     today = date.today()
 
@@ -212,32 +232,49 @@ def update_scores_for_sheet(
         f"— {list(dates_needing_update.keys())}"
     )
 
-    batch = []
+    total_written = 0
     change_details = []
 
+    rows_processed = 0
     for date_key, rows_for_date in dates_needing_update.items():
+        if limit is not None and rows_processed >= limit:
+            break
         espn_results = fetch_espn_results(sport, date_key)
+        date_batch = []
         for row_idx, away_team, home_team in rows_for_date:
-            score_str = espn_results.get((away_team, home_team))
-            if score_str:
-                batch.append({
+            if limit is not None and rows_processed >= limit:
+                break
+            rows_processed += 1
+            result = espn_results.get((away_team, home_team))
+            if result:
+                score_str, period_scores_str = result
+                date_batch.append({
                     "range": gspread.utils.rowcol_to_a1(row_idx, score_col + 1),
                     "values": [[score_str]],
                 })
+                if period_scores_col is not None and period_scores_str:
+                    date_batch.append({
+                        "range": gspread.utils.rowcol_to_a1(row_idx, period_scores_col + 1),
+                        "values": [[period_scores_str]],
+                    })
                 change_details.append(score_str)
             else:
                 # Mark as N/A so we don't retry on every future run
                 print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key} — marking N/A")
-                batch.append({
+                date_batch.append({
                     "range": gspread.utils.rowcol_to_a1(row_idx, score_col + 1),
                     "values": [["N/A"]],
                 })
 
-    if batch:
-        worksheet.batch_update(batch)
-        print(f"  ✅ {worksheet_name}: wrote {len(batch)} scores")
+        if date_batch:
+            worksheet.batch_update(date_batch)
+            total_written += len(date_batch)
+            print(f"    {date_key}: wrote {len(date_batch)} updates")
 
-    return len(batch), change_details
+    if total_written:
+        print(f"  ✅ {worksheet_name}: wrote {total_written} score updates total")
+
+    return total_written, change_details
 
 
 # ── ESPN Schedule Fetching ───────────────────────────────────────────────────
@@ -415,12 +452,14 @@ def write_games_to_sheet(
             game["tv_network"],
             game["venue"],
             "",  # score — filled in by update_scores_for_sheet once game completes
+            "",  # period_scores — filled in by update_scores_for_sheet once game completes
         ])
         existing_games[key] = {
             "row_idx": -1,
             "spread": game["spread"],
             "over_under": game["over_under"],
             "score": "",
+            "period_scores": "",
         }
         change_details.append(f"{game_label}: NEW ({game['spread']}, O/U {game['over_under']})")
         print(f"  ✅ {game['game_date']}: {game_label} — {game['game_time']} — {game['spread']} O/U {game['over_under']}")
@@ -442,12 +481,13 @@ def write_games_to_sheet(
 
 
 def run_sport(
-    spreadsheet, sport: str, date_str: str, formatted_date: str, timestamp: str
+    spreadsheet, sport: str, date_str: str, formatted_date: str, timestamp: str,
+    score_limit: Optional[int] = None,
 ):
     """Run score backfill + schedule fetch for a single sport."""
     worksheet_name = SPORT_WORKSHEETS[sport]
 
-    score_count, score_details = update_scores_for_sheet(spreadsheet, worksheet_name, sport)
+    score_count, score_details = update_scores_for_sheet(spreadsheet, worksheet_name, sport, limit=score_limit)
     log_activity(
         spreadsheet,
         "backfill_scores",
@@ -473,7 +513,7 @@ def run_sport(
     )
 
 
-def main(target_date: Optional[str] = None, sport: Optional[str] = None):
+def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_limit: Optional[int] = None):
     eastern = ZoneInfo("America/New_York")
     now_eastern = datetime.now(eastern)
     timestamp = now_eastern.strftime("%Y-%m-%d %H:%M:%S")
@@ -495,7 +535,7 @@ def main(target_date: Optional[str] = None, sport: Optional[str] = None):
         labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL"}
         for s in sports:
             print(f"\n{labels[s]}...")
-            run_sport(spreadsheet, s, date_str, formatted_date, timestamp)
+            run_sport(spreadsheet, s, date_str, formatted_date, timestamp, score_limit=score_limit)
 
         print(f"\n✅ Done!")
 
@@ -508,6 +548,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fetch ESPN schedules and backfill scores")
     parser.add_argument("date", nargs="?", help="Target date in YYYY-MM-DD format (default: today)")
     parser.add_argument("--sport", choices=["nba", "cbb", "nhl"], help="Only run this sport (default: all)")
+    parser.add_argument("--limit", type=int, help="Max rows to backfill scores for (default: all)")
     args = parser.parse_args()
 
-    main(target_date=args.date, sport=args.sport)
+    main(target_date=args.date, sport=args.sport, score_limit=args.limit)
