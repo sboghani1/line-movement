@@ -143,7 +143,7 @@ def fetch_espn_results(sport: str, date_str: str) -> Dict:
     elif sport == "nhl":
         url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
     elif sport == "cbb":
-        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=500"
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
     else:
         raise ValueError(f"Unsupported sport: {sport!r}")
 
@@ -506,7 +506,7 @@ def fetch_and_parse_schedule_api(sport: str, date_str: str) -> List[Dict]:
     elif sport == "nhl":
         api_url = f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={date_str}"
     elif sport == "cbb":
-        api_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=500"
+        api_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
     else:
         raise ValueError(f"Unsupported sport: {sport!r}")
 
@@ -767,7 +767,7 @@ def main(target_date: Optional[str] = None):
         )
         
         # Log CBB fetch
-        cbb_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=500"
+        cbb_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_str}&groups=50"
         log_activity(spreadsheet, "fetch_schedule", f"CBB {formatted_date}: {cbb_new} rows added, {cbb_updated} rows updated", {"url": cbb_url, "games_fetched": len(cbb_games), "details": ", ".join(cbb_changes) if cbb_changes else "no changes"})
 
         # ── NHL Schedule ────────────────────────────────────────────────────
