@@ -76,19 +76,13 @@ def get_gspread_client():
 def get_or_create_worksheet(spreadsheet, worksheet_name: str):
     """Get or create a worksheet with the given name and headers."""
     try:
-        worksheet = spreadsheet.worksheet(worksheet_name)
-        first_row = worksheet.row_values(1)
-        if first_row != FIELDNAMES and first_row != FIELDNAMES[:len(first_row)]:
-            print(f"  Resetting {worksheet_name} with proper headers...")
-            worksheet.clear()
-            worksheet.append_row(FIELDNAMES)
+        return spreadsheet.worksheet(worksheet_name)
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(
             title=worksheet_name, rows=1000, cols=len(FIELDNAMES)
         )
         worksheet.append_row(FIELDNAMES)
-
-    return worksheet
+        return worksheet
 
 
 def get_existing_games(worksheet) -> Dict[str, Dict]:
