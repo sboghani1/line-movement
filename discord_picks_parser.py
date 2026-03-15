@@ -170,10 +170,13 @@ Rules for parsing:
 - The odds in parentheses like "-125" or the unit size like "(1.5U)" should be ignored
 - If two teams are listed with a total (over/under), combine them like "Georgia Southern/Marshall"
 
-NEVER INVERT PICKS:
-- The pick MUST be the EXACT team mentioned in the text, regardless of any "Fades", "Fade", or "Against" labels
-- If text says "Purdue -7.5" under a "Fades:" header, the pick is STILL "Purdue" with line "-7.5"
-- Do NOT interpret "fade" to mean "bet the opposite team" - just record the team name as written
+NEVER INVERT PICKS (CRITICAL):
+- The pick MUST be the EXACT team mentioned in the text - NEVER the opponent
+- Under a "Fades:" header, if text says "Virginia +8", pick = "Virginia", line = "+8". Do NOT pick Duke (the fade target).
+- Under a "Fades:" header, if text says "Houston +3", pick = "Houston", line = "+3". Do NOT pick Arizona (the fade target).
+- Keep the line sign EXACTLY as written (+8 stays +8, -7 stays -7)
+- Do NOT interpret "Fades", "Fade", or "Against" labels to mean bet the opponent
+- ALWAYS record the team that is explicitly named in the image
 
 Respond with ONLY a JSON array of objects, each with keys: sport, pick, line
 Example response:

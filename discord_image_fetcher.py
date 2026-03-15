@@ -28,6 +28,7 @@ from google.oauth2.service_account import Credentials
 from PIL import Image
 
 from activity_logger import log_activity
+import daily_audit
 
 # ── Config ──────────────────────────────────────────────────────────────────
 DISCORD_USER_TOKEN = os.environ.get("DISCORD_USER_TOKEN", "")
@@ -47,6 +48,7 @@ FIELDNAMES = [
 
 # Worksheet names
 PARSED_PICKS_SHEET = "parsed_picks"
+PARSED_PICKS_NEW_SHEET = "parsed_picks_new"
 FINALIZED_PICKS_SHEET = "finalized_picks"
 MASTER_SHEET = "master_sheet"
 NBA_SCHEDULE_SHEET = "nba_schedule"
@@ -65,6 +67,7 @@ PICKS_COLUMNS = [
     "spread",
     "side",
     "result",
+    "ocr_text",
 ]
 
 # Image extensions to look for
@@ -76,10 +79,19 @@ MAX_MESSAGES_PER_RUN = 500
 # Maximum images per OCR batch (Claude supports up to 20)
 OCR_BATCH_SIZE = 15
 
-# Claude API usage tracking (Haiku 4.5 pricing: $0.80/M input, $4.00/M output)
+# Maximum OCR rows per Stage 1/2 parsing call.
+# Keeping this small prevents the model from losing track of which OCR text
+# belongs to which capper and hallucinating picks across rows.
+STAGE_BATCH_SIZE = 10
+
+# Claude API usage tracking (Sonnet 4.6 pricing: $3.00/M input, $15.00/M output)
+# NOTE: If daily pick volume grows dramatically (e.g. 10x current volume causing
+# token counts to spike), consider switching back to Haiku ($0.80/$4.00 per M) to
+# keep costs in check. At current volumes (~20-100 picks/day) Sonnet's quality
+# improvement is worth the ~3.75x price difference.
 CLAUDE_USAGE = {"input_tokens": 0, "output_tokens": 0}
-HAIKU_INPUT_COST_PER_M = 0.80
-HAIKU_OUTPUT_COST_PER_M = 4.00
+SONNET_INPUT_COST_PER_M = 3.00
+SONNET_OUTPUT_COST_PER_M = 15.00
 
 # Local CSV path for GitHub Pages
 LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
@@ -155,8 +167,8 @@ def git_commit_and_push() -> bool:
 
 def get_claude_cost():
     """Calculate estimated cost from token usage."""
-    input_cost = (CLAUDE_USAGE["input_tokens"] / 1_000_000) * HAIKU_INPUT_COST_PER_M
-    output_cost = (CLAUDE_USAGE["output_tokens"] / 1_000_000) * HAIKU_OUTPUT_COST_PER_M
+    input_cost = (CLAUDE_USAGE["input_tokens"] / 1_000_000) * SONNET_INPUT_COST_PER_M
+    output_cost = (CLAUDE_USAGE["output_tokens"] / 1_000_000) * SONNET_OUTPUT_COST_PER_M
     return input_cost + output_cost
 
 
@@ -330,19 +342,17 @@ def get_schedule_for_date(spreadsheet, sheet_name: str, target_date: str) -> Lis
 
 
 def format_schedule_for_prompt(games: List[dict], sport: str) -> str:
-    """Format game schedule into a string for the prompt."""
+    """Format game schedule into a string for the prompt.
+
+    Only includes team names (away @ home). Spread and O/U are intentionally
+    omitted — they are unused by the prompt and the spread column in particular
+    contradicts the 'NEVER get the spread from the schedule' instruction, which
+    causes model confusion.
+    """
     if not games:
         return f"No {sport} games scheduled"
 
-    lines = []
-    for g in games:
-        line = f"{g['away_team']} @ {g['home_team']}"
-        if g.get("spread"):
-            line += f" | {g['spread']}"
-        if g.get("over_under"):
-            line += f" | O/U {g['over_under']}"
-        lines.append(line)
-
+    lines = [f"{g['away_team']} @ {g['home_team']}" for g in games]
     return "\n".join(lines)
 
 
@@ -814,15 +824,15 @@ For each image, output in this exact format:
 # ── Pick Parsing (Stage 1 & Stage 2) ─────────────────────────────────────────
 
 
-def call_haiku_text(prompt: str, max_tokens: int = 8192) -> str:
-    """Call Claude Haiku with a text-only prompt."""
+def call_sonnet_text(prompt: str, max_tokens: int = 8192) -> str:
+    """Call Claude Sonnet with a text-only prompt."""
     if not ANTHROPIC_API_KEY:
         raise ValueError("ANTHROPIC_API_KEY environment variable not set")
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-6",
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -834,20 +844,20 @@ def call_haiku_text(prompt: str, max_tokens: int = 8192) -> str:
 
 
 def build_stage1_prompt(
-    picks_to_parse: List[Tuple[str, str, str]], schedule_data: dict
+    picks_to_parse: List[Tuple[str, str, str, int]], schedule_data: dict
 ) -> str:
     """Build the Stage 1 parsing prompt.
 
     Args:
-        picks_to_parse: List of (capper_name, message_date, ocr_text) tuples
+        picks_to_parse: List of (capper_name, message_date, ocr_text, row_id) tuples
         schedule_data: Dict with 'nba', 'cbb', 'nhl' schedule strings
 
     Returns:
         The full prompt string
     """
     picks_section = ""
-    for capper, date, ocr_text in picks_to_parse:
-        picks_section += f"\n[Capper: {capper}, Date: {date}]\n{ocr_text}\n"
+    for capper, date, ocr_text, row_id in picks_to_parse:
+        picks_section += f"\n[ROW:{row_id}] [Capper: {capper}, Date: {date}]\n{ocr_text}\n"
 
     prompt = f"""Parse the following betting picks from OCR text into CSV rows.
 
@@ -861,14 +871,22 @@ COLUMN DEFINITIONS:
 - pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
-- spread: Leave empty for now  
+- spread: Leave empty for now
 - side: Leave empty for now
 - result: Leave empty
+
+ROW ATTRIBUTION (CRITICAL):
+- Each OCR block is tagged [ROW:N] — ONLY parse picks that appear in that block
+- NEVER invent picks, copy picks from other rows, or use the schedule to fabricate bets
+- If an OCR block is unreadable or contains no valid picks, output nothing for that row
+- Do NOT hallucinate picks that are not explicitly present in the OCR text
 
 COMMON PARSING PATTERNS (may appear with ANY capper):
 - "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
 - "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
 - Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
+- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
+- "MI" after a team name is a common OCR misread of "ML" — treat it as ML (e.g. "Kentucky MI (-140)" = Kentucky ML, "New Mexico St MI (-140)" = New Mexico St ML). "MI"/"ML" is the bet type, NOT a second team — "Team MI" on one line = one pick.
 
 ABBREVIATION RESOLUTION (MANDATORY):
 - The pick column MUST contain the FULL official team name from the schedule (e.g., "Oklahoma City Thunder" not "OKC")
@@ -884,10 +902,14 @@ CRITICAL - PICK COLUMN MUST BE:
 - NEVER a game format like "Georgia Southern Eagles @ Troy Trojans"
 - NEVER an abbreviation like "OKC" or "BKN"
 
-NEVER INVERT PICKS:
-- The pick MUST be the EXACT team mentioned in the text, regardless of labels like "Fades", "Fade", "Against", etc.
-- If text says "Purdue -7.5" under a "Fades:" header, the pick is STILL "Purdue Boilermakers" with line "-7.5"
-- Do NOT interpret "fade" to mean "bet the opposite team" - just record what the text says
+NEVER INVERT PICKS (CRITICAL):
+- The pick MUST be the EXACT team mentioned in the text - NEVER the opponent
+- Under a "Fades:" header, if text says "Virginia +8", pick = Virginia Cavaliers, line = +8. Do NOT pick Duke (the fade target).
+- Under a "Fades:" header, if text says "Houston +3", pick = Houston Cougars, line = +3. Do NOT pick Arizona (the fade target).
+- Keep the line sign EXACTLY as written (+8 stays +8, -7 stays -7)
+- Do NOT "correct" picks based on who is favored in the schedule
+- Do NOT interpret "Fades", "Fade", or "Against" labels to mean bet the opponent
+- ALWAYS record the team that is explicitly named in the OCR text
 
 FILTERING RULES - ONLY INCLUDE:
 - Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
@@ -972,10 +994,13 @@ VALIDATION:
 - spread column should have format like "Team Name -3.5" or "Team Name +3.5"
 - side should match pick exactly
 
-NEVER INVERT PICKS:
-- The pick MUST match the original team from the parsed input, regardless of any "Fades" or "Fade" labels
-- Do NOT pick the opponent team - always use the team that was explicitly mentioned
-- If input pick is "Purdue Boilermakers" with line "-7.5", the output pick is STILL "Purdue Boilermakers", NOT the opponent
+NEVER INVERT PICKS (CRITICAL):
+- The pick MUST match the original team from Stage 1 - NEVER switch to the opponent
+- Under a "Fades:" header, if Stage 1 says pick="Virginia Cavaliers" line="+8", keep it as Virginia Cavaliers +8. Do NOT flip to Duke (the fade target).
+- Under a "Fades:" header, if Stage 1 says pick="Houston Cougars" line="+3", keep it as Houston Cougars +3. Do NOT flip to Arizona (the fade target).
+- Do NOT "correct" the pick based on who is favored in the schedule
+- Do NOT flip underdog/favorite - keep the exact team and line from input
+- The side column should match the pick column exactly
 
 NBA SCHEDULE:
 {schedule_data.get("nba", "No games")}
@@ -1086,6 +1111,92 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
     return fixed_rows
 
 
+def deduplicate_ml_vs_spread(
+    new_rows: List[List[str]],
+    existing_rows: Optional[List[List[str]]] = None,
+    existing_row_offset: int = 0,
+) -> Tuple[List[List[str]], List[int]]:
+    """Drop ML picks when a spread pick exists for the same capper+game+date.
+
+    Handles both orderings:
+    - Spread is new, ML already exists in the sheet → returns sheet row indices to delete
+    - ML is new, spread already exists in the sheet → filters ML from new_rows
+
+    Args:
+        new_rows: Rows about to be appended (each is a list of column values).
+        existing_rows: All data rows already in finalized_picks (list of lists).
+            Pass None (or []) if not available / not needed.
+        existing_row_offset: The 1-based sheet row index of existing_rows[0].
+            e.g. if the sheet has a 3-row header and data starts at row 4, pass 4.
+
+    Returns:
+        (filtered_new_rows, existing_indices_to_delete)
+        - filtered_new_rows: new_rows with ML entries removed where a spread exists
+        - existing_indices_to_delete: 1-based sheet row indices of existing ML rows
+          to delete because a spread pick is arriving in new_rows
+    """
+    # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), ...
+    def is_spread(line: str) -> bool:
+        """Return True if line is a spread (not ML, not O/U total)."""
+        l = line.strip().upper()
+        if not l or l == "ML":
+            return False
+        # Totals: "O 145.5" or "U 167.5"
+        if l.startswith("O ") or l.startswith("U "):
+            return False
+        # Spread: starts with +/- and a number, or just a number
+        return bool(re.match(r"^[+-]?\d", l))
+
+    def row_key(row: List[str]) -> tuple:
+        """(date, capper_upper, game_upper) — case-insensitive matching."""
+        date = row[0].strip() if len(row) > 0 else ""
+        capper = row[1].strip().upper() if len(row) > 1 else ""
+        game = row[5].strip().upper() if len(row) > 5 else ""
+        return (date, capper, game)
+
+    existing_rows = existing_rows or []
+
+    # Build a set of group keys that have a spread in the existing sheet
+    existing_spread_keys: set = set()
+    for row in existing_rows:
+        if len(row) > 4 and is_spread(row[4]):
+            existing_spread_keys.add(row_key(row))
+
+    # Build a set of group keys that have a spread in the incoming new rows
+    new_spread_keys: set = set()
+    for row in new_rows:
+        if len(row) > 4 and is_spread(row[4]):
+            new_spread_keys.add(row_key(row))
+
+    # 1. Filter new_rows: drop ML rows whose group already has a spread
+    #    (either in existing sheet or arriving in the same batch)
+    all_spread_keys = existing_spread_keys | new_spread_keys
+    filtered_new: List[List[str]] = []
+    for row in new_rows:
+        line = row[4].strip().upper() if len(row) > 4 else ""
+        if line == "ML" and row_key(row) in all_spread_keys:
+            print(
+                f"  [dedup] Dropping ML pick for {row[1]} - {row[5]} "
+                f"(spread exists for this game)"
+            )
+            continue
+        filtered_new.append(row)
+
+    # 2. Find existing ML rows to delete because a spread is arriving in new_rows
+    existing_indices_to_delete: List[int] = []
+    for i, row in enumerate(existing_rows):
+        line = row[4].strip().upper() if len(row) > 4 else ""
+        if line == "ML" and row_key(row) in new_spread_keys:
+            sheet_row = existing_row_offset + i
+            print(
+                f"  [dedup] Marking existing ML row {sheet_row} for deletion: "
+                f"{row[1]} - {row[5]} (spread arriving in new batch)"
+            )
+            existing_indices_to_delete.append(sheet_row)
+
+    return filtered_new, existing_indices_to_delete
+
+
 def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
     """Get image_pull rows that need Stage 1 processing.
 
@@ -1132,7 +1243,25 @@ def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
 
 
 def run_stage1(spreadsheet, image_pull_ws):
-    """Run Stage 1: Parse OCR text to structured picks."""
+    """Run Stage 1: Parse OCR text into structured pick rows.
+
+    Reads unprocessed rows from image_pull, sends them to Sonnet in batches of
+    STAGE_BATCH_SIZE, and appends results to parsed_picks.
+
+    Batching rationale: sending all rows in one prompt causes the model to
+    hallucinate picks that "bleed" across cappers, or invent picks not present
+    in the OCR.  Small batches keep each prompt focused.
+
+    Each parsed row gets ocr_text attached as col 10 via an ocr_lookup dict
+    keyed by (capper, date).  This is the only opportunity to link OCR source
+    text to the parsed output — once rows move to finalized_picks the raw OCR
+    is no longer available from that sheet, so it must travel with the row.
+
+    Row anchoring: each OCR block is tagged [ROW:N] in the prompt so Sonnet
+    only attributes picks to the block they appear in.  This prevents the model
+    from "borrowing" a team name from one capper's image and attaching it to
+    another's row.
+    """
     eastern = ZoneInfo("America/New_York")
     now_eastern = datetime.now(eastern)
 
@@ -1145,109 +1274,154 @@ def run_stage1(spreadsheet, image_pull_ws):
 
     print(f"\n── Stage 1: Parsing {len(rows_to_process)} OCR result(s) ──")
 
-    # Get unique dates from messages to fetch relevant schedules
-    message_dates = set()
-    for _, _, date, _ in rows_to_process:
-        if date:
-            message_dates.add(date)
+    # Process in batches to keep each prompt focused and prevent hallucination
+    all_parsed_rows = []
+    all_processed_row_idxs = []
 
-    print(f"Fetching schedules for dates: {sorted(message_dates)}")
+    for batch_start in range(0, len(rows_to_process), STAGE_BATCH_SIZE):
+        batch = rows_to_process[batch_start : batch_start + STAGE_BATCH_SIZE]
+        print(f"\nBatch {batch_start // STAGE_BATCH_SIZE + 1}: {len(batch)} row(s)")
 
-    # Fetch schedules for all message dates
-    all_nba_games = []
-    all_cbb_games = []
-    all_nhl_games = []
+        # Get unique dates in this batch to fetch only relevant schedules
+        message_dates = set()
+        for _, _, date, _ in batch:
+            if date:
+                message_dates.add(date)
 
-    for msg_date in sorted(message_dates):
-        all_nba_games.extend(
-            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-        )
-        all_cbb_games.extend(
-            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-        )
-        all_nhl_games.extend(
-            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-        )
+        print(f"Fetching schedules for dates: {sorted(message_dates)}")
 
-    schedule_data = {
-        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-    }
+        all_nba_games = []
+        all_cbb_games = []
+        all_nhl_games = []
 
-    # Build the picks to parse
-    picks_to_parse = [(capper, date, ocr) for _, capper, date, ocr in rows_to_process]
-
-    # Call Haiku
-    prompt = build_stage1_prompt(picks_to_parse, schedule_data)
-    print(f"Calling Haiku to parse {len(picks_to_parse)} picks...")
-
-    try:
-        response = call_haiku_text(prompt)
-        parsed_rows = parse_csv_response(response)
-        print(f"Parsed {len(parsed_rows)} pick row(s)")
-
-        if parsed_rows:
-            # Get or create parsed_picks worksheet
-            parsed_picks_ws = get_or_create_picks_worksheet(
-                spreadsheet, PARSED_PICKS_SHEET
+        for msg_date in sorted(message_dates):
+            all_nba_games.extend(
+                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
+            )
+            all_cbb_games.extend(
+                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
+            )
+            all_nhl_games.extend(
+                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
             )
 
-            # Batch append rows to parsed_picks
-            time.sleep(1)  # Rate limit
-            parsed_picks_ws.append_rows(parsed_rows, value_input_option="USER_ENTERED")
+        schedule_data = {
+            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
+            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
+            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
+        }
+
+        # Build picks list with row_id anchoring
+        picks_to_parse = [
+            (capper, date, ocr, row_idx)
+            for row_idx, capper, date, ocr in batch
+        ]
+        # Map (capper, date) -> ocr_text so we can attach it to parsed rows
+        ocr_lookup = {(capper, date): ocr for _, capper, date, ocr in batch}
+
+        prompt = build_stage1_prompt(picks_to_parse, schedule_data)
+        print(f"Calling Sonnet to parse {len(picks_to_parse)} picks...")
+
+        try:
+            response = call_sonnet_text(prompt)
+            parsed_rows = parse_csv_response(response)
+            print(f"Parsed {len(parsed_rows)} pick row(s)")
+            # Attach ocr_text as col 10 keyed by (capper, date).
+            # One image can produce multiple pick rows (one per bet in the image),
+            # so all picks from the same image share the same ocr_text.
+            # The lookup by (capper, date) is reliable because each image comes
+            # from a single capper and carries a single message date.
             for row in parsed_rows:
-                print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
+                while len(row) < 9:
+                    row.append("")
+                capper_key = row[1].strip() if len(row) > 1 else ""
+                date_key   = row[0].strip() if len(row) > 0 else ""
+                row.append(ocr_lookup.get((capper_key, date_key), ""))
+            all_parsed_rows.extend(parsed_rows)
+            all_processed_row_idxs.extend([row_idx for row_idx, _, _, _ in batch])
 
-            # Update timestamp in parsed_picks A1
-            time.sleep(1)  # Rate limit
-            parsed_picks_ws.update_acell(
-                "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
-            )
+        except Exception as e:
+            print(f"Stage 1 batch failed: {e}")
+            # Mark failed rows
+            time.sleep(2)
+            all_values = image_pull_ws.get_all_values()
+            cells_to_update = []
+            for row_idx, _, _, _ in batch:
+                current_stage = (
+                    all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
+                )
+                if current_stage.startswith("parse_failed_attempt_count_"):
+                    try:
+                        count = int(current_stage.split("_")[-1]) + 1
+                    except ValueError:
+                        count = 1
+                else:
+                    count = 1
+                cells_to_update.append(
+                    gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
+                )
+            if cells_to_update:
+                image_pull_ws.update_cells(cells_to_update)
+            continue
 
-        # Batch update rows as stage_1_parsed in image_pull
+    if all_parsed_rows:
+        # Get or create parsed_picks worksheet
+        parsed_picks_ws = get_or_create_picks_worksheet(
+            spreadsheet, PARSED_PICKS_SHEET
+        )
+
+        # Batch append rows to parsed_picks
+        time.sleep(1)  # Rate limit
+        parsed_picks_ws.append_rows(all_parsed_rows, value_input_option="USER_ENTERED")
+        for row in all_parsed_rows:
+            print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
+
+        # Update timestamp in parsed_picks A1
+        time.sleep(1)  # Rate limit
+        parsed_picks_ws.update_acell(
+            "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+    # Batch update successfully processed rows as stage_1_parsed
+    if all_processed_row_idxs:
         time.sleep(1)  # Rate limit
         cells_to_update = [
             gspread.Cell(row_idx, 6, "stage_1_parsed")
-            for row_idx, _, _, _ in rows_to_process
+            for row_idx in all_processed_row_idxs
         ]
         image_pull_ws.update_cells(cells_to_update)
 
-        # Log activity
-        log_activity(
-            spreadsheet,
-            "process_ocr",
-            f"Processed {len(rows_to_process)} rows into {len(parsed_rows)} picks",
-        )
+    # Log activity
+    log_activity(
+        spreadsheet,
+        "process_ocr",
+        f"Processed {len(rows_to_process)} rows into {len(all_parsed_rows)} picks",
+    )
 
-        print(f"✅ Stage 1 complete: {len(parsed_rows)} picks parsed")
-
-    except Exception as e:
-        print(f"Stage 1 parsing failed: {e}")
-        # Batch mark rows with failure count
-        time.sleep(2)  # Rate limit - extra delay after error
-        all_values = image_pull_ws.get_all_values()
-        cells_to_update = []
-        for row_idx, _, _, _ in rows_to_process:
-            current_stage = (
-                all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
-            )
-            if current_stage.startswith("parse_failed_attempt_count_"):
-                try:
-                    count = int(current_stage.split("_")[-1]) + 1
-                except ValueError:
-                    count = 1
-            else:
-                count = 1
-            cells_to_update.append(
-                gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
-            )
-        if cells_to_update:
-            image_pull_ws.update_cells(cells_to_update)
+    print(f"✅ Stage 1 complete: {len(all_parsed_rows)} picks parsed")
 
 
 def run_stage2(spreadsheet, image_pull_ws):
-    """Run Stage 2: Finalize parsed picks with game/spread/side data."""
+    """Run Stage 2: Finalize parsed picks with game/spread/side data.
+
+    Reads rows from parsed_picks, sends them to Sonnet in batches to fill
+    game, spread, and side columns by cross-referencing the schedule, then
+    writes to three destinations:
+
+      finalized_picks  — staging sheet (all 10 cols incl. ocr_text); deduped
+      master_sheet     — permanent history (cols 0–8, no ocr_text)
+      parsed_picks_new — append-only audit sheet (all 10 cols incl. ocr_text)
+
+    The dual-write design keeps master_sheet lean (no large OCR strings) while
+    parsed_picks_new retains the full row for the nightly Opus hallucination
+    audit.  parsed_picks_new is never truncated or rewritten — rows only ever
+    accumulate so audit history is preserved across sessions.
+
+    ML/spread deduplication: cappers sometimes post a pick twice — once as ML
+    and once as a spread.  deduplicate_ml_vs_spread() drops the ML copy when
+    both exist for the same capper+game+date, checking both the incoming batch
+    and the existing sheet so the rule holds regardless of arrival order.
+    """
     eastern = ZoneInfo("America/New_York")
     utc = ZoneInfo("UTC")
     now_eastern = datetime.now(eastern)
@@ -1274,106 +1448,136 @@ def run_stage2(spreadsheet, image_pull_ws):
 
     print(f"\n── Stage 2: Finalizing {len(data_rows)} parsed pick(s) ──")
 
-    # Get unique dates from picks to fetch relevant schedules
-    pick_dates = set()
-    for row in data_rows:
-        if row and row[0]:
-            pick_dates.add(row[0])
+    all_finalized_rows = []
 
-    print(f"Fetching schedules for dates: {sorted(pick_dates)}")
+    for batch_start in range(0, len(data_rows), STAGE_BATCH_SIZE):
+        batch = data_rows[batch_start : batch_start + STAGE_BATCH_SIZE]
+        print(f"\nBatch {batch_start // STAGE_BATCH_SIZE + 1}: {len(batch)} row(s)")
 
-    # Fetch schedules for all pick dates
-    all_nba_games = []
-    all_cbb_games = []
-    all_nhl_games = []
+        # Get unique dates in this batch to fetch only relevant schedules
+        pick_dates = set()
+        for row in batch:
+            if row and row[0]:
+                pick_dates.add(row[0])
 
-    for pick_date in sorted(pick_dates):
-        all_nba_games.extend(
-            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, pick_date)
-        )
-        all_cbb_games.extend(
-            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, pick_date)
-        )
-        all_nhl_games.extend(
-            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, pick_date)
-        )
+        print(f"Fetching schedules for dates: {sorted(pick_dates)}")
 
-    schedule_data = {
-        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-    }
+        all_nba_games = []
+        all_cbb_games = []
+        all_nhl_games = []
 
-    # Convert rows to CSV strings
-    rows_as_csv = [",".join(row) for row in data_rows if row]
-
-    # Call Haiku
-    prompt = build_stage2_prompt(rows_as_csv, schedule_data)
-    print(f"Calling Haiku to finalize {len(rows_as_csv)} picks...")
-
-    try:
-        response = call_haiku_text(prompt)
-        finalized_rows = parse_csv_response(response)
-
-        # Validate and fix any rows where pick column has game format
-        finalized_rows = validate_and_fix_pick_column(finalized_rows)
-
-        print(f"Finalized {len(finalized_rows)} pick row(s)")
-
-        if finalized_rows:
-            # Get or create finalized_picks worksheet
-            finalized_picks_ws = get_or_create_picks_worksheet(
-                spreadsheet, FINALIZED_PICKS_SHEET
+        for pick_date in sorted(pick_dates):
+            all_nba_games.extend(
+                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, pick_date)
+            )
+            all_cbb_games.extend(
+                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, pick_date)
+            )
+            all_nhl_games.extend(
+                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, pick_date)
             )
 
-            # Batch append rows to finalized_picks
+        schedule_data = {
+            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
+            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
+            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
+        }
+
+        rows_as_csv = [",".join(row) for row in batch if row]
+
+        prompt = build_stage2_prompt(rows_as_csv, schedule_data)
+        print(f"Calling Sonnet to finalize {len(rows_as_csv)} picks...")
+
+        try:
+            response = call_sonnet_text(prompt)
+            finalized_batch = parse_csv_response(response)
+            finalized_batch = validate_and_fix_pick_column(finalized_batch)
+            print(f"Finalized {len(finalized_batch)} pick row(s)")
+            all_finalized_rows.extend(finalized_batch)
+        except Exception as e:
+            print(f"Stage 2 batch failed: {e}")
+            continue
+
+    if all_finalized_rows:
+        # Get or create finalized_picks worksheet
+        finalized_picks_ws = get_or_create_picks_worksheet(
+            spreadsheet, FINALIZED_PICKS_SHEET
+        )
+
+        # Deduplicate: if a spread pick exists for the same capper+game+date,
+        # drop any ML pick for that same group (handles both orderings).
+        time.sleep(1)  # Rate limit
+        existing_fp_values = finalized_picks_ws.get_all_values()
+        # Sheet layout: row 1 = timestamp, row 2 = DO NOT EDIT, row 3 = headers, row 4+ = data
+        existing_fp_data = existing_fp_values[3:] if len(existing_fp_values) > 3 else []
+        existing_data_start_row = 4  # 1-based sheet row of existing_fp_data[0]
+
+        all_finalized_rows, ml_rows_to_delete = deduplicate_ml_vs_spread(
+            all_finalized_rows, existing_fp_data, existing_data_start_row
+        )
+
+        # Delete existing ML rows superseded by incoming spread picks (reverse order
+        # so row indices stay valid as we delete from bottom up)
+        for sheet_row in sorted(ml_rows_to_delete, reverse=True):
+            time.sleep(0.5)  # Rate limit
+            finalized_picks_ws.delete_rows(sheet_row)
+
+        # Batch append rows to finalized_picks
+        if all_finalized_rows:
             time.sleep(1)  # Rate limit
             finalized_picks_ws.append_rows(
-                finalized_rows, value_input_option="USER_ENTERED"
+                all_finalized_rows, value_input_option="USER_ENTERED"
             )
-            for row in finalized_rows:
+            for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-            # Also append to master_sheet
+        # Also append to master_sheet (strip ocr_text col 10)
+        if all_finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
-            print(f"  Also appended {len(finalized_rows)} rows to master_sheet")
+            master_rows = [row[:9] for row in all_finalized_rows]
+            master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
+            print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
-            # Append to local CSV for GitHub Pages
-            append_to_local_csv(finalized_rows)
-
-            # Update timestamp in finalized_picks A1
+        # Append full rows (with ocr_text) to parsed_picks_new for daily audit
+        if all_finalized_rows:
+            picks_new_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_NEW_SHEET)
             time.sleep(1)  # Rate limit
-            finalized_picks_ws.update_acell(
-                "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
-            )
+            picks_new_ws.append_rows(all_finalized_rows, value_input_option="USER_ENTERED")
+            print(f"  Also appended {len(all_finalized_rows)} rows to parsed_picks_new")
 
-        # Delete processed rows from parsed_picks (rows 4+) in one batch
-        if len(all_values) > 3:
-            time.sleep(1)  # Rate limit
-            parsed_picks_ws.delete_rows(4, len(all_values))
+        # Append to local CSV for GitHub Pages
+        if all_finalized_rows:
+            append_to_local_csv(all_finalized_rows)
 
-        # Batch update image_pull rows to stage_2_finalized
+        # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
-        image_pull_values = image_pull_ws.get_all_values()
-        cells_to_update = []
-        for i, row in enumerate(image_pull_values[2:], start=3):
-            if len(row) > 5 and row[5] == "stage_1_parsed":
-                cells_to_update.append(gspread.Cell(i, 6, "stage_2_finalized"))
-        if cells_to_update:
-            time.sleep(1)  # Rate limit
-            image_pull_ws.update_cells(cells_to_update)
-
-        # Log activity
-        log_activity(
-            spreadsheet, "finalize_picks", f"Finalized {len(finalized_rows)} picks"
+        finalized_picks_ws.update_acell(
+            "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
         )
 
-        print(f"✅ Stage 2 complete: {len(finalized_rows)} picks finalized")
+    # Delete processed rows from parsed_picks (rows 4+) in one batch
+    if len(all_values) > 3:
+        time.sleep(1)  # Rate limit
+        parsed_picks_ws.delete_rows(4, len(all_values))
 
-    except Exception as e:
-        print(f"Stage 2 finalization failed: {e}")
+    # Batch update image_pull rows to stage_2_finalized
+    time.sleep(1)  # Rate limit
+    image_pull_values = image_pull_ws.get_all_values()
+    cells_to_update = []
+    for i, row in enumerate(image_pull_values[2:], start=3):
+        if len(row) > 5 and row[5] == "stage_1_parsed":
+            cells_to_update.append(gspread.Cell(i, 6, "stage_2_finalized"))
+    if cells_to_update:
+        time.sleep(1)  # Rate limit
+        image_pull_ws.update_cells(cells_to_update)
+
+    # Log activity
+    log_activity(
+        spreadsheet, "finalize_picks", f"Finalized {len(all_finalized_rows)} picks"
+    )
+
+    print(f"✅ Stage 2 complete: {len(all_finalized_rows)} picks finalized")
 
 
 def backfill_ocr(worksheet):
@@ -1606,42 +1810,59 @@ def process_manual_picks_queue(spreadsheet):
         "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
     }
 
-    prompt = build_stage1_prompt(picks_to_parse, schedule_data)
-    print(f"Calling Haiku to parse {len(picks_to_parse)} picks...")
-
-    try:
-        response = call_haiku_text(prompt)
-        parsed_rows = parse_csv_response(response)
-        print(f"Parsed {len(parsed_rows)} pick row(s)")
-        stats["stage1_parsed"] = len(parsed_rows)
-
-        if parsed_rows:
-            # Get or create parsed_picks worksheet
-            parsed_picks_ws = get_or_create_picks_worksheet(
-                spreadsheet, PARSED_PICKS_SHEET
-            )
-
-            # Batch append rows to parsed_picks
-            time.sleep(1)  # Rate limit
-            parsed_picks_ws.append_rows(parsed_rows, value_input_option="USER_ENTERED")
+    all_manual_parsed_rows = []
+    for batch_start in range(0, len(picks_to_parse), STAGE_BATCH_SIZE):
+        batch = picks_to_parse[batch_start : batch_start + STAGE_BATCH_SIZE]
+        # Add row_id for anchoring (use batch index as row_id)
+        batch_with_ids = [
+            (capper, date, ocr, batch_start + i)
+            for i, (capper, date, ocr) in enumerate(batch)
+        ]
+        # Map (capper, date) -> ocr_text for attaching to parsed rows
+        ocr_lookup = {(capper, date): ocr for capper, date, ocr in batch}
+        prompt = build_stage1_prompt(batch_with_ids, schedule_data)
+        print(f"Calling Sonnet to parse batch of {len(batch)} picks...")
+        try:
+            response = call_sonnet_text(prompt)
+            parsed_rows = parse_csv_response(response)
+            print(f"Parsed {len(parsed_rows)} pick row(s)")
             for row in parsed_rows:
-                print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
+                while len(row) < 9:
+                    row.append("")
+                capper_key = row[1].strip() if len(row) > 1 else ""
+                date_key   = row[0].strip() if len(row) > 0 else ""
+                row.append(ocr_lookup.get((capper_key, date_key), ""))
+            all_manual_parsed_rows.extend(parsed_rows)
+        except Exception as e:
+            print(f"Manual queue Stage 1 batch failed: {e}")
+            continue
 
-            # Update timestamp in parsed_picks A1
-            time.sleep(1)  # Rate limit
-            parsed_picks_ws.update_acell(
-                "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
-            )
+    parsed_rows = all_manual_parsed_rows
+    stats["stage1_parsed"] = len(parsed_rows)
 
-        log_activity(
-            spreadsheet,
-            "manual_queue_stage1",
-            f"Parsed {len(picks_to_parse)} rows into {len(parsed_rows)} picks",
+    if parsed_rows:
+        # Get or create parsed_picks worksheet
+        parsed_picks_ws = get_or_create_picks_worksheet(
+            spreadsheet, PARSED_PICKS_SHEET
         )
 
-    except Exception as e:
-        print(f"Manual queue Stage 1 parsing failed: {e}")
-        return
+        # Batch append rows to parsed_picks
+        time.sleep(1)  # Rate limit
+        parsed_picks_ws.append_rows(parsed_rows, value_input_option="USER_ENTERED")
+        for row in parsed_rows:
+            print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
+
+        # Update timestamp in parsed_picks A1
+        time.sleep(1)  # Rate limit
+        parsed_picks_ws.update_acell(
+            "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+    log_activity(
+        spreadsheet,
+        "manual_queue_stage1",
+        f"Parsed {len(picks_to_parse)} rows into {len(parsed_rows)} picks",
+    )
 
     # Step 5: Run Stage 2 - Finalize with known cappers
     print("\n── Manual Queue Stage 2: Finalizing picks ──")
@@ -1695,24 +1916,49 @@ def process_manual_picks_queue(spreadsheet):
     # Convert rows to CSV strings
     rows_as_csv = [",".join(row) for row in parsed_data_rows if row]
 
-    # Call Haiku with known cappers
-    prompt = build_stage2_prompt(rows_as_csv, schedule_data, known_cappers)
-    print(f"Calling Haiku to finalize {len(rows_as_csv)} picks...")
+    # Call Sonnet with known cappers, batched to prevent hallucination
+    all_manual_finalized = []
+    for batch_start in range(0, len(rows_as_csv), STAGE_BATCH_SIZE):
+        batch = rows_as_csv[batch_start : batch_start + STAGE_BATCH_SIZE]
+        prompt = build_stage2_prompt(batch, schedule_data, known_cappers)
+        print(f"Calling Sonnet to finalize batch of {len(batch)} picks...")
+        try:
+            response = call_sonnet_text(prompt)
+            batch_finalized = parse_csv_response(response)
+            batch_finalized = validate_and_fix_pick_column(batch_finalized)
+            print(f"Finalized {len(batch_finalized)} pick row(s)")
+            all_manual_finalized.extend(batch_finalized)
+        except Exception as e:
+            print(f"Manual queue Stage 2 batch failed: {e}")
+            continue
 
-    try:
-        response = call_haiku_text(prompt)
-        finalized_rows = parse_csv_response(response)
-        finalized_rows = validate_and_fix_pick_column(finalized_rows)
-        print(f"Finalized {len(finalized_rows)} pick row(s)")
-        stats["stage2_finalized"] = len(finalized_rows)
+    finalized_rows = all_manual_finalized
+    stats["stage2_finalized"] = len(finalized_rows)
 
+    if finalized_rows:
+        # Get or create finalized_picks worksheet
+        finalized_picks_ws = get_or_create_picks_worksheet(
+            spreadsheet, FINALIZED_PICKS_SHEET
+        )
+
+        # Deduplicate: if a spread pick exists for the same capper+game+date,
+        # drop any ML pick for that same group (handles both orderings).
+        time.sleep(1)  # Rate limit
+        existing_fp_values = finalized_picks_ws.get_all_values()
+        existing_fp_data = existing_fp_values[3:] if len(existing_fp_values) > 3 else []
+        existing_data_start_row = 4  # 1-based sheet row of existing_fp_data[0]
+
+        finalized_rows, ml_rows_to_delete = deduplicate_ml_vs_spread(
+            finalized_rows, existing_fp_data, existing_data_start_row
+        )
+
+        # Delete existing ML rows superseded by incoming spread picks
+        for sheet_row in sorted(ml_rows_to_delete, reverse=True):
+            time.sleep(0.5)  # Rate limit
+            finalized_picks_ws.delete_rows(sheet_row)
+
+        # Batch append rows to finalized_picks
         if finalized_rows:
-            # Get or create finalized_picks worksheet
-            finalized_picks_ws = get_or_create_picks_worksheet(
-                spreadsheet, FINALIZED_PICKS_SHEET
-            )
-
-            # Batch append rows to finalized_picks
             time.sleep(1)  # Rate limit
             finalized_picks_ws.append_rows(
                 finalized_rows, value_input_option="USER_ENTERED"
@@ -1720,35 +1966,41 @@ def process_manual_picks_queue(spreadsheet):
             for row in finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-            # Also append to master_sheet
+        # Also append to master_sheet (strip ocr_text col 10)
+        if finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
-            print(f"  Also appended {len(finalized_rows)} rows to master_sheet")
+            master_rows = [row[:9] for row in finalized_rows]
+            master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
+            print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
-            # Append to local CSV for GitHub Pages
+        # Append full rows (with ocr_text) to parsed_picks_new for daily audit
+        if finalized_rows:
+            picks_new_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_NEW_SHEET)
+            time.sleep(1)  # Rate limit
+            picks_new_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
+            print(f"  Also appended {len(finalized_rows)} rows to parsed_picks_new")
+
+        # Append to local CSV for GitHub Pages
+        if finalized_rows:
             append_to_local_csv(finalized_rows)
 
-            # Update timestamp in finalized_picks A1
-            time.sleep(1)  # Rate limit
-            finalized_picks_ws.update_acell(
-                "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
-            )
-
-        # Delete processed rows from parsed_picks (rows 4+)
-        if len(all_parsed) > 3:
-            time.sleep(1)  # Rate limit
-            parsed_picks_ws.delete_rows(4, len(all_parsed))
-
-        log_activity(
-            spreadsheet,
-            "manual_queue_stage2",
-            f"Finalized {len(finalized_rows)} picks",
+        # Update timestamp in finalized_picks A1
+        time.sleep(1)  # Rate limit
+        finalized_picks_ws.update_acell(
+            "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
         )
 
-    except Exception as e:
-        print(f"Manual queue Stage 2 finalization failed: {e}")
-        return
+    # Delete processed rows from parsed_picks (rows 4+)
+    if len(all_parsed) > 3:
+        time.sleep(1)  # Rate limit
+        parsed_picks_ws.delete_rows(4, len(all_parsed))
+
+    log_activity(
+        spreadsheet,
+        "manual_queue_stage2",
+        f"Finalized {len(finalized_rows)} picks",
+    )
 
     # Step 6: Update stage to "finalized" in manual_picks_queue
     time.sleep(1)  # Rate limit
@@ -1998,6 +2250,10 @@ def main():
         if LOCAL_CSV_APPENDED:
             print("\n── Git Commit & Push ──")
             git_commit_and_push()
+
+        # Daily hallucination audit (Opus pass only fires within 15 min after midnight PST)
+        print("\n── Daily Audit ──")
+        daily_audit.run_audit(spreadsheet)
 
     except ValueError as e:
         print(f"Error: {e}")

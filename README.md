@@ -14,12 +14,37 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 ### Core Scripts (GitHub Actions automation)
 | File | Workflow | Description |
 |------|----------|-------------|
-| `discord_image_fetcher.py` | Every 15 min | Main script: fetch Discord images, OCR with Claude, parse picks, finalize with schedule matching, append to Google Sheets + local CSV |
+| `discord_image_fetcher.py` | Every 15 min | Main script: fetch Discord images, OCR with Claude, parse picks, finalize with schedule matching, append to Google Sheets + local CSV. Also runs `daily_audit.py` at the end of each nightly invocation. |
 | `espn_schedule_fetcher.py` | Daily 10am ET | Fetch NBA/CBB/NHL schedules from ESPN for pick validation |
 | `nba_odds_poller.py` | Every 3 hours | Poll betting odds from The Odds API |
 | `activity_logger.py` | N/A (imported) | Log activity to Google Sheets activity_log tab |
+| `daily_audit.py` | Nightly (via discord_image_fetcher) | Two-pass hallucination audit of yesterday's picks. Pass 1: free Python substring check. Pass 2: Claude Opus confirmation — only fires within 15 min after midnight PST. Appends failures to `audit_data` sheet and logs Opus cost to `activity_log`. |
+| `audit_hallucinations.py` | Manual / imported by daily_audit | Standalone two-pass hallucination audit for any picks sheet. Contains reusable `pick_in_ocr()`, `ABBREV_MAP`, and `opus_audit_suspects()` used by `daily_audit.py`. |
 
-### Utility Scripts (`utils/`)
+### Backfill Scripts (one-time historical import)
+| File | Description |
+|------|-------------|
+| `backfill_stage1.py` | Batch OCR → parsed_picks_new (Stage 1 only) |
+| `backfill_orchestrate.py` | Orchestrate full Stage 1+2 backfill in batches of 20 |
+| `populate_stage2.py` | Fill game/spread/side by matching picks against schedule sheets |
+| `cleanup_invalid_rows.py` | Remove duplicates, props, parlays, totals, and wrong-sport rows |
+| `finalize_picks.py` | Copy parsed_picks_new → master_sheet_new (backfill final step) |
+| `reprocess_cbb_picks.py` | Re-parse CBB picks that were tagged with the wrong sport |
+
+### Diagnostics (`diagnostics/`)
+One-time inspection and repair scripts used during the historical backfill.
+Kept for reference in case similar issues arise with future data.
+
+| File | Description |
+|------|-------------|
+| `_diagnose_misses.py` | Categorise unmatched picks: wrong sport tag, no schedule for date, team name mismatch |
+| `_inspect_invalid.py` | Inspect wrong-sport and prop rows in detail before cleanup |
+| `_inspect_schedules.py` | Print schedule sheet headers and sample rows to verify format |
+| `_inspect_suspects.py` | Inspect sheet structure and find suspect rows (e.g. blank game column) |
+| `_merge_all_back.py` | Merge all rows after blank separators back into the sorted clean section |
+| `_merge_suspects_back.py` | Merge only suspect rows (after separator) back into sorted section |
+| `dump_backfill_batch.py` | Dump image_pull_new rows in batches for in-conversation parsing |
+| `insert_backfill_rows.py` | Insert pre-parsed CSV rows into parsed_picks_new |
 | File | Usage | Description |
 |------|-------|-------------|
 | `fix_historical_picks.py` | One-time | Normalize team names in historical data to ESPN format |
@@ -71,11 +96,17 @@ Sheet: `1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k`
 | Tab | Description |
 |-----|-------------|
 | `image_pull` | Raw Discord image URLs and OCR text |
-| `parsed_picks` | Stage 1: OCR → structured picks |
-| `finalized_picks` | Stage 2: Validated picks |
-| `master_sheet` | All finalized picks (source of truth) |
+| `parsed_picks` | Stage 1: OCR → structured picks (cleared after Stage 2) |
+| `finalized_picks` | Stage 2: Validated picks (staging area) |
+| `master_sheet` | All finalized picks — permanent history, no `ocr_text` |
+| `parsed_picks_new` | Append-only mirror of master_sheet with `ocr_text` (col 10); source for daily audit |
+| `audit_data` | Confirmed hallucinations flagged by the nightly Opus audit |
 | `nba_schedule` | ESPN NBA schedules |
 | `cbb_schedule` | ESPN CBB schedules |
 | `nhl_schedule` | ESPN NHL schedules |
 | `nba_odds` | Historical odds data |
-| `activity_log` | Script activity log |
+| `activity_log` | Script activity log (includes `daily_audit` Opus cost entries) |
+
+## 🛠 TODO
+
+- [ ] **Populate `result` column**: Build a script that looks up game outcomes and fills the `result` column (W/L/Push) in `master_sheet` and `parsed_picks_new`.
