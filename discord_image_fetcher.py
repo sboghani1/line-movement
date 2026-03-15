@@ -884,6 +884,11 @@ CRITICAL - PICK COLUMN MUST BE:
 - NEVER a game format like "Georgia Southern Eagles @ Troy Trojans"
 - NEVER an abbreviation like "OKC" or "BKN"
 
+NEVER INVERT PICKS:
+- The pick MUST be the EXACT team mentioned in the text, regardless of labels like "Fades", "Fade", "Against", etc.
+- If text says "Purdue -7.5" under a "Fades:" header, the pick is STILL "Purdue Boilermakers" with line "-7.5"
+- Do NOT interpret "fade" to mean "bet the opposite team" - just record what the text says
+
 FILTERING RULES - ONLY INCLUDE:
 - Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
 - Bet types: Spread or Moneyline (ML) ONLY
@@ -966,6 +971,11 @@ VALIDATION:
 - pick and side should BOTH have the FULL team name
 - spread column should have format like "Team Name -3.5" or "Team Name +3.5"
 - side should match pick exactly
+
+NEVER INVERT PICKS:
+- The pick MUST match the original team from the parsed input, regardless of any "Fades" or "Fade" labels
+- Do NOT pick the opponent team - always use the team that was explicitly mentioned
+- If input pick is "Purdue Boilermakers" with line "-7.5", the output pick is STILL "Purdue Boilermakers", NOT the opponent
 
 NBA SCHEDULE:
 {schedule_data.get("nba", "No games")}
@@ -1770,110 +1780,8 @@ def process_manual_picks_queue(spreadsheet):
 
 
 def cleanup_old_rows(spreadsheet, image_pull_ws):
-    """Delete rows older than 1 week from schedules and image_pull."""
-    from datetime import timedelta
-
-    eastern = ZoneInfo("America/New_York")
-    cutoff_date = datetime.now(eastern).date() - timedelta(days=7)
-    cutoff_str = cutoff_date.strftime("%Y-%m-%d")
-
-    print(f"\n── Cleanup: Removing rows older than {cutoff_str} ──")
-
-    # Clean up schedule sheets (game_date in column A)
-    schedule_sheets = [
-        (NBA_SCHEDULE_SHEET, "nba_schedule"),
-        (CBB_SCHEDULE_SHEET, "cbb_schedule"),
-        (NHL_SCHEDULE_SHEET, "nhl_schedule"),
-    ]
-
-    for sheet_name, log_name in schedule_sheets:
-        try:
-            ws = spreadsheet.worksheet(sheet_name)
-            all_values = ws.get_all_values()
-            if len(all_values) <= 1:  # Only header or empty
-                continue
-
-            # Find rows to delete (oldest first to maintain indices)
-            rows_to_delete = []
-            for i, row in enumerate(all_values[1:], start=2):  # Skip header
-                if row and row[0]:
-                    try:
-                        game_date = datetime.strptime(row[0], "%Y-%m-%d").date()
-                        if game_date < cutoff_date:
-                            rows_to_delete.append(i)
-                    except ValueError:
-                        continue
-
-            if rows_to_delete:
-                # Delete rows in reverse order to maintain indices
-                for row_idx in reversed(rows_to_delete):
-                    ws.delete_rows(row_idx)
-                    time.sleep(0.5)  # Rate limit
-
-                remaining_rows = len(all_values) - 1 - len(rows_to_delete)
-                print(
-                    f"  {log_name}: Deleted {len(rows_to_delete)} old rows, {remaining_rows} remaining"
-                )
-                log_activity(
-                    spreadsheet,
-                    "cleanup",
-                    f"{log_name}: Deleted {len(rows_to_delete)} rows, {remaining_rows} remaining",
-                )
-            else:
-                remaining_rows = len(all_values) - 1
-                print(
-                    f"  {log_name}: No old rows to delete, {remaining_rows} remaining"
-                )
-                log_activity(
-                    spreadsheet,
-                    "cleanup",
-                    f"{log_name}: 0 rows deleted, {remaining_rows} remaining",
-                )
-        except gspread.WorksheetNotFound:
-            continue
-
-    # Clean up image_pull (message_sent_at in column B - format: "2026-03-08 10:30:00")
-    try:
-        all_values = image_pull_ws.get_all_values()
-        if len(all_values) <= 2:  # Timestamp row + header row
-            return
-
-        rows_to_delete = []
-        for i, row in enumerate(all_values[2:], start=3):  # Skip timestamp and header
-            if row and len(row) >= 2 and row[1]:
-                try:
-                    # Parse datetime from column B (format: YYYY-MM-DD HH:MM:SS)
-                    message_date = datetime.strptime(row[1][:10], "%Y-%m-%d").date()
-                    if message_date < cutoff_date:
-                        rows_to_delete.append(i)
-                except ValueError:
-                    continue
-
-        if rows_to_delete:
-            # Delete rows in reverse order to maintain indices
-            for row_idx in reversed(rows_to_delete):
-                image_pull_ws.delete_rows(row_idx)
-                time.sleep(0.5)  # Rate limit
-
-            remaining_rows = len(all_values) - 2 - len(rows_to_delete)
-            print(
-                f"  image_pull: Deleted {len(rows_to_delete)} old rows, {remaining_rows} remaining"
-            )
-            log_activity(
-                spreadsheet,
-                "cleanup",
-                f"image_pull: Deleted {len(rows_to_delete)} rows, {remaining_rows} remaining",
-            )
-        else:
-            remaining_rows = len(all_values) - 2
-            print(f"  image_pull: No old rows to delete, {remaining_rows} remaining")
-            log_activity(
-                spreadsheet,
-                "cleanup",
-                f"image_pull: 0 rows deleted, {remaining_rows} remaining",
-            )
-    except Exception as e:
-        print(f"  image_pull cleanup failed: {e}")
+    """No-op: Row cleanup disabled. Schedule and image_pull rows are retained."""
+    print("\n── Cleanup: Disabled (rows retained in schedule sheets and image_pull) ──")
 
 
 def main():
