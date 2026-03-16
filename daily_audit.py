@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-daily_audit.py — Audit yesterday's parsed picks for hallucinations.
+daily_audit.py — Audit yesterday's parsed picks for hallucinations and bad game assignments.
 
 Run once a day (e.g. at midnight PST via cron).
-Opus Pass 2 only fires if the script runs within the first 15 minutes after
-midnight PST; otherwise only Pass 1 (free Python checks) runs.
+Pass 4 (Opus) only fires if the script runs within the first 15 minutes after
+midnight PST; otherwise only Passes 1–3 (free Python checks) run.
 
-Pass 1: Python substring/abbreviation check via pick_in_ocr()
-Pass 2: Claude Opus confirmation of Pass 1 suspects, with yesterday's schedule
+Pass 1: Game-match check — pick team must appear in a schedule game for that sport/date.
+Pass 2: Wrong-game fix — picks that failed Pass 1 are checked for a correct game
+        elsewhere in the schedule; if found, game/spread/side/result are corrected
+        in master_sheet and parsed_picks_new.
+Pass 3: OCR substring check via pick_in_ocr() — pick team must appear in OCR text.
+Pass 4: Claude Opus confirmation of Pass 3 suspects, with yesterday's schedule
         context included in each batch prompt.
 
 Failures are appended to the 'audit_data' sheet:
@@ -37,6 +41,7 @@ from google.oauth2.service_account import Credentials
 # Import reusable helpers from audit_hallucinations
 from audit_hallucinations import pick_in_ocr, opus_audit_suspects, ABBREV_MAP
 from activity_logger import log_activity
+from populate_results import determine_result, find_score, load_scores
 
 load_dotenv()
 
@@ -161,19 +166,21 @@ def format_schedule_context(schedule: Dict[str, List[Tuple[str, str]]]) -> str:
 
 
 def pick_team_in_schedule(pick: str, sport: str, schedule: Dict[str, List[Tuple[str, str]]]) -> bool:
+    """Return True if the pick team fuzzy-matches any team in the schedule for that sport."""
+    return find_correct_game(pick, sport, schedule) is not None
+
+
+def find_correct_game(pick: str, sport: str, schedule: Dict[str, List[Tuple[str, str]]]) -> Tuple[str, str] | None:
     """
-    Return True if the pick team fuzzy-matches any team in the schedule for that sport.
-    Uses the same substring logic as populate_results.team_matches().
-    Totals picks (pick contains '/') are checked against both halves.
+    Return the (away, home) tuple from the schedule whose pick team matches,
+    or None if no game found. If no schedule loaded for sport, returns None
+    (caller should treat as benefit-of-the-doubt pass).
     """
     games = schedule.get(sport.lower(), [])
     if not games:
-        # No schedule loaded for this sport — can't flag, give benefit of the doubt
-        return True
+        return None
 
     pick_lower = pick.lower().strip()
-
-    # Handle totals like "Georgia Southern/Marshall" — check each team separately
     pick_parts = [p.strip().lower() for p in pick_lower.split("/")]
 
     for away, home in games:
@@ -181,18 +188,43 @@ def pick_team_in_schedule(pick: str, sport: str, schedule: Dict[str, List[Tuple[
         home_l = home.lower()
         for part in pick_parts:
             if part in away_l or away_l in part or part in home_l or home_l in part:
-                return True
-    return False
+                return (away, home)
+    return None
 
 
-# ── Pass 2: Opus with schedule context ────────────────────────────────────────
+def derive_game_spread_side(pick: str, line: str, away: str, home: str) -> Tuple[str, str, str]:
+    """
+    Given correct away/home teams and the pick's line, derive:
+      game   = "Away @ Home"
+      spread = "PickTeam LINE"  (or empty for ML)
+      side   = "away" or "home"
+    """
+    game = f"{away} @ {home}"
+    pick_l = pick.lower().strip()
+    away_l = away.lower()
+    home_l = home.lower()
+
+    if pick_l in away_l or away_l in pick_l:
+        side = "away"
+    elif pick_l in home_l or home_l in pick_l:
+        side = "home"
+    else:
+        side = ""
+
+    line_clean = line.strip().upper()
+    spread = f"{pick} {line}" if line_clean != "ML" else ""
+
+    return game, spread, side
+
+
+# ── Pass 4: Opus with schedule context ────────────────────────────────────────
 def opus_audit_with_schedule(
     suspects: List[Dict],
     schedule_context: str,
     dry_run: bool = False,
 ) -> Tuple[List[Dict], List[Dict], float]:
     """
-    Opus audit that includes yesterday's schedule in the prompt for better context.
+    Pass 4: Opus audit that includes yesterday's schedule in the prompt for better context.
     Returns (confirmed_hallucinations, false_positives, estimated_cost_usd).
     """
     if dry_run or not suspects:
@@ -316,7 +348,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
     print(f"Daily audit — target date: {target_date}")
     now_pst = datetime.now(PST_OFFSET)
     print(f"Current PST time: {now_pst.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Opus Pass 2: {'YES' if run_opus else 'NO (outside 15-min window after midnight PST)'}")
+    print(f"Opus Pass 4: {'YES' if run_opus else 'NO (outside 15-min window after midnight PST)'}")
 
     # Load yesterday's schedule for context
     print(f"\nLoading schedule for {target_date}...")
@@ -355,43 +387,183 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
         print("No picks found for target date — nothing to audit.")
         return
 
-    # ── Pass 0: game-match check ──────────────────────────────────────────────
-    # Flag picks where the pick team cannot be found in any game on the schedule
-    # for that sport on target_date. These are written to audit_data and logged
-    # regardless of the Opus gate — they don't require Opus to detect.
-    no_game_rows   = []
-    game_check_rows = []  # rows that passed (or have no schedule loaded)
+    # Load scores for Pass 2 result-filling after wrong-game correction
+    print(f"\nLoading scores from schedule sheets...")
+    scores = load_scores(ss)
+
+    # ── Pass 1: game-match check ──────────────────────────────────────────────
+    # Flag picks where the pick team cannot be found in any schedule game for
+    # that sport on target_date. Totals (O/U lines) are exempt.
+    pass1_no_game  = []
+    pass1_ok       = []
 
     for row in yesterday_rows:
-        while len(row) <= max(pick_col, sport_col, ocr_col):
+        while len(row) <= max(pick_col, sport_col, line_col, ocr_col):
             row.append("")
         sport_val = row[sport_col].strip().lower()
         pick_val  = row[pick_col].strip()
+        line_val  = row[line_col].strip().upper()
 
-        # Skip totals (over/under) — they name two teams and game matching is unreliable
-        line_val = row[line_col].strip().upper() if len(row) > line_col else ""
+        # Skip totals — two-team picks don't map cleanly to a single schedule entry
         if line_val.startswith("O ") or line_val.startswith("U "):
-            game_check_rows.append(row)
+            pass1_ok.append(row)
             continue
 
-        if pick_val and not pick_team_in_schedule(pick_val, sport_val, schedule):
-            no_game_rows.append(row)
+        correct_game = find_correct_game(pick_val, sport_val, schedule)
+        if pick_val and correct_game is None and schedule.get(sport_val):
+            pass1_no_game.append(row)
         else:
-            game_check_rows.append(row)
+            pass1_ok.append(row)
 
-    print(f"\nPass 0 (game-match check):")
-    print(f"  Matched a schedule game: {len(game_check_rows)}")
-    print(f"  No game found:           {len(no_game_rows)}")
-    if no_game_rows:
-        for row in no_game_rows:
-            print(f"    [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]} {row[line_col] if len(row) > line_col else ''}")
+    print(f"\nPass 1 (game-match check):")
+    print(f"  Matched a schedule game: {len(pass1_ok)}")
+    print(f"  No game found:           {len(pass1_no_game)}")
+    if pass1_no_game:
+        for row in pass1_no_game:
+            print(f"    [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]} {row[line_col]}")
 
-    # ── Pass 1: Python substring check ───────────────────────────────────────
-    pass1_suspects = []
-    pass1_clean    = []
+    # ── Pass 2: wrong-game detection and fix ─────────────────────────────────
+    # For each Pass 1 failure, check if the pick team DOES appear in a different
+    # game on the schedule — meaning Stage 2 assigned the wrong game.
+    # If corrected, update game/spread/side/result in master_sheet + parsed_picks_new.
+    wrong_game_fixed    = []   # corrected + result filled
+    wrong_game_no_score = []   # corrected but no score available yet
+    genuine_no_game     = []   # pick team not playing at all that day
+
+    # We need sheet row indices to do targeted updates, so reload both sheets
+    # and build a key→sheet_row_number index.
+    def row_key(r):
+        """Stable identity key for a pick row: date+capper+sport+pick+line."""
+        return (
+            r[date_col]   if len(r) > date_col   else "",
+            r[capper_col] if len(r) > capper_col else "",
+            r[sport_col]  if len(r) > sport_col  else "",
+            r[pick_col]   if len(r) > pick_col   else "",
+            r[line_col]   if len(r) > line_col   else "",
+        )
+
+    print(f"\nPass 2 (wrong-game detection)...")
+
+    # Build index: key → list of 1-based sheet row numbers in master_sheet
+    ms_ws   = ss.worksheet("master_sheet")
+    ms_vals = ms_ws.get_all_values()
+    ms_header = ms_vals[0]
+    ms_col = {h: i for i, h in enumerate(ms_header)}
+    ms_key_to_rows: Dict[tuple, List[int]] = defaultdict(list)
+    for idx, r in enumerate(ms_vals[1:], start=2):  # 1-based, row 1 = header
+        while len(r) <= max(ms_col.get("line", 4), ms_col.get("result", 8)):
+            r.append("")
+        k = (
+            r[ms_col.get("date",   0)],
+            r[ms_col.get("capper", 1)],
+            r[ms_col.get("sport",  2)],
+            r[ms_col.get("pick",   3)],
+            r[ms_col.get("line",   4)],
+        )
+        ms_key_to_rows[k].append(idx)
+
+    # Build index for parsed_picks_new (header at row 3, data from row 4)
+    pn_ws   = ss.worksheet(PICKS_NEW_SHEET)
+    pn_vals = pn_ws.get_all_values()
+    pn_header = pn_vals[2]
+    pn_col = {h: i for i, h in enumerate(pn_header)}
+    pn_key_to_rows: Dict[tuple, List[int]] = defaultdict(list)
+    for idx, r in enumerate(pn_vals[3:], start=4):  # 1-based, rows 1-3 = meta+header
+        while len(r) <= max(pn_col.get("line", 4), pn_col.get("result", 8)):
+            r.append("")
+        k = (
+            r[pn_col.get("date",   0)],
+            r[pn_col.get("capper", 1)],
+            r[pn_col.get("sport",  2)],
+            r[pn_col.get("pick",   3)],
+            r[pn_col.get("line",   4)],
+        )
+        pn_key_to_rows[k].append(idx)
+
+    ms_batch  = []  # [{range, values}, ...] for master_sheet
+    pn_batch  = []  # [{range, values}, ...] for parsed_picks_new
+
+    for row in pass1_no_game:
+        pick_val  = row[pick_col].strip()
+        sport_val = row[sport_col].strip().lower()
+        line_val  = row[line_col].strip()
+        date_val  = row[date_col].strip()
+
+        correct_game = find_correct_game(pick_val, sport_val, schedule)
+        if correct_game is None:
+            genuine_no_game.append(row)
+            continue
+
+        away, home = correct_game
+        new_game, new_spread, new_side = derive_game_spread_side(pick_val, line_val, away, home)
+
+        # Try to fill result using the corrected game
+        score_str = find_score(pick_val, date_val, sport_val, new_game, scores)
+        new_result = determine_result(pick_val, line_val, new_game, score_str) if score_str else None
+
+        key = row_key(row)
+
+        if dry_run:
+            label = "wrong_game_fixed" if new_result else "wrong_game_no_score"
+            print(f"  [{label}] [{date_val}] {row[capper_col]} | {sport_val} | {pick_val} {line_val}")
+            print(f"    was:  {row[game_col] if len(row) > game_col else ''}")
+            print(f"    now:  {new_game}  result={new_result or '(pending)'}")
+        else:
+            # Queue updates for master_sheet
+            for sheet_row in ms_key_to_rows.get(key, []):
+                game_cell   = gspread.utils.rowcol_to_a1(sheet_row, ms_col.get("game",   5) + 1)
+                spread_cell = gspread.utils.rowcol_to_a1(sheet_row, ms_col.get("spread", 6) + 1)
+                side_cell   = gspread.utils.rowcol_to_a1(sheet_row, ms_col.get("side",   7) + 1)
+                ms_batch.append({"range": game_cell,   "values": [[new_game]]})
+                ms_batch.append({"range": spread_cell, "values": [[new_spread]]})
+                ms_batch.append({"range": side_cell,   "values": [[new_side]]})
+                if new_result:
+                    result_cell = gspread.utils.rowcol_to_a1(sheet_row, ms_col.get("result", 8) + 1)
+                    ms_batch.append({"range": result_cell, "values": [[new_result]]})
+
+            # Queue updates for parsed_picks_new
+            for sheet_row in pn_key_to_rows.get(key, []):
+                game_cell   = gspread.utils.rowcol_to_a1(sheet_row, pn_col.get("game",   5) + 1)
+                spread_cell = gspread.utils.rowcol_to_a1(sheet_row, pn_col.get("spread", 6) + 1)
+                side_cell   = gspread.utils.rowcol_to_a1(sheet_row, pn_col.get("side",   7) + 1)
+                pn_batch.append({"range": game_cell,   "values": [[new_game]]})
+                pn_batch.append({"range": spread_cell, "values": [[new_spread]]})
+                pn_batch.append({"range": side_cell,   "values": [[new_side]]})
+                if new_result:
+                    result_cell = gspread.utils.rowcol_to_a1(sheet_row, pn_col.get("result", 8) + 1)
+                    pn_batch.append({"range": result_cell, "values": [[new_result]]})
+
+        if new_result:
+            wrong_game_fixed.append(row)
+        else:
+            wrong_game_no_score.append(row)
+
+    print(f"  Wrong game corrected + result filled: {len(wrong_game_fixed)}")
+    print(f"  Wrong game corrected, no score yet:   {len(wrong_game_no_score)}")
+    print(f"  Genuine no-game (team not scheduled): {len(genuine_no_game)}")
+
+    if not dry_run and (ms_batch or pn_batch):
+        chunk_size = 500
+        if ms_batch:
+            for i in range(0, len(ms_batch), chunk_size):
+                ms_ws.batch_update(ms_batch[i:i + chunk_size])
+                if i + chunk_size < len(ms_batch):
+                    time.sleep(1)
+            print(f"  Wrote {len(ms_batch)} cell updates to master_sheet")
+        if pn_batch:
+            for i in range(0, len(pn_batch), chunk_size):
+                pn_ws.batch_update(pn_batch[i:i + chunk_size])
+                if i + chunk_size < len(pn_batch):
+                    time.sleep(1)
+            print(f"  Wrote {len(pn_batch)} cell updates to {PICKS_NEW_SHEET}")
+
+    # Pass 3 and 4 operate only on rows that passed Pass 1
+    # ── Pass 3: OCR substring check ───────────────────────────────────────────
+    pass3_suspects = []
+    pass3_clean    = []
     no_ocr_rows    = []
 
-    for row in game_check_rows:
+    for row in pass1_ok:
         while len(row) <= max(pick_col, ocr_col):
             row.append("")
         pick = row[pick_col].strip()
@@ -400,20 +572,20 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
         if not ocr:
             no_ocr_rows.append(row)
         elif not pick or pick_in_ocr(pick, ocr):
-            pass1_clean.append(row)
+            pass3_clean.append(row)
         else:
-            pass1_suspects.append(row)
+            pass3_suspects.append(row)
 
-    print(f"\nPass 1 (substring check):")
-    print(f"  Clean:    {len(pass1_clean)}")
-    print(f"  Suspects: {len(pass1_suspects)}")
+    print(f"\nPass 3 (OCR substring check):")
+    print(f"  Clean:    {len(pass3_clean)}")
+    print(f"  Suspects: {len(pass3_suspects)}")
     print(f"  No OCR:   {len(no_ocr_rows)}")
 
-    # ── Pass 2: Opus (time-gated) ─────────────────────────────────────────────
+    # ── Pass 4: Opus (time-gated) ─────────────────────────────────────────────
     confirmed_hallucinations = []
 
-    if pass1_suspects and run_opus:
-        print(f"\nPass 2 (Opus audit of {len(pass1_suspects)} suspects)...")
+    if pass3_suspects and run_opus:
+        print(f"\nPass 4 (Opus audit of {len(pass3_suspects)} suspects)...")
         suspect_dicts = [
             {
                 "date":     row[date_col],
@@ -428,7 +600,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
                 "ocr_text": row[ocr_col],
                 "reason":   "",
             }
-            for row in pass1_suspects
+            for row in pass3_suspects
         ]
         confirmed_dicts, cleared_dicts, opus_cost = opus_audit_with_schedule(
             suspect_dicts,
@@ -437,100 +609,116 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
         )
         confirmed_hallucinations = confirmed_dicts
 
-        # Log cost to activity_log sheet
+        # Log cost + full audit counts to activity_log
         log_activity(
             ss,
             category="daily_audit",
-            trace=f"Opus audit for {target_date}: {len(confirmed_dicts)} hallucinations, "
-                  f"{len(cleared_dicts)} cleared, ${opus_cost:.4f}",
+            trace=(
+                f"Audit for {target_date}: "
+                f"pass2_fixed={len(wrong_game_fixed)} pass2_no_score={len(wrong_game_no_score)} "
+                f"pass2_genuine_no_game={len(genuine_no_game)} "
+                f"pass4_hallucinations={len(confirmed_dicts)} pass4_cleared={len(cleared_dicts)} "
+                f"${opus_cost:.4f}"
+            ),
             metadata={
                 "date": target_date,
-                "suspects": len(suspect_dicts),
-                "confirmed": len(confirmed_dicts),
-                "cleared": len(cleared_dicts),
-                "opus_cost_usd": round(opus_cost, 6),
+                "wrong_game_fixed":     len(wrong_game_fixed),
+                "wrong_game_no_score":  len(wrong_game_no_score),
+                "genuine_no_game":      len(genuine_no_game),
+                "pass4_suspects":       len(suspect_dicts),
+                "pass4_confirmed":      len(confirmed_dicts),
+                "pass4_cleared":        len(cleared_dicts),
+                "opus_cost_usd":        round(opus_cost, 6),
             },
         )
 
-    elif pass1_suspects and not run_opus:
-        print(f"\nSkipping Opus (outside 15-min window). {len(pass1_suspects)} Pass 1 suspects not escalated.")
+    elif pass3_suspects and not run_opus:
+        print(f"\nSkipping Pass 4 (outside 15-min window). {len(pass3_suspects)} Pass 3 suspects not escalated.")
 
+    # ── Summary ───────────────────────────────────────────────────────────────
     print(f"\nAudit summary for {target_date}:")
-    print(f"  Total picks:              {len(yesterday_rows)}")
-    print(f"  Pass 0 no game found:     {len(no_game_rows)}")
-    print(f"  Pass 1 clean:             {len(pass1_clean)}")
-    print(f"  Pass 1 suspects:          {len(pass1_suspects)}")
-    print(f"  No OCR (skipped):         {len(no_ocr_rows)}")
-    print(f"  Confirmed hallucinations: {len(confirmed_hallucinations)}")
+    print(f"  Total picks:                        {len(yesterday_rows)}")
+    print(f"  Pass 1 no game found:               {len(pass1_no_game)}")
+    print(f"  Pass 2 wrong game fixed (w/ result):{len(wrong_game_fixed)}")
+    print(f"  Pass 2 wrong game fixed (no score): {len(wrong_game_no_score)}")
+    print(f"  Pass 2 genuine no-game:             {len(genuine_no_game)}")
+    print(f"  Pass 3 clean:                       {len(pass3_clean)}")
+    print(f"  Pass 3 suspects:                    {len(pass3_suspects)}")
+    print(f"  No OCR (skipped):                   {len(no_ocr_rows)}")
+    print(f"  Pass 4 confirmed hallucinations:    {len(confirmed_hallucinations)}")
 
-    if not confirmed_hallucinations and not no_game_rows:
+    # Write audit_data rows for: confirmed hallucinations + genuine no-game +
+    # wrong-game rows (both fixed and no-score, for traceability)
+    audit_write_rows = confirmed_hallucinations + wrong_game_fixed + wrong_game_no_score + genuine_no_game
+
+    if not audit_write_rows:
         print("\nNothing to write to audit_data.")
         return
 
     if dry_run:
         print("\n[dry-run] Would write these rows to audit_data:")
         for s in confirmed_hallucinations:
-            print(f"  [hallucination] [{s['date']}] {s['capper']} | {s['sport']} | {s['pick']} — {s.get('reason','')}")
-        for row in no_game_rows:
-            print(f"  [no_game_found] [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]}")
+            print(f"  [hallucination]       [{s['date']}] {s['capper']} | {s['sport']} | {s['pick']} — {s.get('reason','')}")
+        for row in wrong_game_fixed:
+            print(f"  [wrong_game_fixed]    [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]}")
+        for row in wrong_game_no_score:
+            print(f"  [wrong_game_no_score] [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]}")
+        for row in genuine_no_game:
+            print(f"  [no_game_found]       [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]}")
         return
 
-    # ── Write confirmed hallucinations + no-game rows to audit_data ───────────
-    all_audit_rows = []
+    # ── Write to audit_data ───────────────────────────────────────────────────
+    def _row_from_dict(s, reason):
+        return [
+            s.get("date", ""), s.get("capper", ""), s.get("sport", ""),
+            s.get("pick", ""), s.get("line", ""), s.get("game", ""),
+            s.get("spread", ""), s.get("side", ""), s.get("result", ""),
+            reason, s.get("ocr_text", ""),
+        ]
 
-    for s in confirmed_hallucinations:
-        all_audit_rows.append([
-            s.get("date",     ""),
-            s.get("capper",   ""),
-            s.get("sport",    ""),
-            s.get("pick",     ""),
-            s.get("line",     ""),
-            s.get("game",     ""),
-            s.get("spread",   ""),
-            s.get("side",     ""),
-            s.get("result",   ""),
-            s.get("reason",   ""),
-            s.get("ocr_text", ""),
-        ])
+    def _row_from_list(r, reason):
+        return [
+            r[date_col]   if len(r) > date_col   else "",
+            r[capper_col] if len(r) > capper_col else "",
+            r[sport_col]  if len(r) > sport_col  else "",
+            r[pick_col]   if len(r) > pick_col   else "",
+            r[line_col]   if len(r) > line_col   else "",
+            r[game_col]   if len(r) > game_col   else "",
+            r[spread_col] if len(r) > spread_col else "",
+            r[side_col]   if len(r) > side_col   else "",
+            r[result_col] if len(r) > result_col else "",
+            reason,
+            r[ocr_col]    if len(r) > ocr_col   else "",
+        ]
 
-    for row in no_game_rows:
-        all_audit_rows.append([
-            row[date_col]                          if len(row) > date_col   else "",
-            row[capper_col]                        if len(row) > capper_col else "",
-            row[sport_col]                         if len(row) > sport_col  else "",
-            row[pick_col]                          if len(row) > pick_col   else "",
-            row[line_col]                          if len(row) > line_col   else "",
-            row[game_col]                          if len(row) > game_col   else "",
-            row[spread_col]                        if len(row) > spread_col else "",
-            row[side_col]                          if len(row) > side_col   else "",
-            row[result_col]                        if len(row) > result_col else "",
-            "no_game_found",
-            row[ocr_col]                           if len(row) > ocr_col   else "",
-        ])
+    all_audit_rows = (
+        [_row_from_dict(s, s.get("reason", "hallucination")) for s in confirmed_hallucinations] +
+        [_row_from_list(r, "wrong_game_fixed")    for r in wrong_game_fixed] +
+        [_row_from_list(r, "wrong_game_no_score") for r in wrong_game_no_score] +
+        [_row_from_list(r, "no_game_found")       for r in genuine_no_game]
+    )
 
-    if not all_audit_rows:
-        print("\nNothing to write to audit_data.")
-        return
-
-    print(f"\nWriting {len(all_audit_rows)} rows to {AUDIT_SHEET} "
-          f"({len(confirmed_hallucinations)} hallucinations, {len(no_game_rows)} no-game)...")
+    print(f"\nWriting {len(all_audit_rows)} rows to {AUDIT_SHEET}...")
     ws_audit = get_or_create_audit_sheet(ss)
     time.sleep(1)
     ws_audit.append_rows(all_audit_rows, value_input_option="USER_ENTERED")
     print(f"  Appended {len(all_audit_rows)} rows to {AUDIT_SHEET}")
 
-    if no_game_rows:
+    # Log no-game / wrong-game counts if no Opus ran (Opus path already logged above)
+    if not (pass3_suspects and run_opus):
         log_activity(
             ss,
             category="daily_audit",
-            trace=f"No-game picks for {target_date}: {len(no_game_rows)} picks had no matching schedule game",
+            trace=(
+                f"Audit for {target_date}: "
+                f"pass2_fixed={len(wrong_game_fixed)} pass2_no_score={len(wrong_game_no_score)} "
+                f"pass2_genuine_no_game={len(genuine_no_game)}"
+            ),
             metadata={
                 "date": target_date,
-                "no_game_count": len(no_game_rows),
-                "picks": [
-                    f"{row[capper_col]}|{row[sport_col]}|{row[pick_col]}"
-                    for row in no_game_rows
-                ],
+                "wrong_game_fixed":    len(wrong_game_fixed),
+                "wrong_game_no_score": len(wrong_game_no_score),
+                "genuine_no_game":     len(genuine_no_game),
             },
         )
 
