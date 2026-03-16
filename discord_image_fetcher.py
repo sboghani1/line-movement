@@ -29,6 +29,7 @@ from PIL import Image
 
 from activity_logger import log_activity
 import daily_audit
+import populate_results
 
 # ── Config ──────────────────────────────────────────────────────────────────
 DISCORD_USER_TOKEN = os.environ.get("DISCORD_USER_TOKEN", "")
@@ -2272,6 +2273,18 @@ def main():
         if LOCAL_CSV_APPENDED:
             print("\n── Git Commit & Push ──")
             git_commit_and_push()
+
+        # Populate results for any picks with completed game scores
+        print("\n── Populate Results ──")
+        try:
+            scores = populate_results.load_scores(spreadsheet)
+            for sheet_name, header_row_index in [(populate_results.MASTER_SHEET, 0), (populate_results.PICKS_NEW_SHEET, 2)]:
+                resolved, skipped_no_score, skipped_already = populate_results.process_sheet(
+                    spreadsheet, sheet_name, header_row_index, scores, dry_run=False
+                )
+                print(f"  {sheet_name}: {resolved} results filled, {skipped_already} already set, {skipped_no_score} no score yet")
+        except Exception as e:
+            print(f"  populate_results error (non-fatal): {e}")
 
         # Daily hallucination audit (Opus pass only fires within 15 min after midnight PST)
         print("\n── Daily Audit ──")
