@@ -160,6 +160,31 @@ def format_schedule_context(schedule: Dict[str, List[Tuple[str, str]]]) -> str:
     return "\n".join(lines) if lines else "(no games found)"
 
 
+def pick_team_in_schedule(pick: str, sport: str, schedule: Dict[str, List[Tuple[str, str]]]) -> bool:
+    """
+    Return True if the pick team fuzzy-matches any team in the schedule for that sport.
+    Uses the same substring logic as populate_results.team_matches().
+    Totals picks (pick contains '/') are checked against both halves.
+    """
+    games = schedule.get(sport.lower(), [])
+    if not games:
+        # No schedule loaded for this sport — can't flag, give benefit of the doubt
+        return True
+
+    pick_lower = pick.lower().strip()
+
+    # Handle totals like "Georgia Southern/Marshall" — check each team separately
+    pick_parts = [p.strip().lower() for p in pick_lower.split("/")]
+
+    for away, home in games:
+        away_l = away.lower()
+        home_l = home.lower()
+        for part in pick_parts:
+            if part in away_l or away_l in part or part in home_l or home_l in part:
+                return True
+    return False
+
+
 # ── Pass 2: Opus with schedule context ────────────────────────────────────────
 def opus_audit_with_schedule(
     suspects: List[Dict],
@@ -330,12 +355,43 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
         print("No picks found for target date — nothing to audit.")
         return
 
+    # ── Pass 0: game-match check ──────────────────────────────────────────────
+    # Flag picks where the pick team cannot be found in any game on the schedule
+    # for that sport on target_date. These are written to audit_data and logged
+    # regardless of the Opus gate — they don't require Opus to detect.
+    no_game_rows   = []
+    game_check_rows = []  # rows that passed (or have no schedule loaded)
+
+    for row in yesterday_rows:
+        while len(row) <= max(pick_col, sport_col, ocr_col):
+            row.append("")
+        sport_val = row[sport_col].strip().lower()
+        pick_val  = row[pick_col].strip()
+
+        # Skip totals (over/under) — they name two teams and game matching is unreliable
+        line_val = row[line_col].strip().upper() if len(row) > line_col else ""
+        if line_val.startswith("O ") or line_val.startswith("U "):
+            game_check_rows.append(row)
+            continue
+
+        if pick_val and not pick_team_in_schedule(pick_val, sport_val, schedule):
+            no_game_rows.append(row)
+        else:
+            game_check_rows.append(row)
+
+    print(f"\nPass 0 (game-match check):")
+    print(f"  Matched a schedule game: {len(game_check_rows)}")
+    print(f"  No game found:           {len(no_game_rows)}")
+    if no_game_rows:
+        for row in no_game_rows:
+            print(f"    [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]} {row[line_col] if len(row) > line_col else ''}")
+
     # ── Pass 1: Python substring check ───────────────────────────────────────
     pass1_suspects = []
     pass1_clean    = []
     no_ocr_rows    = []
 
-    for row in yesterday_rows:
+    for row in game_check_rows:
         while len(row) <= max(pick_col, ocr_col):
             row.append("")
         pick = row[pick_col].strip()
@@ -401,29 +457,29 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
 
     print(f"\nAudit summary for {target_date}:")
     print(f"  Total picks:              {len(yesterday_rows)}")
+    print(f"  Pass 0 no game found:     {len(no_game_rows)}")
     print(f"  Pass 1 clean:             {len(pass1_clean)}")
     print(f"  Pass 1 suspects:          {len(pass1_suspects)}")
     print(f"  No OCR (skipped):         {len(no_ocr_rows)}")
     print(f"  Confirmed hallucinations: {len(confirmed_hallucinations)}")
 
-    if not confirmed_hallucinations:
+    if not confirmed_hallucinations and not no_game_rows:
         print("\nNothing to write to audit_data.")
         return
 
     if dry_run:
         print("\n[dry-run] Would write these rows to audit_data:")
         for s in confirmed_hallucinations:
-            print(f"  [{s['date']}] {s['capper']} | {s['sport']} | {s['pick']} — {s.get('reason','')}")
+            print(f"  [hallucination] [{s['date']}] {s['capper']} | {s['sport']} | {s['pick']} — {s.get('reason','')}")
+        for row in no_game_rows:
+            print(f"  [no_game_found] [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]}")
         return
 
-    # ── Write confirmed hallucinations to audit_data ──────────────────────────
-    print(f"\nWriting {len(confirmed_hallucinations)} rows to {AUDIT_SHEET}...")
-    ws_audit = get_or_create_audit_sheet(ss)
-    time.sleep(1)
+    # ── Write confirmed hallucinations + no-game rows to audit_data ───────────
+    all_audit_rows = []
 
-    audit_rows = []
     for s in confirmed_hallucinations:
-        audit_rows.append([
+        all_audit_rows.append([
             s.get("date",     ""),
             s.get("capper",   ""),
             s.get("sport",    ""),
@@ -437,9 +493,48 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
             s.get("ocr_text", ""),
         ])
 
-    ws_audit.append_rows(audit_rows, value_input_option="USER_ENTERED")
-    print(f"  Appended {len(audit_rows)} rows to {AUDIT_SHEET}")
-    print(f"\nDone. Review {AUDIT_SHEET} sheet for confirmed hallucinations.")
+    for row in no_game_rows:
+        all_audit_rows.append([
+            row[date_col]                          if len(row) > date_col   else "",
+            row[capper_col]                        if len(row) > capper_col else "",
+            row[sport_col]                         if len(row) > sport_col  else "",
+            row[pick_col]                          if len(row) > pick_col   else "",
+            row[line_col]                          if len(row) > line_col   else "",
+            row[game_col]                          if len(row) > game_col   else "",
+            row[spread_col]                        if len(row) > spread_col else "",
+            row[side_col]                          if len(row) > side_col   else "",
+            row[result_col]                        if len(row) > result_col else "",
+            "no_game_found",
+            row[ocr_col]                           if len(row) > ocr_col   else "",
+        ])
+
+    if not all_audit_rows:
+        print("\nNothing to write to audit_data.")
+        return
+
+    print(f"\nWriting {len(all_audit_rows)} rows to {AUDIT_SHEET} "
+          f"({len(confirmed_hallucinations)} hallucinations, {len(no_game_rows)} no-game)...")
+    ws_audit = get_or_create_audit_sheet(ss)
+    time.sleep(1)
+    ws_audit.append_rows(all_audit_rows, value_input_option="USER_ENTERED")
+    print(f"  Appended {len(all_audit_rows)} rows to {AUDIT_SHEET}")
+
+    if no_game_rows:
+        log_activity(
+            ss,
+            category="daily_audit",
+            trace=f"No-game picks for {target_date}: {len(no_game_rows)} picks had no matching schedule game",
+            metadata={
+                "date": target_date,
+                "no_game_count": len(no_game_rows),
+                "picks": [
+                    f"{row[capper_col]}|{row[sport_col]}|{row[pick_col]}"
+                    for row in no_game_rows
+                ],
+            },
+        )
+
+    print(f"\nDone. Review {AUDIT_SHEET} sheet for flagged rows.")
 
 
 def main():
