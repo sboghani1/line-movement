@@ -764,15 +764,17 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     if processed_count == 0:
         return [""] * len(image_urls)
 
-    # Simple OCR prompt - just extract text
-    prompt_text = f"""Extract all text from each of the {processed_count} images above.
+    # Simple OCR prompt - just read text
+    # Note: "Extract all text" phrasing causes the github_copilot-routed model
+    # to respond as if no images were attached. Use "Read and transcribe" instead.
+    prompt_text = f"""Read and transcribe every word visible in each of the {processed_count} images above.
 For each image, output in this exact format:
 
 [Image 1]
-<extracted text here>
+<transcribed text here>
 
 [Image 2]
-<extracted text here>
+<transcribed text here>
 
 ...and so on. Preserve the layout of each image's text as much as possible."""
 
