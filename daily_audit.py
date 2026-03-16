@@ -93,6 +93,22 @@ def yesterday_str() -> str:
     return yesterday.strftime("%Y-%m-%d")
 
 
+# ── Retry helper ───────────────────────────────────────────────────────────────
+def sheets_call(fn, *args, retries=6, **kwargs):
+    """Call fn(*args, **kwargs) with exponential backoff on 429 rate-limit errors."""
+    delay = 15
+    for attempt in range(retries):
+        try:
+            return fn(*args, **kwargs)
+        except gspread.exceptions.APIError as e:
+            if e.response.status_code == 429 and attempt < retries - 1:
+                print(f"  [rate limit] waiting {delay}s before retry {attempt+2}/{retries}...")
+                time.sleep(delay)
+                delay = min(delay * 2, 120)
+            else:
+                raise
+
+
 # ── Google Sheets auth ─────────────────────────────────────────────────────────
 def get_gspread_client():
     creds_b64 = os.environ.get("GOOGLE_CREDENTIALS", "")
@@ -170,25 +186,51 @@ def pick_team_in_schedule(pick: str, sport: str, schedule: Dict[str, List[Tuple[
     return find_correct_game(pick, sport, schedule) is not None
 
 
-def find_correct_game(pick: str, sport: str, schedule: Dict[str, List[Tuple[str, str]]]) -> Tuple[str, str] | None:
+def find_correct_game(
+    pick: str,
+    sport: str,
+    schedule: Dict[str, List[Tuple[str, str]]],
+) -> Tuple[str, str, str] | None:
     """
-    Return the (away, home) tuple from the schedule whose pick team matches,
-    or None if no game found. If no schedule loaded for sport, returns None
-    (caller should treat as benefit-of-the-doubt pass).
-    """
-    games = schedule.get(sport.lower(), [])
-    if not games:
-        return None
+    Return (away, home, matched_sport) for the first schedule game matching
+    the pick team, or None if not found.
 
+    Searches the tagged sport first; if not found, searches other sports to
+    catch wrong-sport tags (e.g. an NBA team tagged as CBB).
+    matched_sport is the sport key where the match was found (may differ from
+    the tagged sport).
+    """
     pick_lower = pick.lower().strip()
     pick_parts = [p.strip().lower() for p in pick_lower.split("/")]
 
-    for away, home in games:
-        away_l = away.lower()
-        home_l = home.lower()
-        for part in pick_parts:
-            if part in away_l or away_l in part or part in home_l or home_l in part:
-                return (away, home)
+    def _match_in(games):
+        for away, home in games:
+            away_l = away.lower()
+            home_l = home.lower()
+            for part in pick_parts:
+                if part in away_l or away_l in part or part in home_l or home_l in part:
+                    return (away, home)
+        return None
+
+    # Try tagged sport first
+    games = schedule.get(sport.lower(), [])
+    if games:
+        result = _match_in(games)
+        if result:
+            return (result[0], result[1], sport.lower())
+
+    # No match in tagged sport — try other sports (wrong-sport tag)
+    for other_sport, other_games in schedule.items():
+        if other_sport == sport.lower() or not other_games:
+            continue
+        result = _match_in(other_games)
+        if result:
+            return (result[0], result[1], other_sport)
+
+    # Only return None if we had a schedule for the tagged sport and found nothing anywhere
+    if not schedule.get(sport.lower()):
+        return None  # benefit of the doubt — no schedule loaded
+
     return None
 
 
@@ -352,14 +394,14 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
 
     # Load yesterday's schedule for context
     print(f"\nLoading schedule for {target_date}...")
-    schedule = load_schedule_for_date(ss, target_date)
+    schedule = sheets_call(load_schedule_for_date, ss, target_date)
     schedule_context = format_schedule_context(schedule)
     print(f"Schedule context:\n{schedule_context}")
 
     # Load picks
     print(f"\nLoading {PICKS_NEW_SHEET}...")
     ws_picks = ss.worksheet(PICKS_NEW_SHEET)
-    all_values = ws_picks.get_all_values()
+    all_values = sheets_call(ws_picks.get_all_values)
 
     # Header is row 3 (index 2) per the sheet layout
     if len(all_values) < 4:
@@ -389,20 +431,24 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
 
     # Load scores for Pass 2 result-filling after wrong-game correction
     print(f"\nLoading scores from schedule sheets...")
-    scores = load_scores(ss)
+    scores = sheets_call(load_scores, ss)
 
     # ── Pass 1: game-match check ──────────────────────────────────────────────
-    # Flag picks where the pick team cannot be found in any schedule game for
-    # that sport on target_date. Totals (O/U lines) are exempt.
-    pass1_no_game  = []
+    # Flag picks where either:
+    #   (a) the pick team can't be found in any schedule game for that sport/date, or
+    #   (b) the stored game column doesn't match where the pick team is actually playing
+    #       (Stage 2 assigned the wrong game via fuzzy substring match).
+    # Totals (O/U lines) are exempt.
+    pass1_no_game  = []   # team not in schedule at all, or stored game is wrong
     pass1_ok       = []
 
     for row in yesterday_rows:
-        while len(row) <= max(pick_col, sport_col, line_col, ocr_col):
+        while len(row) <= max(pick_col, sport_col, line_col, game_col, ocr_col):
             row.append("")
-        sport_val = row[sport_col].strip().lower()
-        pick_val  = row[pick_col].strip()
-        line_val  = row[line_col].strip().upper()
+        sport_val      = row[sport_col].strip().lower()
+        pick_val       = row[pick_col].strip()
+        line_val       = row[line_col].strip().upper()
+        stored_game    = row[game_col].strip()
 
         # Skip totals — two-team picks don't map cleanly to a single schedule entry
         if line_val.startswith("O ") or line_val.startswith("U "):
@@ -410,17 +456,31 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
             continue
 
         correct_game = find_correct_game(pick_val, sport_val, schedule)
-        if pick_val and correct_game is None and schedule.get(sport_val):
+
+        if not pick_val or not schedule.get(sport_val):
+            # No schedule loaded for this sport — benefit of the doubt
+            pass1_ok.append(row)
+            continue
+
+        if correct_game is None:
+            # Pick team not found in schedule at all
+            pass1_no_game.append(row)
+            continue
+
+        # Check whether the stored game column matches the schedule-derived game
+        correct_game_str = f"{correct_game[0]} @ {correct_game[1]}"
+        if stored_game and stored_game != correct_game_str:
+            # Stored game is wrong — Stage 2 assigned a different game
             pass1_no_game.append(row)
         else:
             pass1_ok.append(row)
 
     print(f"\nPass 1 (game-match check):")
     print(f"  Matched a schedule game: {len(pass1_ok)}")
-    print(f"  No game found:           {len(pass1_no_game)}")
+    print(f"  No/wrong game found:     {len(pass1_no_game)}")
     if pass1_no_game:
         for row in pass1_no_game:
-            print(f"    [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]} {row[line_col]}")
+            print(f"    [{row[date_col]}] {row[capper_col]} | {row[sport_col]} | {row[pick_col]} {row[line_col]} | stored={row[game_col]}")
 
     # ── Pass 2: wrong-game detection and fix ─────────────────────────────────
     # For each Pass 1 failure, check if the pick team DOES appear in a different
@@ -446,7 +506,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
 
     # Build index: key → list of 1-based sheet row numbers in master_sheet
     ms_ws   = ss.worksheet("master_sheet")
-    ms_vals = ms_ws.get_all_values()
+    ms_vals = sheets_call(ms_ws.get_all_values)
     ms_header = ms_vals[0]
     ms_col = {h: i for i, h in enumerate(ms_header)}
     ms_key_to_rows: Dict[tuple, List[int]] = defaultdict(list)
@@ -464,7 +524,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
 
     # Build index for parsed_picks_new (header at row 3, data from row 4)
     pn_ws   = ss.worksheet(PICKS_NEW_SHEET)
-    pn_vals = pn_ws.get_all_values()
+    pn_vals = sheets_call(pn_ws.get_all_values)
     pn_header = pn_vals[2]
     pn_col = {h: i for i, h in enumerate(pn_header)}
     pn_key_to_rows: Dict[tuple, List[int]] = defaultdict(list)
@@ -494,18 +554,20 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
             genuine_no_game.append(row)
             continue
 
-        away, home = correct_game
+        away, home, matched_sport = correct_game
         new_game, new_spread, new_side = derive_game_spread_side(pick_val, line_val, away, home)
+        sport_changed = matched_sport != sport_val
 
-        # Try to fill result using the corrected game
-        score_str = find_score(pick_val, date_val, sport_val, new_game, scores)
+        # Try to fill result using the corrected game and matched sport
+        score_str = find_score(pick_val, date_val, matched_sport, new_game, scores)
         new_result = determine_result(pick_val, line_val, new_game, score_str) if score_str else None
 
         key = row_key(row)
 
         if dry_run:
             label = "wrong_game_fixed" if new_result else "wrong_game_no_score"
-            print(f"  [{label}] [{date_val}] {row[capper_col]} | {sport_val} | {pick_val} {line_val}")
+            sport_note = f" [sport: {sport_val} → {matched_sport}]" if sport_changed else ""
+            print(f"  [{label}] [{date_val}] {row[capper_col]} | {sport_val} | {pick_val} {line_val}{sport_note}")
             print(f"    was:  {row[game_col] if len(row) > game_col else ''}")
             print(f"    now:  {new_game}  result={new_result or '(pending)'}")
         else:
@@ -520,6 +582,9 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
                 if new_result:
                     result_cell = gspread.utils.rowcol_to_a1(sheet_row, ms_col.get("result", 8) + 1)
                     ms_batch.append({"range": result_cell, "values": [[new_result]]})
+                if sport_changed and "sport" in ms_col:
+                    sport_cell = gspread.utils.rowcol_to_a1(sheet_row, ms_col["sport"] + 1)
+                    ms_batch.append({"range": sport_cell, "values": [[matched_sport]]})
 
             # Queue updates for parsed_picks_new
             for sheet_row in pn_key_to_rows.get(key, []):
@@ -532,6 +597,9 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
                 if new_result:
                     result_cell = gspread.utils.rowcol_to_a1(sheet_row, pn_col.get("result", 8) + 1)
                     pn_batch.append({"range": result_cell, "values": [[new_result]]})
+                if sport_changed and "sport" in pn_col:
+                    sport_cell = gspread.utils.rowcol_to_a1(sheet_row, pn_col["sport"] + 1)
+                    pn_batch.append({"range": sport_cell, "values": [[matched_sport]]})
 
         if new_result:
             wrong_game_fixed.append(row)
@@ -546,13 +614,13 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
         chunk_size = 500
         if ms_batch:
             for i in range(0, len(ms_batch), chunk_size):
-                ms_ws.batch_update(ms_batch[i:i + chunk_size])
+                sheets_call(ms_ws.batch_update, ms_batch[i:i + chunk_size])
                 if i + chunk_size < len(ms_batch):
                     time.sleep(1)
             print(f"  Wrote {len(ms_batch)} cell updates to master_sheet")
         if pn_batch:
             for i in range(0, len(pn_batch), chunk_size):
-                pn_ws.batch_update(pn_batch[i:i + chunk_size])
+                sheets_call(pn_ws.batch_update, pn_batch[i:i + chunk_size])
                 if i + chunk_size < len(pn_batch):
                     time.sleep(1)
             print(f"  Wrote {len(pn_batch)} cell updates to {PICKS_NEW_SHEET}")
@@ -701,7 +769,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
     print(f"\nWriting {len(all_audit_rows)} rows to {AUDIT_SHEET}...")
     ws_audit = get_or_create_audit_sheet(ss)
     time.sleep(1)
-    ws_audit.append_rows(all_audit_rows, value_input_option="USER_ENTERED")
+    sheets_call(ws_audit.append_rows, all_audit_rows, value_input_option="USER_ENTERED")
     print(f"  Appended {len(all_audit_rows)} rows to {AUDIT_SHEET}")
 
     # Log no-game / wrong-game counts if no Opus ran (Opus path already logged above)
