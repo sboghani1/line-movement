@@ -110,3 +110,11 @@ Sheet: `1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k`
 ## 🛠 TODO
 
 - [ ] **Populate `result` column**: Build a script that looks up game outcomes and fills the `result` column (W/L/Push) in `master_sheet` and `parsed_picks_new`.
+
+- [ ] **Audit report**: After the nightly Opus audit runs, generate a next-day manual review report (written to a `audit_report` sheet or Discord message) containing:
+  - `num_rows_audit_pass` — picks that passed all 4 passes cleanly
+  - `num_rows_audit_warn` — Pass 3 suspects cleared by Opus (false positives)
+  - `num_rows_audit_fail` — confirmed hallucinations written to `audit_data`
+  - Full details for warns and failures: date, capper, pick, line, OCR snippet, Opus verdict
+
+- [ ] **Opus predictor**: Before picks come in each day, use Opus to analyze the day's schedule (NBA/CBB/NHL games) and identify high-value spots to watch — e.g. public fade candidates, line value based on historical capper tendencies, noteworthy matchups. Output posted somewhere visible (Discord, `predictions` sheet, or GitHub Pages) so you have context before reviewing the day's picks.
