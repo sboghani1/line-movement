@@ -1485,7 +1485,12 @@ def run_stage2(spreadsheet, image_pull_ws):
             "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
         }
 
-        rows_as_csv = [",".join(row) for row in batch if row]
+        valid_batch = [row for row in batch if row]
+        # Preserve ocr_text (col 9) from input rows — Stage 2 only fills
+        # game/spread/side and doesn't re-output ocr_text
+        ocr_texts = [row[9] if len(row) > 9 else "" for row in valid_batch]
+
+        rows_as_csv = [",".join(row) for row in valid_batch]
 
         prompt = build_stage2_prompt(rows_as_csv, schedule_data)
         print(f"Calling Sonnet to finalize {len(rows_as_csv)} picks...")
@@ -1494,6 +1499,13 @@ def run_stage2(spreadsheet, image_pull_ws):
             response = call_sonnet_text(prompt)
             finalized_batch = parse_csv_response(response)
             finalized_batch = validate_and_fix_pick_column(finalized_batch)
+            # Re-attach ocr_text to each finalized row (positional match)
+            for j, row in enumerate(finalized_batch):
+                ocr = ocr_texts[j] if j < len(ocr_texts) else ""
+                if len(row) < 10:
+                    row.append(ocr)
+                else:
+                    row[9] = ocr
             print(f"Finalized {len(finalized_batch)} pick row(s)")
             all_finalized_rows.extend(finalized_batch)
         except Exception as e:
@@ -1915,19 +1927,27 @@ def process_manual_picks_queue(spreadsheet):
     if known_cappers:
         print(f"Using {len(known_cappers)} known cappers for normalization")
 
-    # Convert rows to CSV strings
-    rows_as_csv = [",".join(row) for row in parsed_data_rows if row]
-
     # Call Sonnet with known cappers, batched to prevent hallucination
     all_manual_finalized = []
-    for batch_start in range(0, len(rows_as_csv), STAGE_BATCH_SIZE):
-        batch = rows_as_csv[batch_start : batch_start + STAGE_BATCH_SIZE]
-        prompt = build_stage2_prompt(batch, schedule_data, known_cappers)
-        print(f"Calling Sonnet to finalize batch of {len(batch)} picks...")
+    valid_parsed_rows = [row for row in parsed_data_rows if row]
+    for batch_start in range(0, len(valid_parsed_rows), STAGE_BATCH_SIZE):
+        batch = valid_parsed_rows[batch_start : batch_start + STAGE_BATCH_SIZE]
+        # Preserve ocr_text (col 9) — Stage 2 doesn't re-output it
+        ocr_texts = [row[9] if len(row) > 9 else "" for row in batch]
+        batch_csv = [",".join(row) for row in batch]
+        prompt = build_stage2_prompt(batch_csv, schedule_data, known_cappers)
+        print(f"Calling Sonnet to finalize batch of {len(batch_csv)} picks...")
         try:
             response = call_sonnet_text(prompt)
             batch_finalized = parse_csv_response(response)
             batch_finalized = validate_and_fix_pick_column(batch_finalized)
+            # Re-attach ocr_text positionally
+            for j, row in enumerate(batch_finalized):
+                ocr = ocr_texts[j] if j < len(ocr_texts) else ""
+                if len(row) < 10:
+                    row.append(ocr)
+                else:
+                    row[9] = ocr
             print(f"Finalized {len(batch_finalized)} pick row(s)")
             all_manual_finalized.extend(batch_finalized)
         except Exception as e:
