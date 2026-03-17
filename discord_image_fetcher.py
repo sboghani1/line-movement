@@ -2271,8 +2271,6 @@ def main():
 
         # Populate results for any picks with completed game scores
         print("\n── Populate Results ──")
-        master_resolved = 0
-        csv_results_synced = False
         try:
             scores = populate_results.load_scores(spreadsheet)
             for sheet_name, header_row_index in [(populate_results.MASTER_SHEET, 0), (populate_results.PICKS_NEW_SHEET, 2)]:
@@ -2280,19 +2278,13 @@ def main():
                     spreadsheet, sheet_name, header_row_index, scores, dry_run=False
                 )
                 print(f"  {sheet_name}: {resolved} results filled, {skipped_already} already set, {skipped_no_score} no score yet")
-                if sheet_name == populate_results.MASTER_SHEET:
-                    master_resolved = resolved
-            if master_resolved > 0:
-                print("  Syncing results to local CSV...")
-                populate_results.sync_master_to_csv(spreadsheet, LOCAL_CSV_PATH)
-                csv_results_synced = True
+            populate_results.sync_master_to_csv(spreadsheet, LOCAL_CSV_PATH)
         except Exception as e:
             print(f"  populate_results error (non-fatal): {e}")
 
-        # Single git push covering both new appended rows and any result fills
-        if LOCAL_CSV_APPENDED or csv_results_synced:
-            print("\n── Git Commit & Push ──")
-            git_commit_and_push()
+        # Push CSV — git_commit_and_push is a no-op if nothing changed
+        print("\n── Git Commit & Push ──")
+        git_commit_and_push()
 
         # Brief pause to let Sheets read quota window reset before audit
         print("\n  [quota cooldown] sleeping 30s before audit...")
