@@ -505,7 +505,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
     print(f"\nPass 2 (wrong-game detection)...")
 
     # Build index: key → list of 1-based sheet row numbers in master_sheet
-    ms_ws   = ss.worksheet("master_sheet")
+    ms_ws   = sheets_call(ss.worksheet, "master_sheet")
     ms_vals = sheets_call(ms_ws.get_all_values)
     ms_header = ms_vals[0]
     ms_col = {h: i for i, h in enumerate(ms_header)}
@@ -523,7 +523,7 @@ def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bo
         ms_key_to_rows[k].append(idx)
 
     # Build index for parsed_picks_new (header at row 3, data from row 4)
-    pn_ws   = ss.worksheet(PICKS_NEW_SHEET)
+    pn_ws   = sheets_call(ss.worksheet, PICKS_NEW_SHEET)
     pn_vals = sheets_call(pn_ws.get_all_values)
     pn_header = pn_vals[2]
     pn_col = {h: i for i, h in enumerate(pn_header)}

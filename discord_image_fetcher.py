@@ -2286,6 +2286,10 @@ def main():
         except Exception as e:
             print(f"  populate_results error (non-fatal): {e}")
 
+        # Brief pause to let Sheets read quota window reset before audit
+        print("\n  [quota cooldown] sleeping 30s before audit...")
+        time.sleep(30)
+
         # Daily hallucination audit (Opus pass only fires within 15 min after midnight PST)
         print("\n── Daily Audit ──")
         daily_audit.run_audit(spreadsheet)

@@ -39,6 +39,21 @@ from google.oauth2.service_account import Credentials
 load_dotenv()
 
 GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
+
+
+def sheets_call(fn, *args, retries=6, **kwargs):
+    """Call fn(*args, **kwargs) with exponential backoff on 429 rate-limit errors."""
+    delay = 15
+    for attempt in range(retries):
+        try:
+            return fn(*args, **kwargs)
+        except gspread.exceptions.APIError as e:
+            if e.response.status_code == 429 and attempt < retries - 1:
+                print(f"  [rate limit] waiting {delay}s before retry {attempt+2}/{retries}...")
+                time.sleep(delay)
+                delay = min(delay * 2, 120)
+            else:
+                raise
 SPORT_TO_SCHED  = {"nba": "nba_schedule", "cbb": "cbb_schedule", "nhl": "nhl_schedule"}
 
 # master_sheet columns (0-indexed, header is row 1)
@@ -178,8 +193,8 @@ def load_scores(ss) -> dict:
     scores = {}
     for sport, sheet_name in SPORT_TO_SCHED.items():
         try:
-            ws = ss.worksheet(sheet_name)
-            rows = ws.get_all_values()
+            ws = sheets_call(ss.worksheet, sheet_name)
+            rows = sheets_call(ws.get_all_values)
             if not rows:
                 scores[sport] = {}
                 continue
@@ -204,6 +219,7 @@ def load_scores(ss) -> dict:
             scores[sport] = by_date
             total = sum(len(v) for v in by_date.values())
             print(f"  {sheet_name}: {total} scored games loaded")
+            time.sleep(2)  # avoid 429 between schedule sheet reads
         except gspread.exceptions.WorksheetNotFound:
             print(f"  {sheet_name}: sheet not found, skipping")
             scores[sport] = {}
@@ -251,8 +267,9 @@ def process_sheet(
 
     Returns (resolved, skipped_no_score, skipped_already_set).
     """
-    ws = ss.worksheet(sheet_name)
-    all_values = ws.get_all_values()
+    ws = sheets_call(ss.worksheet, sheet_name)
+    all_values = sheets_call(ws.get_all_values)
+    time.sleep(2)  # avoid 429 after large read
 
     header = all_values[header_row_index]
     col = {h: i for i, h in enumerate(header)}
