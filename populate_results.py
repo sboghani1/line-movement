@@ -25,7 +25,6 @@ Usage:
 
 import os
 import re
-import csv
 import json
 import base64
 import argparse
@@ -345,30 +344,6 @@ def process_sheet(
     return resolved, skipped_no_score, skipped_already
 
 
-# ── CSV sync ──────────────────────────────────────────────────────────────────
-def sync_master_to_csv(ss, csv_path: str) -> int:
-    """
-    Overwrite the local CSV file with the current contents of master_sheet.
-    Returns the number of data rows written.
-    """
-    ws = sheets_call(ss.worksheet, MASTER_SHEET)
-    all_values = sheets_call(ws.get_all_values)
-    if not all_values:
-        print("  sync_master_to_csv: master_sheet is empty, skipping")
-        return 0
-
-    header = all_values[0]
-    data   = all_values[1:]
-
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-        writer.writerows(data)
-
-    print(f"  Synced {len(data)} rows → {csv_path}")
-    return len(data)
-
-
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser()
@@ -411,13 +386,6 @@ def main():
     if args.dry_run:
         print("\n[dry-run] No changes written.")
     else:
-        local_csv = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "gh-pages", "data", "master_sheet.csv",
-        )
-        if os.path.exists(local_csv):
-            print(f"\nSyncing results to local CSV...")
-            sync_master_to_csv(ss, local_csv)
         print("\nDone.")
 
 

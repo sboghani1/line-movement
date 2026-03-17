@@ -97,6 +97,24 @@ SONNET_OUTPUT_COST_PER_M = 15.00
 # Local CSV path for GitHub Pages
 LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
 
+
+def sync_master_to_csv(ss) -> int:
+    """Overwrite the local CSV with the current contents of master_sheet in Google Sheets."""
+    ws = populate_results.sheets_call(ss.worksheet, populate_results.MASTER_SHEET)
+    all_values = populate_results.sheets_call(ws.get_all_values)
+    if not all_values:
+        print("  sync_master_to_csv: master_sheet is empty, skipping")
+        return 0
+    header = all_values[0]
+    data   = all_values[1:]
+    with open(LOCAL_CSV_PATH, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(data)
+    print(f"  Synced {len(data)} rows → {LOCAL_CSV_PATH}")
+    return len(data)
+
+
 def git_commit_and_push() -> bool:
     """Commit and push changes to the local CSV file.
     
@@ -2241,7 +2259,7 @@ def main():
                     spreadsheet, sheet_name, header_row_index, scores, dry_run=False
                 )
                 print(f"  {sheet_name}: {resolved} results filled, {skipped_already} already set, {skipped_no_score} no score yet")
-            populate_results.sync_master_to_csv(spreadsheet, LOCAL_CSV_PATH)
+            sync_master_to_csv(spreadsheet)
         except Exception as e:
             print(f"  populate_results error (non-fatal): {e}")
 
