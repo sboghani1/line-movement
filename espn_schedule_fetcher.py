@@ -224,7 +224,7 @@ def update_scores_for_sheet(
         home_team = row[home_team_col]
         score = row[score_col]
 
-        if score:
+        if score and score != "N/A":
             continue
         if away_team == "TBD" or home_team == "TBD":
             continue
@@ -278,12 +278,7 @@ def update_scores_for_sheet(
                     })
                 change_details.append(score_str)
             else:
-                # Mark as N/A so we don't retry on every future run
-                print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key} — marking N/A")
-                date_batch.append({
-                    "range": gspread.utils.rowcol_to_a1(row_idx, score_col + 1),
-                    "values": [["N/A"]],
-                })
+                print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key} — will retry next run")
 
         if date_batch:
             worksheet.batch_update(date_batch)
