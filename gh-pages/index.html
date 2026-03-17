@@ -589,7 +589,7 @@ function CapperConsensusTracker() {
       const isGithubPages = window.location.hostname.includes('github.io');
       if (isGithubPages) {
         try {
-          const basePath = window.location.pathname.replace(/\/[^\/]*$/, ''); const csvPath = basePath + '/data/master_sheet.csv'; const res = await fetch(csvPath);
+          const basePath = window.location.pathname.replace(/\/[^\/]*$/, ''); const csvPath = basePath + '/data/master_sheet.csv?v=' + Date.now(); const res = await fetch(csvPath);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           parseCsv(await res.text(), true);
           setLastLoaded('Loaded from ' + csvPath);
