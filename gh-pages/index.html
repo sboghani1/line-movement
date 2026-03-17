@@ -92,6 +92,20 @@ function spreadTeamMatchesSide(spreadTeam, side) {
 const VERBOSE_BUCKET_LABELS = ['100x10','100','95','90','85','80','75','70','65','60','55','50'];
 const COARSE_LABELS          = ['100x10','100','90','80','70','60','50'];
 const COARSE_MAP = {'100x10':'100x10','100':'100','95':'90','90':'90','85':'80','80':'80','75':'70','70':'70','65':'60','60':'60','55':'50','50':'50'};
+
+// Merge verbose bucket data into coarse buckets by summing wins/losses
+function mergeToCoarse(data) {
+  if (!data) return null;
+  const merged = {};
+  for (const [label, d] of Object.entries(data)) {
+    const coarseKey = COARSE_MAP[label] || label;
+    if (!COARSE_LABELS.includes(coarseKey)) continue;
+    if (!merged[coarseKey]) merged[coarseKey] = { wins: 0, losses: 0 };
+    merged[coarseKey].wins   += d.wins   || 0;
+    merged[coarseKey].losses += d.losses || 0;
+  }
+  return Object.keys(merged).length > 0 ? merged : null;
+}
 function resolveActive(verboseLabel, fineBuckets) {
   if (!verboseLabel) return null;
   return fineBuckets ? verboseLabel : (COARSE_MAP[verboseLabel] || verboseLabel);
@@ -230,7 +244,7 @@ const ThisGameBadge = memo(({ratio}) => {
 });
 
 const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters}) => {
-  const [open,setOpen] = useState(true);
+  const [open,setOpen] = useState(false);
   const [fineBuckets,setFineBuckets] = useState(true);
   const [expandedBt,setExpandedBt] = useState({Fav:false,Dog:false,Over:true,Under:true});
 
@@ -327,13 +341,13 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
                   {allTimeSections.map(sec => (
                     <div key={sec.key} style={{background:'rgba(0,0,0,0.2)',borderRadius:'6px',padding:'8px',border:'1px solid rgba(255,255,255,0.08)'}}>
                       <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.8)',fontWeight:'700',marginBottom:'4px',borderBottom:'1px solid rgba(255,255,255,0.1)',paddingBottom:'3px'}}>{sec.label}</div>
-                      <RatioRows data={sec.data} activeBucket={resolveActive(cr?.verboseLabel, fineBuckets)} bucketList={bucketList}/>
+                      <RatioRows data={fineBuckets ? sec.data : mergeToCoarse(sec.data)} activeBucket={resolveActive(cr?.verboseLabel, fineBuckets)} bucketList={bucketList}/>
                     </div>
                   ))}
                   {l30Sections.map(sec => (
                     <div key={sec.key} style={{background:'rgba(255,215,0,0.04)',borderRadius:'6px',padding:'8px',border:'1px solid rgba(255,215,0,0.12)'}}>
                       <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.8)',fontWeight:'700',marginBottom:'4px',borderBottom:'1px solid rgba(255,215,0,0.15)',paddingBottom:'3px'}}>{sec.label}</div>
-                      <RatioRows data={sec.data} activeBucket={resolveActive(cr?.verboseLabel, fineBuckets)} bucketList={bucketList}/>
+                      <RatioRows data={fineBuckets ? sec.data : mergeToCoarse(sec.data)} activeBucket={resolveActive(cr?.verboseLabel, fineBuckets)} bucketList={bucketList}/>
                     </div>
                   ))}
                 </div>
@@ -462,6 +476,43 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
           );
         })}
       </div>
+    </div>
+  );
+});
+
+const AnswerKey = memo(({answerKey, l30Days, minPicks, gameConsensus, sectionSetters}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{background:'rgba(0,0,0,0.3)',borderRadius:'12px',marginBottom:'24px',border:'2px solid rgba(255,215,0,0.3)'}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{display:'flex',alignItems:'center',gap:'8px',width:'100%',padding:'16px 20px',background:'none',border:'none',cursor:'pointer',color:'#FFD700',fontSize:'0.9rem',fontWeight:'700',textAlign:'left'}}>
+        <span style={{fontSize:'0.6rem',display:'inline-block',transform:open?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.2s'}}>▶</span>
+        🤫 SHH ANSWER KEY
+        <span style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.5)',fontWeight:'400'}}>— most extreme L{l30Days} win% at consensus bucket · min {minPicks} picks/game</span>
+      </button>
+      {open && <div style={{padding:'0 20px 16px'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+          {answerKey.map((item,i) => {
+            const {pct,wins,losses}=item.mostExtreme;
+            const color=pct>=60?'#90EE90':pct<=40?'#FF6B6B':'rgba(255,255,255,0.85)';
+            return (
+              <div key={i} style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                  <span style={{color:'#FFD700',fontSize:'0.75rem'}}>•</span>
+                  <button onClick={()=>{ const idx=gameConsensus.findIndex(g=>g.game===item.game); const el=document.getElementById(`game-card-${idx}`); if(el){el.scrollIntoView({behavior:'smooth',block:'start'});const setter=sectionSetters.current[item.game];if(setter)setter(true);}}}
+                    style={{background:'none',border:'none',cursor:'pointer',color:'#85C1E9',fontSize:'0.8rem',fontWeight:'600',textDecoration:'underline',textAlign:'left',padding:0}}>
+                    {item.game}
+                  </button>
+                  <span style={{fontSize:'0.8rem',fontWeight:'700',color}}>{wins}-{losses} · {pct}%</span>
+                </div>
+                <div style={{paddingLeft:'28px',fontSize:'0.7rem',color:'rgba(255,255,255,0.5)'}}>
+                  {item.bt} · {item.verboseLabel} · {item.consensusSideCount}/{item.consensusTotalCappers} · {item.mostExtreme.section}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>}
     </div>
   );
 });
@@ -913,33 +964,7 @@ function CapperConsensusTracker() {
         })}
       </div>}
 
-      {picks.length>0 && answerKey.length>0 && <div style={{background:'rgba(0,0,0,0.3)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(255,215,0,0.3)'}}>
-        <div style={{fontSize:'0.9rem',fontWeight:'700',marginBottom:'12px',color:'#FFD700',display:'flex',alignItems:'center',gap:'8px'}}>
-          🤫 SHH ANSWER KEY
-          <span style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.5)',fontWeight:'400'}}>— most extreme L{l30Days} win% at consensus bucket · min {minPicks} picks/game</span>
-        </div>
-        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-          {answerKey.map((item,i) => {
-            const {pct,wins,losses}=item.mostExtreme;
-            const color=pct>=60?'#90EE90':pct<=40?'#FF6B6B':'rgba(255,255,255,0.85)';
-            return (
-              <div key={i} style={{display:'flex',flexDirection:'column',gap:'2px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                  <span style={{color:'#FFD700',fontSize:'0.75rem'}}>•</span>
-                  <button onClick={()=>{ const idx=gameConsensus.findIndex(g=>g.game===item.game); const el=document.getElementById(`game-card-${idx}`); if(el){el.scrollIntoView({behavior:'smooth',block:'start'});const setter=sectionSetters.current[item.game];if(setter)setter(true);}}}
-                    style={{background:'none',border:'none',cursor:'pointer',color:'#85C1E9',fontSize:'0.8rem',fontWeight:'600',textDecoration:'underline',textAlign:'left',padding:0}}>
-                    {item.game}
-                  </button>
-                  <span style={{fontSize:'0.8rem',fontWeight:'700',color}}>{wins}-{losses} · {pct}%</span>
-                </div>
-                <div style={{paddingLeft:'28px',fontSize:'0.7rem',color:'rgba(255,255,255,0.5)'}}>
-                  {item.bt} · {item.verboseLabel} · {item.consensusSideCount}/{item.consensusTotalCappers} · {item.mostExtreme.section}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>}
+      {picks.length>0 && answerKey.length>0 && <AnswerKey answerKey={answerKey} l30Days={l30Days} minPicks={minPicks} gameConsensus={gameConsensus} sectionSetters={sectionSetters}/>}
 
       {picks.length===0&&!loading
         ? <div style={{textAlign:'center',padding:'60px 20px',background:'rgba(0,33,165,0.25)',borderRadius:'16px',border:'2px dashed rgba(0,33,165,0.5)'}}>
@@ -993,6 +1018,7 @@ function CapperConsensusTracker() {
     </div>
   );
 }
+
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<CapperConsensusTracker />);
