@@ -97,35 +97,6 @@ SONNET_OUTPUT_COST_PER_M = 15.00
 # Local CSV path for GitHub Pages
 LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
 
-# Track if any rows were appended to local CSV
-LOCAL_CSV_APPENDED = False
-
-
-def append_to_local_csv(rows: List[List[str]]) -> int:
-    """Append rows to the local master_sheet.csv file.
-    
-    Args:
-        rows: List of rows to append (each row is a list of strings)
-        
-    Returns:
-        Number of rows appended
-    """
-    global LOCAL_CSV_APPENDED
-    if not rows:
-        return 0
-    
-    try:
-        with open(LOCAL_CSV_PATH, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerows(rows)
-        LOCAL_CSV_APPENDED = True
-        print(f"  Appended {len(rows)} rows to local {LOCAL_CSV_PATH}")
-        return len(rows)
-    except Exception as e:
-        print(f"  Warning: Failed to append to local CSV: {e}")
-        return 0
-
-
 def git_commit_and_push() -> bool:
     """Commit and push changes to the local CSV file.
     
@@ -1561,10 +1532,6 @@ def run_stage2(spreadsheet, image_pull_ws):
             picks_new_ws.append_rows(all_finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(all_finalized_rows)} rows to parsed_picks_new")
 
-        # Append to local CSV for GitHub Pages (strip ocr_text col 10)
-        if all_finalized_rows:
-            append_to_local_csv([row[:9] for row in all_finalized_rows])
-
         # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
         finalized_picks_ws.update_acell(
@@ -2003,10 +1970,6 @@ def process_manual_picks_queue(spreadsheet):
             time.sleep(1)  # Rate limit
             picks_new_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(finalized_rows)} rows to parsed_picks_new")
-
-        # Append to local CSV for GitHub Pages (strip ocr_text col 10)
-        if finalized_rows:
-            append_to_local_csv([row[:9] for row in finalized_rows])
 
         # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
