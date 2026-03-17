@@ -1561,9 +1561,9 @@ def run_stage2(spreadsheet, image_pull_ws):
             picks_new_ws.append_rows(all_finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(all_finalized_rows)} rows to parsed_picks_new")
 
-        # Append to local CSV for GitHub Pages
+        # Append to local CSV for GitHub Pages (strip ocr_text col 10)
         if all_finalized_rows:
-            append_to_local_csv(all_finalized_rows)
+            append_to_local_csv([row[:9] for row in all_finalized_rows])
 
         # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
@@ -2004,9 +2004,9 @@ def process_manual_picks_queue(spreadsheet):
             picks_new_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(finalized_rows)} rows to parsed_picks_new")
 
-        # Append to local CSV for GitHub Pages
+        # Append to local CSV for GitHub Pages (strip ocr_text col 10)
         if finalized_rows:
-            append_to_local_csv(finalized_rows)
+            append_to_local_csv([row[:9] for row in finalized_rows])
 
         # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
