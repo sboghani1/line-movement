@@ -25,6 +25,7 @@ Usage:
 
 import os
 import re
+import csv
 import json
 import base64
 import argparse
@@ -54,7 +55,14 @@ def sheets_call(fn, *args, retries=6, **kwargs):
                 delay = min(delay * 2, 120)
             else:
                 raise
-SPORT_TO_SCHED  = {"nba": "nba_schedule", "cbb": "cbb_schedule", "nhl": "nhl_schedule"}
+SPORT_TO_SCHED  = {
+    "nba": "nba_schedule",
+    "cbb": "cbb_schedule",
+    "nhl": "nhl_schedule",
+    "nfl": "nfl_schedule",
+    "cfb": "cfb_schedule",
+    "mlb": "mlb_schedule",
+}
 
 # master_sheet columns (0-indexed, header is row 1)
 MASTER_HEADERS  = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
@@ -261,10 +269,12 @@ def process_sheet(
     header_row_index: int,   # 0-based index in get_all_values() output
     scores: dict,
     dry_run: bool,
+    date_filter: Optional[str] = None,
 ) -> tuple[int, int, int]:
     """
     Update the result column for all rows with missing results.
 
+    If date_filter is set (YYYY-MM-DD), only rows matching that date are processed.
     Returns (resolved, skipped_no_score, skipped_already_set).
     """
     ws = sheets_call(ss.worksheet, sheet_name)
@@ -295,28 +305,37 @@ def process_sheet(
         while len(row) <= result_col:
             row.append("")
 
-        existing_result = row[result_col].strip().lower()
-        if existing_result in ("win", "lose", "push"):
-            skipped_already += 1
-            continue
-
         date  = row[date_col].strip()  if len(row) > date_col  else ""
         sport = row[sport_col].strip() if len(row) > sport_col else ""
         pick  = row[pick_col].strip()  if len(row) > pick_col  else ""
         line  = row[line_col].strip()  if len(row) > line_col  else ""
         game  = row[game_col].strip()  if len(row) > game_col  else ""
 
+        if date_filter and date != date_filter:
+            continue
+
+        existing_result = row[result_col].strip().lower()
+        if existing_result in ("win", "lose", "push"):
+            skipped_already += 1
+            continue
+
         if not game or not pick or not date or not sport:
+            if dry_run and date_filter:
+                print(f"  SKIP [{date}] {sport} {pick} {line} | no game column")
             skipped_no_score += 1
             continue
 
         score_str = find_score(pick, date, sport, game, scores)
         if not score_str:
+            if dry_run and date_filter:
+                print(f"  SKIP [{date}] {sport} {pick} {line} | game={game!r} — no score found in {sport}_schedule")
             skipped_no_score += 1
             continue
 
         result = determine_result(pick, line, game, score_str)
         if result is None:
+            if dry_run and date_filter:
+                print(f"  SKIP [{date}] {sport} {pick} {line} | score={score_str!r} — could not determine result")
             skipped_no_score += 1
             continue
 
@@ -326,7 +345,7 @@ def process_sheet(
         result_cell = gspread.utils.rowcol_to_a1(sheet_row, result_col + 1)
 
         if dry_run:
-            print(f"  [{date}] {pick} {line} | score: {score_str} → {result}")
+            print(f"  FILL [{date}] {sport} {pick} {line} | score: {score_str} → {result}")
         else:
             batch_updates.append({"range": result_cell, "values": [[result]]})
 
@@ -344,13 +363,38 @@ def process_sheet(
     return resolved, skipped_no_score, skipped_already
 
 
+# ── CSV sync ──────────────────────────────────────────────────────────────────
+def sync_master_to_csv(ss, csv_path: str) -> int:
+    """
+    Overwrite the local CSV file with the current contents of master_sheet.
+    Returns the number of data rows written.
+    """
+    ws = sheets_call(ss.worksheet, MASTER_SHEET)
+    all_values = sheets_call(ws.get_all_values)
+    if not all_values:
+        print("  sync_master_to_csv: master_sheet is empty, skipping")
+        return 0
+
+    header = all_values[0]
+    data   = all_values[1:]
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(data)
+
+    print(f"  Synced {len(data)} rows → {csv_path}")
+    return len(data)
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
+    parser.add_argument("--date", default=None, help="Only process rows for this date (YYYY-MM-DD). Implies verbose skip output.")
     parser.add_argument(
         "--sheet",
-        choices=["master_sheet", "master_sheet_new", "parsed_picks_new", "both"],
+        choices=["master_sheet", "parsed_picks_new", "both"],
         default="both",
         help="Which sheet to update (default: both)",
     )
@@ -367,25 +411,36 @@ def main():
     if args.sheet in ("master_sheet", "both"):
         # master_sheet: header on row 1 (index 0), data from row 2
         sheets_to_run.append((MASTER_SHEET, 0))
-    if args.sheet in ("master_sheet_new", "both"):
-        # master_sheet_new: header on row 1 (index 0), data from row 2
-        sheets_to_run.append((MASTER_SHEET_NEW, 0))
     if args.sheet in ("parsed_picks_new", "both"):
         # parsed_picks_new: metadata rows 1-2, header on row 3 (index 2), data from row 4
         sheets_to_run.append((PICKS_NEW_SHEET, 2))
 
+    if args.date:
+        print(f"\nDate filter: {args.date}")
+
+    total_resolved = 0
     for sheet_name, header_row_index in sheets_to_run:
         print(f"\nProcessing {sheet_name}...")
         resolved, skipped_no_score, skipped_already = process_sheet(
-            ss, sheet_name, header_row_index, scores, args.dry_run
+            ss, sheet_name, header_row_index, scores, args.dry_run, date_filter=args.date
         )
         print(f"  Results filled:  {resolved}")
         print(f"  Already set:     {skipped_already}")
         print(f"  No score yet:    {skipped_no_score}")
+        if sheet_name == MASTER_SHEET:
+            total_resolved += resolved
 
     if args.dry_run:
         print("\n[dry-run] No changes written.")
     else:
+        if total_resolved > 0:
+            local_csv = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "gh-pages", "data", "master_sheet.csv",
+            )
+            if os.path.exists(local_csv):
+                print(f"\nSyncing results to local CSV...")
+                sync_master_to_csv(ss, local_csv)
         print("\nDone.")
 
 
