@@ -6859,7 +6859,7 @@ date,capper,sport,pick,line,game,spread,side,result
 2026-01-05,TCC,NBA,Utah Jazz,6.5,Utah Jazz @ Portland Trail Blazers,Portland Trail Blazers -5.5,Utah Jazz,lose
 2026-01-05,SEEKING RETURNS,NBA,Phoenix Suns,8.5,Phoenix Suns @ Houston Rockets,Houston Rockets -8.5,Phoenix Suns,win
 2026-01-06,CBLEZ,CBB,Michigan,-21,Michigan Wolverines @ Penn State Nittany Lions,Michigan Wolverines -20.5,Michigan,lose
-2026-01-06,CBLEZ,CBB,Louisville,PK,Duke Blue Devils @ Louisville Cardinals,Louisville Cardinals -1.5,Louisville,
+2026-01-06,CBLEZ,CBB,Louisville,ML,Duke Blue Devils @ Louisville Cardinals,Louisville Cardinals -1.5,Louisville,lose
 2026-01-06,OUT OF LINE BETS,CBB,Georgia Tech Yellow Jackets,2.5,Syracuse Orange @ Georgia Tech Yellow Jackets,Georgia Tech Yellow Jackets 2.5,home,lose
 2026-01-06,SEEKING RETURNS,NBA,Miami Heat,5.5,Miami Heat @ Minnesota Timberwolves,Minnesota Timberwolves -7.5,Miami Heat,lose
 2026-01-06,BET SHARPER,CBB,Florida Gators,-9.5,Georgia Bulldogs @ Florida Gators,Florida Gators -9.5,Florida Gators,win
@@ -10872,7 +10872,7 @@ date,capper,sport,pick,line,game,spread,side,result
 2026-03-10,CASH IT BABY,CBB,Virginia Tech Hokies,ML,Wake Forest Demon Deacons @ Virginia Tech Hokies,Virginia Tech Hokies -2.5,Virginia Tech Hokies,lose
 2026-03-10,CASH IT BABY,NHL,Carolina Hurricanes,-1.5,Pittsburgh Penguins @ Carolina Hurricanes,Carolina Hurricanes -205,Carolina Hurricanes,lose
 2026-03-10,CBLEZ,NBA,Charlotte Hornets,-3,Charlotte Hornets @ Portland Trail Blazers,Charlotte Hornets -3.5,Charlotte Hornets,lose
-2026-03-10,CBLEZ,CBB,Florida International Panthers,PK,Missouri State Bears @ Florida International Panthers,Missouri State Bears -1.5,Florida International Panthers,
+2026-03-10,CBLEZ,CBB,Florida International Panthers,ML,Missouri State Bears @ Florida International Panthers,Missouri State Bears -1.5,Florida International Panthers,lose
 2026-03-10,HAMMERING HANK,CBB,Wake Forest Demon Deacons,2.5,Wake Forest Demon Deacons @ Virginia Tech Hokies,Virginia Tech Hokies -2.5,Wake Forest Demon Deacons,win
 2026-03-10,KIMS PICKS,NBA,Boston Celtics,3.5,Boston Celtics @ San Antonio Spurs,San Antonio Spurs -3.5,Boston Celtics,lose
 2026-03-10,KIMS PICKS,NBA,Los Angeles Lakers,2.5,Minnesota Timberwolves @ Los Angeles Lakers,Minnesota Timberwolves -2.5,Los Angeles Lakers,win
@@ -11684,398 +11684,402 @@ date,capper,sport,pick,line,game,spread,side,result
 2026-03-14,ANON,CBB,UConn Huskies,ML,UConn Huskies @ St. John's Red Storm,UConn Huskies -3.5,UConn Huskies,lose
 2026-03-14,KING CAP,CBB,UConn Huskies,ML,UConn Huskies @ St. John's Red Storm,UConn Huskies -3.5,UConn Huskies,lose
 2026-03-14,KLEOS,NBA,Boston Celtics,-20,Washington Wizards @ Boston Celtics,Boston Celtics -20.5,Boston Celtics,lose
-2026-03-15,25 LEGS,NBA,Oklahoma City Thunder,-8,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8,Oklahoma City Thunder,
-2026-03-15,25 LEGS,CBB,Vanderbilt Commodores,-1.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -1.5,Vanderbilt Commodores,
-2026-03-15,25 LEGS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6.5,Purdue Boilermakers,
-2026-03-15,A11 BETS,CBB,Purdue Boilermakers,11.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +11.5,Purdue Boilermakers,
-2026-03-15,A11 BETS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,A11 BETS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,Dayton Flyers +3.5,Dayton Flyers,
-2026-03-15,A11 BETS,CBB,Purdue Boilermakers,6,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6,Purdue Boilermakers,
-2026-03-15,A11 BETS,NBA,Minnesota Timberwolves,9.5,Minnesota Timberwolves @ Oklahoma City Thunder,Minnesota Timberwolves +9.5,Minnesota Timberwolves,
-2026-03-15,A11 BETS,NBA,Dallas Mavericks,15.5,Dallas Mavericks @ Cleveland Cavaliers,Dallas Mavericks +15.5,Dallas Mavericks,
-2026-03-15,A11 BETS,NBA,Toronto Raptors,4.5,Detroit Pistons @ Toronto Raptors,Toronto Raptors +4.5,Toronto Raptors,
-2026-03-15,AF SPORTS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6.5,Purdue Boilermakers,
-2026-03-15,ALGO PICKS,NBA,Oklahoma City Thunder,-6.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -6.5,Oklahoma City Thunder,
-2026-03-15,ANALYTICS CAPPER,CBB,South Florida Bulls,-5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,South Florida Bulls,
-2026-03-15,ANALYTICS CAPPER,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,ANALYTICS CAPPER,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,
-2026-03-15,ANDERS PICKS,CBB,Vanderbilt Commodores,-1.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -1.5,Vanderbilt Commodores,
-2026-03-15,ANDERS PICKS,CBB,Wichita State Shockers,6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,Wichita State Shockers,
-2026-03-15,BANKROLL BILL,CBB,South Florida Bulls,-6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,South Florida Bulls,
-2026-03-15,BANKROLL BILL,CBB,Michigan Wolverines,-5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5,Michigan Wolverines,
-2026-03-15,BEEZO WINS,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,
-2026-03-15,BEEZO WINS,CBB,Pennsylvania Quakers,9.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9.5,Pennsylvania Quakers,
-2026-03-15,BEEZO WINS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,BEEZO WINS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,BEEZO WINS,CBB,South Florida Bulls,-4.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -4.5,South Florida Bulls,
-2026-03-15,BEEZO WINS,NBA,New York Knicks,-13.5,Golden State Warriors @ New York Knicks,New York Knicks -13.5,New York Knicks,
-2026-03-15,BEEZO WINS,NBA,Oklahoma City Thunder,-8.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8.5,Oklahoma City Thunder,
-2026-03-15,BET LABS,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6.5,Wichita State Shockers,
-2026-03-15,BET LABS,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6.5,Wichita State Shockers,
-2026-03-15,BET LABS,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2.5,Arkansas Razorbacks,
-2026-03-15,BET SHARPER,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,BRANDON THE PROFIT,CBB,Vanderbilt Commodores,1.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks -1.5,Vanderbilt Commodores,
-2026-03-15,BULLIES PICKS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,CASH CING,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,CASH CING,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,CASH CING,CBB,Pennsylvania Quakers,9.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9.5,Pennsylvania Quakers,
-2026-03-15,CASH IT BABY,NBA,Cleveland Cavaliers,-15,Dallas Mavericks @ Cleveland Cavaliers,Cleveland Cavaliers -15,Cleveland Cavaliers,
-2026-03-15,CASH IT BABY,NBA,Detroit Pistons,ML,Detroit Pistons @ Toronto Raptors,,Detroit Pistons,
-2026-03-15,CASH IT BABY,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,CASH IT BABY,NHL,Edmonton Oilers,ML,Nashville Predators @ Edmonton Oilers,,Edmonton Oilers,
-2026-03-15,CBLEZ,CBB,Yale Bulldogs,-8.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -8.5,Yale Bulldogs,
-2026-03-15,CBLEZ,CBB,Vanderbilt Commodores,-2,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2,Vanderbilt Commodores,
-2026-03-15,CBLEZ,CBB,Wichita State Shockers,5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,Wichita State Shockers,
-2026-03-15,CBLEZ,CBB,Michigan Wolverines,-6,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6,Michigan Wolverines,
-2026-03-15,CODY COVERS,NBA,Philadelphia 76ers,8.5,Portland Trail Blazers @ Philadelphia 76ers,Dallas Mavericks +8.5,Philadelphia 76ers,
-2026-03-15,CODY COVERS,NBA,Golden State Warriors,14,Golden State Warriors @ New York Knicks,New York Knicks -14,Golden State Warriors,
-2026-03-15,CODY COVERS,NBA,Utah Jazz,ML,Utah Jazz @ Sacramento Kings,,Utah Jazz,
-2026-03-15,CODY COVERS,NBA,Cleveland Cavaliers,-15.5,Dallas Mavericks @ Cleveland Cavaliers,Cleveland Cavaliers -15.5,Cleveland Cavaliers,
-2026-03-15,CODY COVERS,NHL,Anaheim Ducks,1.5,Anaheim Ducks @ Montreal Canadiens,Montreal Canadiens -1.5,Anaheim Ducks,
-2026-03-15,CODY COVERS,NHL,Toronto Maple Leafs,1.5,Toronto Maple Leafs @ Minnesota Wild,Minnesota Wild -1.5,Toronto Maple Leafs,
-2026-03-15,CODY COVERS,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,
-2026-03-15,DARTH FADER,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +5.5,Purdue Boilermakers,
-2026-03-15,DARTH FADER,NBA,Dallas Mavericks,15,Dallas Mavericks @ Cleveland Cavaliers,Dallas Mavericks +15,Dallas Mavericks,
-2026-03-15,DIRTY BUBBLE BETS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6.5,Purdue Boilermakers,
-2026-03-15,DIRTY BUBBLE BETS,NBA,Sacramento Kings,ML,Utah Jazz @ Sacramento Kings,,Sacramento Kings,
-2026-03-15,DIRTY BUBBLE BETS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,DIRTY BUBBLE BETS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,Dayton Flyers +3.5,Dayton Flyers,
-2026-03-15,DORMROOM DEGENERATES,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,Dayton Flyers +3.5,Dayton Flyers,
-2026-03-15,DORMROOM DEGENERATES,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,DORMROOM DEGENERATES,CBB,Michigan Wolverines,-5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Michigan Wolverines,
-2026-03-15,DPATT,NBA,Minnesota Timberwolves,10.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -10.5,Minnesota Timberwolves,
-2026-03-15,DPATT,NBA,Detroit Pistons,ML,Detroit Pistons @ Toronto Raptors,,Detroit Pistons,
-2026-03-15,DQUAN PICKS,NBA,New York Knicks,-14.5,Golden State Warriors @ New York Knicks,New York Knicks -14.5,New York Knicks,
-2026-03-15,DUCK INVESTMENTS,NBA,Detroit Pistons,ML,Detroit Pistons @ Toronto Raptors,,Detroit Pistons,
-2026-03-15,DUCK INVESTMENTS,CBB,Michigan Wolverines,-5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Michigan Wolverines,
-2026-03-15,DUCK INVESTMENTS,CBB,Wichita State Shockers,5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,Wichita State Shockers,
-2026-03-15,EXCLUSIVE PLAY,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6.5,Wichita State Shockers,
-2026-03-15,FIVE,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,HAMMERING HANK,NBA,Toronto Raptors,3.5,Detroit Pistons @ Toronto Raptors,Detroit Pistons -3.5,Toronto Raptors,
-2026-03-15,HAMMERING HANK,CBB,South Florida Bulls,-6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,South Florida Bulls,
-2026-03-15,HAMMERING HANK,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Purdue Boilermakers,
-2026-03-15,HAMMERING HANK,NBA,Oklahoma City Thunder,-8.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8.5,Oklahoma City Thunder,
-2026-03-15,HAMMERING HANK,CBB,Dayton Flyers,3,Dayton Flyers @ VCU Rams,VCU Rams -3,Dayton Flyers,
-2026-03-15,HAMMERING HANK,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +2.5,Arkansas Razorbacks,
-2026-03-15,HAMMERING HANK,CBB,Yale Bulldogs,-9.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9.5,Yale Bulldogs,
-2026-03-15,ISW,NBA,Sacramento Kings,-1.5,Utah Jazz @ Sacramento Kings,Sacramento Kings -1.5,Sacramento Kings,
-2026-03-15,ISW,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +2.5,Arkansas Razorbacks,
-2026-03-15,LAFORMULA,NBA,New York Knicks,-8,Golden State Warriors @ New York Knicks,New York Knicks -8,New York Knicks,
-2026-03-15,LAFORMULA,NBA,Detroit Pistons,-2,Detroit Pistons @ Toronto Raptors,Detroit Pistons -2,Detroit Pistons,
-2026-03-15,LEAR LOCKS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,LEAR LOCKS,CBB,South Florida Bulls,ML,Wichita State Shockers @ South Florida Bulls,,South Florida Bulls,
-2026-03-15,LEAR LOCKS,CBB,Yale Bulldogs,ML,Pennsylvania Quakers @ Yale Bulldogs,,Yale Bulldogs,
-2026-03-15,LEAR LOCKS,CBB,Purdue Boilermakers,7,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -7,Purdue Boilermakers,
-2026-03-15,LEAR LOCKS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,Dayton Flyers,
-2026-03-15,MAIN PLAY,NBA,New York Knicks,-14.5,Golden State Warriors @ New York Knicks,New York Knicks -14.5,New York Knicks,
-2026-03-15,MC BETS,CBB,South Florida Bulls,-6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,South Florida Bulls,
-2026-03-15,MC BETS,CBB,Michigan Wolverines,-6,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6,Michigan Wolverines,
-2026-03-15,MR BIG BETS,NBA,Detroit Pistons,-3.5,Detroit Pistons @ Toronto Raptors,Detroit Pistons -3.5,Detroit Pistons,
-2026-03-15,MR BIG BETS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,NICKY CASHIN,CBB,South Florida Bulls,-5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,South Florida Bulls,
-2026-03-15,NICKY CASHIN,CBB,Yale Bulldogs,-8.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -8.5,Yale Bulldogs,
-2026-03-15,NICKY CASHIN,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,OUT OF LINE BETS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,South Florida Bulls -5,Dayton Flyers,
-2026-03-15,OUT OF LINE BETS,CBB,South Florida Bulls,-5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5,South Florida Bulls,
-2026-03-15,PARLAY SAFARI,CBB,Pennsylvania Quakers,ML,Pennsylvania Quakers @ Yale Bulldogs,,Pennsylvania Quakers,
-2026-03-15,PARLAY SAFARI,CBB,VCU Rams,-3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,VCU Rams,
-2026-03-15,PARLAY SAFARI,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,PARLAY SAFARI,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,PATS PICKS,NBA,Milwaukee Bucks,-6.5,Indiana Pacers @ Milwaukee Bucks,Milwaukee Bucks -6.5,Milwaukee Bucks,
-2026-03-15,PATS PICKS,NBA,New York Knicks,-13.5,Golden State Warriors @ New York Knicks,New York Knicks -13.5,New York Knicks,
-2026-03-15,PATS PICKS,NBA,Utah Jazz,3.5,Utah Jazz @ Sacramento Kings,Utah Jazz 3.5,away,
-2026-03-15,PATS PICKS,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,
-2026-03-15,PATS PICKS,NHL,Minnesota Wild,-1.5,Toronto Maple Leafs @ Minnesota Wild,Minnesota Wild -1.5,Minnesota Wild,
-2026-03-15,PICKS 4 DAYZZZ,CBB,Vanderbilt Commodores,-2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2.5,Vanderbilt Commodores,
-2026-03-15,PORTER PICKS,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,
-2026-03-15,PORTER PICKS,CBB,South Florida Bulls,-5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,South Florida Bulls,
-2026-03-15,PORTER PICKS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,PORTER PICKS,CBB,Vanderbilt Commodores,-2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2.5,Vanderbilt Commodores,
-2026-03-15,PROP JOE,CBB,VCU Rams,-3,Dayton Flyers @ VCU Rams,VCU Rams -3,VCU Rams,
-2026-03-15,PROP JOE,CBB,Arkansas Razorbacks,2,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2,Arkansas Razorbacks,
-2026-03-15,PROP JOE,CBB,Michigan Wolverines,-6,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6,Michigan Wolverines,
-2026-03-15,PROP JOE,NBA,Toronto Raptors,4,Detroit Pistons @ Toronto Raptors,Detroit Pistons -4,Toronto Raptors,
-2026-03-15,RANDOM OTHER CAPPERS,NBA,New York Knicks,-12.5,Golden State Warriors @ New York Knicks,New York Knicks -12.5,New York Knicks,
-2026-03-15,RANDOM OTHER CAPPERS,CBB,Purdue Boilermakers,7,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -7,Purdue Boilermakers,
-2026-03-15,SBK,CBB,Michigan Wolverines,-5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Michigan Wolverines,
-2026-03-15,SEAN PERRY WINS,NHL,Edmonton Oilers,ML,Nashville Predators @ Edmonton Oilers,,Edmonton Oilers,
-2026-03-15,SHARP INVESTMENTS,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,
-2026-03-15,SHARP INVESTMENTS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,TAIL TO WIN,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,Dayton Flyers,
-2026-03-15,TB SPORTS BETTING,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,TB SPORTS BETTING,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,Wichita State Shockers +6.5,Wichita State Shockers,
-2026-03-15,TB SPORTS BETTING,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +5.5,Purdue Boilermakers,
-2026-03-15,TB SPORTS BETTING,CBB,Michigan Wolverines,-4.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -4.5,Michigan Wolverines,
-2026-03-15,TB SPORTS BETTING,NBA,Toronto Raptors,4.5,Detroit Pistons @ Toronto Raptors,Toronto Raptors +4.5,Toronto Raptors,
-2026-03-15,TENNIS WINNERS ONLY,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,
-2026-03-15,TENNIS WINNERS ONLY,CBB,Arkansas Razorbacks,3.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +3.5,Arkansas Razorbacks,
-2026-03-15,TENNIS WINNERS ONLY,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,
-2026-03-15,THE GAMBLING GAWD,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,
-2026-03-15,THE GAMBLING GAWD,CBB,Arkansas Razorbacks,3.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +3.5,Arkansas Razorbacks,
-2026-03-15,THE GAMBLING GAWD,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,
-2026-03-15,THE SHARP SHEETS,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,
-2026-03-15,THE SHARP SHEETS,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +2.5,Arkansas Razorbacks,
-2026-03-15,THIS GIRL BETZ,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,THIS GIRL BETZ,NHL,Ottawa Senators,ML,San Jose Sharks @ Ottawa Senators,,Ottawa Senators,
-2026-03-15,THIS GIRL BETZ,NHL,Minnesota Wild,ML,Toronto Maple Leafs @ Minnesota Wild,,Minnesota Wild,
-2026-03-15,THIS GIRL BETZ,NHL,Edmonton Oilers,ML,Nashville Predators @ Edmonton Oilers,,Edmonton Oilers,
-2026-03-15,THIS GIRL BETZ,NBA,Oklahoma City Thunder,-8,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8,Oklahoma City Thunder,
-2026-03-15,THIS GIRL BETZ,NBA,Detroit Pistons,-3.5,Detroit Pistons @ Toronto Raptors,Detroit Pistons -3.5,Detroit Pistons,
-2026-03-15,THIS GIRL BETZ,NBA,Utah Jazz,3,Utah Jazz @ Sacramento Kings,Sacramento Kings -3,Utah Jazz,
-2026-03-15,THIS GIRL BETZ,CBB,Pennsylvania Quakers,9,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9,Pennsylvania Quakers,
-2026-03-15,THIS GIRL BETZ,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,THIS GIRL BETZ,CBB,VCU Rams,-3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,VCU Rams,
-2026-03-15,TRELL J SPORTS,CBB,Yale Bulldogs,-9,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9,Yale Bulldogs,
-2026-03-15,TRELL J SPORTS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,TRELL J SPORTS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,Dayton Flyers,
-2026-03-15,TRELL J SPORTS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,VEZINO,NBA,Oklahoma City Thunder,-7.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -7.5,Oklahoma City Thunder,
-2026-03-15,VEZINO,CBB,Michigan Wolverines,-6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Michigan Wolverines,
-2026-03-15,VINNY,CBB,Arkansas Razorbacks,3.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -3.5,Arkansas Razorbacks,
-2026-03-15,VTUFF,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,VTUFF,NHL,Ottawa Senators,ML,San Jose Sharks @ Ottawa Senators,,Ottawa Senators,
-2026-03-15,VTUFF,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,
-2026-03-15,YDC,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,
-2026-03-15,YDC,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,
-2026-03-15,YDC,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,
-2026-03-15,TRAVY,NBA,Utah Jazz,4.5,Utah Jazz @ Sacramento Kings,Sacramento Kings -4.5,Utah Jazz,
-2026-03-16,BET LABS,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,
+2026-03-15,25 LEGS,NBA,Oklahoma City Thunder,-8,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8,Oklahoma City Thunder,win
+2026-03-15,25 LEGS,CBB,Vanderbilt Commodores,-1.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -1.5,Vanderbilt Commodores,lose
+2026-03-15,25 LEGS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6.5,Purdue Boilermakers,win
+2026-03-15,A11 BETS,CBB,Purdue Boilermakers,11.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +11.5,Purdue Boilermakers,win
+2026-03-15,A11 BETS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,A11 BETS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,Dayton Flyers +3.5,Dayton Flyers,lose
+2026-03-15,A11 BETS,CBB,Purdue Boilermakers,6,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6,Purdue Boilermakers,win
+2026-03-15,A11 BETS,NBA,Minnesota Timberwolves,9.5,Minnesota Timberwolves @ Oklahoma City Thunder,Minnesota Timberwolves +9.5,Minnesota Timberwolves,lose
+2026-03-15,A11 BETS,NBA,Dallas Mavericks,15.5,Dallas Mavericks @ Cleveland Cavaliers,Dallas Mavericks +15.5,Dallas Mavericks,win
+2026-03-15,A11 BETS,NBA,Toronto Raptors,4.5,Detroit Pistons @ Toronto Raptors,Toronto Raptors +4.5,Toronto Raptors,win
+2026-03-15,AF SPORTS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6.5,Purdue Boilermakers,win
+2026-03-15,ALGO PICKS,NBA,Oklahoma City Thunder,-6.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -6.5,Oklahoma City Thunder,win
+2026-03-15,ANALYTICS CAPPER,CBB,South Florida Bulls,-5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,South Florida Bulls,win
+2026-03-15,ANALYTICS CAPPER,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,ANALYTICS CAPPER,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,lose
+2026-03-15,ANDERS PICKS,CBB,Vanderbilt Commodores,-1.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -1.5,Vanderbilt Commodores,lose
+2026-03-15,ANDERS PICKS,CBB,Wichita State Shockers,6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,Wichita State Shockers,lose
+2026-03-15,BANKROLL BILL,CBB,South Florida Bulls,-6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,South Florida Bulls,win
+2026-03-15,BANKROLL BILL,CBB,Michigan Wolverines,-5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5,Michigan Wolverines,lose
+2026-03-15,BEEZO WINS,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,win
+2026-03-15,BEEZO WINS,CBB,Pennsylvania Quakers,9.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9.5,Pennsylvania Quakers,win
+2026-03-15,BEEZO WINS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,BEEZO WINS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,BEEZO WINS,CBB,South Florida Bulls,-4.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -4.5,South Florida Bulls,win
+2026-03-15,BEEZO WINS,NBA,New York Knicks,-13.5,Golden State Warriors @ New York Knicks,New York Knicks -13.5,New York Knicks,lose
+2026-03-15,BEEZO WINS,NBA,Oklahoma City Thunder,-8.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8.5,Oklahoma City Thunder,win
+2026-03-15,BET LABS,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6.5,Wichita State Shockers,lose
+2026-03-15,BET LABS,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6.5,Wichita State Shockers,lose
+2026-03-15,BET LABS,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2.5,Arkansas Razorbacks,win
+2026-03-15,BET SHARPER,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,BRANDON THE PROFIT,CBB,Vanderbilt Commodores,1.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks -1.5,Vanderbilt Commodores,lose
+2026-03-15,BULLIES PICKS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,CASH CING,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,CASH CING,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,CASH CING,CBB,Pennsylvania Quakers,9.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9.5,Pennsylvania Quakers,win
+2026-03-15,CASH IT BABY,NBA,Cleveland Cavaliers,-15,Dallas Mavericks @ Cleveland Cavaliers,Cleveland Cavaliers -15,Cleveland Cavaliers,lose
+2026-03-15,CASH IT BABY,NBA,Detroit Pistons,ML,Detroit Pistons @ Toronto Raptors,,Detroit Pistons,lose
+2026-03-15,CASH IT BABY,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,CASH IT BABY,NHL,Edmonton Oilers,ML,Nashville Predators @ Edmonton Oilers,,Edmonton Oilers,win
+2026-03-15,CBLEZ,CBB,Yale Bulldogs,-8.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -8.5,Yale Bulldogs,lose
+2026-03-15,CBLEZ,CBB,Vanderbilt Commodores,-2,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2,Vanderbilt Commodores,lose
+2026-03-15,CBLEZ,CBB,Wichita State Shockers,5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,Wichita State Shockers,lose
+2026-03-15,CBLEZ,CBB,Michigan Wolverines,-6,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6,Michigan Wolverines,lose
+2026-03-15,CODY COVERS,NBA,Philadelphia 76ers,8.5,Portland Trail Blazers @ Philadelphia 76ers,Dallas Mavericks +8.5,Philadelphia 76ers,win
+2026-03-15,CODY COVERS,NBA,Golden State Warriors,14,Golden State Warriors @ New York Knicks,New York Knicks -14,Golden State Warriors,win
+2026-03-15,CODY COVERS,NBA,Utah Jazz,ML,Utah Jazz @ Sacramento Kings,,Utah Jazz,lose
+2026-03-15,CODY COVERS,NBA,Cleveland Cavaliers,-15.5,Dallas Mavericks @ Cleveland Cavaliers,Cleveland Cavaliers -15.5,Cleveland Cavaliers,lose
+2026-03-15,CODY COVERS,NHL,Anaheim Ducks,1.5,Anaheim Ducks @ Montreal Canadiens,Montreal Canadiens -1.5,Anaheim Ducks,win
+2026-03-15,CODY COVERS,NHL,Toronto Maple Leafs,1.5,Toronto Maple Leafs @ Minnesota Wild,Minnesota Wild -1.5,Toronto Maple Leafs,win
+2026-03-15,CODY COVERS,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,lose
+2026-03-15,DARTH FADER,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +5.5,Purdue Boilermakers,win
+2026-03-15,DARTH FADER,NBA,Dallas Mavericks,15,Dallas Mavericks @ Cleveland Cavaliers,Dallas Mavericks +15,Dallas Mavericks,win
+2026-03-15,DIRTY BUBBLE BETS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +6.5,Purdue Boilermakers,win
+2026-03-15,DIRTY BUBBLE BETS,NBA,Sacramento Kings,ML,Utah Jazz @ Sacramento Kings,,Sacramento Kings,win
+2026-03-15,DIRTY BUBBLE BETS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,DIRTY BUBBLE BETS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,Dayton Flyers +3.5,Dayton Flyers,lose
+2026-03-15,DORMROOM DEGENERATES,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,Dayton Flyers +3.5,Dayton Flyers,lose
+2026-03-15,DORMROOM DEGENERATES,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,DORMROOM DEGENERATES,CBB,Michigan Wolverines,-5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Michigan Wolverines,lose
+2026-03-15,DPATT,NBA,Minnesota Timberwolves,10.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -10.5,Minnesota Timberwolves,lose
+2026-03-15,DPATT,NBA,Detroit Pistons,ML,Detroit Pistons @ Toronto Raptors,,Detroit Pistons,lose
+2026-03-15,DQUAN PICKS,NBA,New York Knicks,-14.5,Golden State Warriors @ New York Knicks,New York Knicks -14.5,New York Knicks,lose
+2026-03-15,DUCK INVESTMENTS,NBA,Detroit Pistons,ML,Detroit Pistons @ Toronto Raptors,,Detroit Pistons,lose
+2026-03-15,DUCK INVESTMENTS,CBB,Michigan Wolverines,-5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Michigan Wolverines,lose
+2026-03-15,DUCK INVESTMENTS,CBB,Wichita State Shockers,5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,Wichita State Shockers,lose
+2026-03-15,EXCLUSIVE PLAY,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6.5,Wichita State Shockers,lose
+2026-03-15,FIVE,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,HAMMERING HANK,NBA,Toronto Raptors,3.5,Detroit Pistons @ Toronto Raptors,Detroit Pistons -3.5,Toronto Raptors,win
+2026-03-15,HAMMERING HANK,CBB,South Florida Bulls,-6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,South Florida Bulls,win
+2026-03-15,HAMMERING HANK,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Purdue Boilermakers,win
+2026-03-15,HAMMERING HANK,NBA,Oklahoma City Thunder,-8.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8.5,Oklahoma City Thunder,win
+2026-03-15,HAMMERING HANK,CBB,Dayton Flyers,3,Dayton Flyers @ VCU Rams,VCU Rams -3,Dayton Flyers,lose
+2026-03-15,HAMMERING HANK,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +2.5,Arkansas Razorbacks,win
+2026-03-15,HAMMERING HANK,CBB,Yale Bulldogs,-9.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9.5,Yale Bulldogs,lose
+2026-03-15,ISW,NBA,Sacramento Kings,-1.5,Utah Jazz @ Sacramento Kings,Sacramento Kings -1.5,Sacramento Kings,win
+2026-03-15,ISW,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +2.5,Arkansas Razorbacks,win
+2026-03-15,LAFORMULA,NBA,New York Knicks,-8,Golden State Warriors @ New York Knicks,New York Knicks -8,New York Knicks,lose
+2026-03-15,LAFORMULA,NBA,Detroit Pistons,-2,Detroit Pistons @ Toronto Raptors,Detroit Pistons -2,Detroit Pistons,lose
+2026-03-15,LEAR LOCKS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,LEAR LOCKS,CBB,South Florida Bulls,ML,Wichita State Shockers @ South Florida Bulls,,South Florida Bulls,win
+2026-03-15,LEAR LOCKS,CBB,Yale Bulldogs,ML,Pennsylvania Quakers @ Yale Bulldogs,,Yale Bulldogs,lose
+2026-03-15,LEAR LOCKS,CBB,Purdue Boilermakers,7,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -7,Purdue Boilermakers,win
+2026-03-15,LEAR LOCKS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,Dayton Flyers,lose
+2026-03-15,MAIN PLAY,NBA,New York Knicks,-14.5,Golden State Warriors @ New York Knicks,New York Knicks -14.5,New York Knicks,lose
+2026-03-15,MC BETS,CBB,South Florida Bulls,-6,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -6,South Florida Bulls,win
+2026-03-15,MC BETS,CBB,Michigan Wolverines,-6,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6,Michigan Wolverines,lose
+2026-03-15,MR BIG BETS,NBA,Detroit Pistons,-3.5,Detroit Pistons @ Toronto Raptors,Detroit Pistons -3.5,Detroit Pistons,lose
+2026-03-15,MR BIG BETS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,NICKY CASHIN,CBB,South Florida Bulls,-5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,South Florida Bulls,win
+2026-03-15,NICKY CASHIN,CBB,Yale Bulldogs,-8.5,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -8.5,Yale Bulldogs,lose
+2026-03-15,NICKY CASHIN,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,OUT OF LINE BETS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,South Florida Bulls -5,Dayton Flyers,lose
+2026-03-15,OUT OF LINE BETS,CBB,South Florida Bulls,-5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5,South Florida Bulls,win
+2026-03-15,PARLAY SAFARI,CBB,Pennsylvania Quakers,ML,Pennsylvania Quakers @ Yale Bulldogs,,Pennsylvania Quakers,win
+2026-03-15,PARLAY SAFARI,CBB,VCU Rams,-3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,VCU Rams,win
+2026-03-15,PARLAY SAFARI,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,PARLAY SAFARI,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,PATS PICKS,NBA,Milwaukee Bucks,-6.5,Indiana Pacers @ Milwaukee Bucks,Milwaukee Bucks -6.5,Milwaukee Bucks,win
+2026-03-15,PATS PICKS,NBA,New York Knicks,-13.5,Golden State Warriors @ New York Knicks,New York Knicks -13.5,New York Knicks,lose
+2026-03-15,PATS PICKS,NBA,Utah Jazz,3.5,Utah Jazz @ Sacramento Kings,Utah Jazz 3.5,away,lose
+2026-03-15,PATS PICKS,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,lose
+2026-03-15,PATS PICKS,NHL,Minnesota Wild,-1.5,Toronto Maple Leafs @ Minnesota Wild,Minnesota Wild -1.5,Minnesota Wild,lose
+2026-03-15,PICKS 4 DAYZZZ,CBB,Vanderbilt Commodores,-2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2.5,Vanderbilt Commodores,lose
+2026-03-15,PORTER PICKS,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,lose
+2026-03-15,PORTER PICKS,CBB,South Florida Bulls,-5.5,Wichita State Shockers @ South Florida Bulls,South Florida Bulls -5.5,South Florida Bulls,win
+2026-03-15,PORTER PICKS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,PORTER PICKS,CBB,Vanderbilt Commodores,-2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2.5,Vanderbilt Commodores,lose
+2026-03-15,PROP JOE,CBB,VCU Rams,-3,Dayton Flyers @ VCU Rams,VCU Rams -3,VCU Rams,win
+2026-03-15,PROP JOE,CBB,Arkansas Razorbacks,2,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -2,Arkansas Razorbacks,win
+2026-03-15,PROP JOE,CBB,Michigan Wolverines,-6,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6,Michigan Wolverines,lose
+2026-03-15,PROP JOE,NBA,Toronto Raptors,4,Detroit Pistons @ Toronto Raptors,Detroit Pistons -4,Toronto Raptors,win
+2026-03-15,RANDOM OTHER CAPPERS,NBA,New York Knicks,-12.5,Golden State Warriors @ New York Knicks,New York Knicks -12.5,New York Knicks,lose
+2026-03-15,RANDOM OTHER CAPPERS,CBB,Purdue Boilermakers,7,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -7,Purdue Boilermakers,win
+2026-03-15,SBK,CBB,Michigan Wolverines,-5.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -5.5,Michigan Wolverines,lose
+2026-03-15,SEAN PERRY WINS,NHL,Edmonton Oilers,ML,Nashville Predators @ Edmonton Oilers,,Edmonton Oilers,win
+2026-03-15,SHARP INVESTMENTS,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,lose
+2026-03-15,SHARP INVESTMENTS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,TAIL TO WIN,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,Dayton Flyers,lose
+2026-03-15,TB SPORTS BETTING,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,TB SPORTS BETTING,CBB,Wichita State Shockers,6.5,Wichita State Shockers @ South Florida Bulls,Wichita State Shockers +6.5,Wichita State Shockers,lose
+2026-03-15,TB SPORTS BETTING,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Michigan Wolverines,Purdue Boilermakers +5.5,Purdue Boilermakers,win
+2026-03-15,TB SPORTS BETTING,CBB,Michigan Wolverines,-4.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -4.5,Michigan Wolverines,lose
+2026-03-15,TB SPORTS BETTING,NBA,Toronto Raptors,4.5,Detroit Pistons @ Toronto Raptors,Toronto Raptors +4.5,Toronto Raptors,win
+2026-03-15,TENNIS WINNERS ONLY,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,win
+2026-03-15,TENNIS WINNERS ONLY,CBB,Arkansas Razorbacks,3.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +3.5,Arkansas Razorbacks,win
+2026-03-15,TENNIS WINNERS ONLY,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,lose
+2026-03-15,THE GAMBLING GAWD,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,win
+2026-03-15,THE GAMBLING GAWD,CBB,Arkansas Razorbacks,3.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +3.5,Arkansas Razorbacks,win
+2026-03-15,THE GAMBLING GAWD,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,lose
+2026-03-15,THE SHARP SHEETS,NHL,St. Louis Blues,ML,St. Louis Blues @ Winnipeg Jets,,St. Louis Blues,lose
+2026-03-15,THE SHARP SHEETS,CBB,Arkansas Razorbacks,2.5,Vanderbilt Commodores @ Arkansas Razorbacks,Arkansas Razorbacks +2.5,Arkansas Razorbacks,win
+2026-03-15,THIS GIRL BETZ,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,THIS GIRL BETZ,NHL,Ottawa Senators,ML,San Jose Sharks @ Ottawa Senators,,Ottawa Senators,win
+2026-03-15,THIS GIRL BETZ,NHL,Minnesota Wild,ML,Toronto Maple Leafs @ Minnesota Wild,,Minnesota Wild,lose
+2026-03-15,THIS GIRL BETZ,NHL,Edmonton Oilers,ML,Nashville Predators @ Edmonton Oilers,,Edmonton Oilers,win
+2026-03-15,THIS GIRL BETZ,NBA,Oklahoma City Thunder,-8,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -8,Oklahoma City Thunder,win
+2026-03-15,THIS GIRL BETZ,NBA,Detroit Pistons,-3.5,Detroit Pistons @ Toronto Raptors,Detroit Pistons -3.5,Detroit Pistons,lose
+2026-03-15,THIS GIRL BETZ,NBA,Utah Jazz,3,Utah Jazz @ Sacramento Kings,Sacramento Kings -3,Utah Jazz,lose
+2026-03-15,THIS GIRL BETZ,CBB,Pennsylvania Quakers,9,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9,Pennsylvania Quakers,win
+2026-03-15,THIS GIRL BETZ,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,THIS GIRL BETZ,CBB,VCU Rams,-3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,VCU Rams,win
+2026-03-15,TRELL J SPORTS,CBB,Yale Bulldogs,-9,Pennsylvania Quakers @ Yale Bulldogs,Yale Bulldogs -9,Yale Bulldogs,lose
+2026-03-15,TRELL J SPORTS,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,TRELL J SPORTS,CBB,Dayton Flyers,3.5,Dayton Flyers @ VCU Rams,VCU Rams -3.5,Dayton Flyers,lose
+2026-03-15,TRELL J SPORTS,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,VEZINO,NBA,Oklahoma City Thunder,-7.5,Minnesota Timberwolves @ Oklahoma City Thunder,Oklahoma City Thunder -7.5,Oklahoma City Thunder,win
+2026-03-15,VEZINO,CBB,Michigan Wolverines,-6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Michigan Wolverines,lose
+2026-03-15,VINNY,CBB,Arkansas Razorbacks,3.5,Vanderbilt Commodores @ Arkansas Razorbacks,Vanderbilt Commodores -3.5,Arkansas Razorbacks,win
+2026-03-15,VTUFF,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,VTUFF,NHL,Ottawa Senators,ML,San Jose Sharks @ Ottawa Senators,,Ottawa Senators,win
+2026-03-15,VTUFF,NHL,Florida Panthers,ML,Florida Panthers @ Seattle Kraken,,Florida Panthers,lose
+2026-03-15,YDC,CBB,VCU Rams,ML,Dayton Flyers @ VCU Rams,,VCU Rams,win
+2026-03-15,YDC,CBB,Vanderbilt Commodores,ML,Vanderbilt Commodores @ Arkansas Razorbacks,,Vanderbilt Commodores,lose
+2026-03-15,YDC,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Michigan Wolverines,Michigan Wolverines -6.5,Purdue Boilermakers,win
+2026-03-15,TRAVY,NBA,Utah Jazz,4.5,Utah Jazz @ Sacramento Kings,Sacramento Kings -4.5,Utah Jazz,lose
+2026-03-16,BET LABS,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,lose
 2026-03-16,CASH CING,CBB,Utah State Aggies,ML,,,Utah State Aggies,
-2026-03-16,CBLEZ,NHL,Detroit Red Wings,-1.5,Calgary Flames @ Detroit Red Wings,Detroit Red Wings -1.5,Detroit Red Wings,
-2026-03-16,CBLEZ,NHL,Los Angeles Kings,ML,Los Angeles Kings @ New York Rangers,,Los Angeles Kings,
+2026-03-16,CBLEZ,NHL,Detroit Red Wings,-1.5,Calgary Flames @ Detroit Red Wings,Detroit Red Wings -1.5,Detroit Red Wings,win
+2026-03-16,CBLEZ,NHL,Los Angeles Kings,ML,Los Angeles Kings @ New York Rangers,,Los Angeles Kings,win
 2026-03-16,DOMMY LOCKED,CBB,Wisconsin Badgers,-8.5,,,Wisconsin Badgers,
 2026-03-16,DOMMY LOCKED,CBB,North Carolina Tar Heels,-2.5,,,North Carolina Tar Heels,
 2026-03-16,DOMMY LOCKED,CBB,Kentucky Wildcats,-3.5,,,Kentucky Wildcats,
-2026-03-16,DOMMY LOCKED,CBB,Texas A&M Aggies,3.5,,,Texas A&M Aggies +3.5,Texas A&M Aggies
-2026-03-16,DOMMY LOCKED,CBB,South Florida Bulls,5.5,,,South Florida Bulls +5.5,South Florida Bulls
-2026-03-16,DORMROOM DEGENERATES,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,
-2026-03-16,DORMROOM DEGENERATES,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,
-2026-03-16,NICKY CASHIN,NBA,Atlanta Hawks,-2.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -2.5,Atlanta Hawks,
-2026-03-16,NICKY CASHIN,NBA,Chicago Bulls,-6,Memphis Grizzlies @ Chicago Bulls,Chicago Bulls -6,Chicago Bulls,
-2026-03-16,NICKY CASHIN,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,PICKS 4 DAYZZZ,NBA,Houston Rockets,-2.5,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2.5,Houston Rockets,
-2026-03-16,PICKS 4 DAYZZZ,NBA,Atlanta Hawks,-3,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3,Atlanta Hawks,
-2026-03-16,PORTER PICKS,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,
-2026-03-16,PROP JOE,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,
-2026-03-16,PROP JOE,NBA,New Orleans Pelicans,-8,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8,New Orleans Pelicans,
-2026-03-16,PROP JOE,NBA,Portland Trail Blazers,-10,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10,Portland Trail Blazers,
-2026-03-16,SEEKING RETURNS,NBA,Brooklyn Nets,10.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10.5,Brooklyn Nets,
-2026-03-16,SEEKING RETURNS,NBA,LA Clippers,9.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -9.5,LA Clippers,
-2026-03-16,SEEKING RETURNS,NBA,Memphis Grizzlies,6.5,Memphis Grizzlies @ Chicago Bulls,Chicago Bulls -6.5,Memphis Grizzlies,
-2026-03-16,SEEKING RETURNS,NBA,Washington Wizards,7.5,Golden State Warriors @ Washington Wizards,Golden State Warriors -7.5,Washington Wizards,
-2026-03-16,SEEKING RETURNS,NHL,New York Rangers,ML,Los Angeles Kings @ New York Rangers,,New York Rangers,
-2026-03-16,SEEKING RETURNS,NHL,Boston Bruins,ML,Boston Bruins @ New Jersey Devils,,Boston Bruins,
-2026-03-16,THIS GIRL BETZ,NHL,Detroit Red Wings,ML,Calgary Flames @ Detroit Red Wings,,Detroit Red Wings,
-2026-03-16,THIS GIRL BETZ,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,THIS GIRL BETZ,NHL,Colorado Avalanche,ML,Pittsburgh Penguins @ Colorado Avalanche,,Colorado Avalanche,
-2026-03-16,THIS GIRL BETZ,NBA,Golden State Warriors,-7.5,Golden State Warriors @ Washington Wizards,Golden State Warriors -7.5,Golden State Warriors,
-2026-03-16,THIS GIRL BETZ,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,THIS GIRL BETZ,NBA,Dallas Mavericks,8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,Dallas Mavericks,
-2026-03-16,THIS GIRL BETZ,NBA,San Antonio Spurs,-9,San Antonio Spurs @ LA Clippers,San Antonio Spurs -9,San Antonio Spurs,
+2026-03-16,DOMMY LOCKED,CBB,Texas A&M Aggies,3.5,,,Texas A&M Aggies +3.5,
+2026-03-16,DOMMY LOCKED,CBB,South Florida Bulls,5.5,,,South Florida Bulls +5.5,
+2026-03-16,DORMROOM DEGENERATES,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,lose
+2026-03-16,DORMROOM DEGENERATES,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,win
+2026-03-16,NICKY CASHIN,NBA,Atlanta Hawks,-2.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -2.5,Atlanta Hawks,win
+2026-03-16,NICKY CASHIN,NBA,Chicago Bulls,-6,Memphis Grizzlies @ Chicago Bulls,Chicago Bulls -6,Chicago Bulls,win
+2026-03-16,NICKY CASHIN,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,PICKS 4 DAYZZZ,NBA,Houston Rockets,-2.5,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2.5,Houston Rockets,lose
+2026-03-16,PICKS 4 DAYZZZ,NBA,Atlanta Hawks,-3,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3,Atlanta Hawks,win
+2026-03-16,PORTER PICKS,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,lose
+2026-03-16,PROP JOE,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,lose
+2026-03-16,PROP JOE,NBA,New Orleans Pelicans,-8,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8,New Orleans Pelicans,win
+2026-03-16,PROP JOE,NBA,Portland Trail Blazers,-10,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10,Portland Trail Blazers,win
+2026-03-16,SEEKING RETURNS,NBA,Brooklyn Nets,10.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10.5,Brooklyn Nets,lose
+2026-03-16,SEEKING RETURNS,NBA,LA Clippers,9.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -9.5,LA Clippers,win
+2026-03-16,SEEKING RETURNS,NBA,Memphis Grizzlies,6.5,Memphis Grizzlies @ Chicago Bulls,Chicago Bulls -6.5,Memphis Grizzlies,lose
+2026-03-16,SEEKING RETURNS,NBA,Washington Wizards,7.5,Golden State Warriors @ Washington Wizards,Golden State Warriors -7.5,Washington Wizards,lose
+2026-03-16,SEEKING RETURNS,NHL,New York Rangers,ML,Los Angeles Kings @ New York Rangers,,New York Rangers,lose
+2026-03-16,SEEKING RETURNS,NHL,Boston Bruins,ML,Boston Bruins @ New Jersey Devils,,Boston Bruins,lose
+2026-03-16,THIS GIRL BETZ,NHL,Detroit Red Wings,ML,Calgary Flames @ Detroit Red Wings,,Detroit Red Wings,win
+2026-03-16,THIS GIRL BETZ,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,THIS GIRL BETZ,NHL,Colorado Avalanche,ML,Pittsburgh Penguins @ Colorado Avalanche,,Colorado Avalanche,lose
+2026-03-16,THIS GIRL BETZ,NBA,Golden State Warriors,-7.5,Golden State Warriors @ Washington Wizards,Golden State Warriors -7.5,Golden State Warriors,win
+2026-03-16,THIS GIRL BETZ,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,THIS GIRL BETZ,NBA,Dallas Mavericks,8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,Dallas Mavericks,lose
+2026-03-16,THIS GIRL BETZ,NBA,San Antonio Spurs,-9,San Antonio Spurs @ LA Clippers,San Antonio Spurs -9,San Antonio Spurs,lose
 2026-03-16,THOMAS CASALE,CBB,Gonzaga Bulldogs,-18.5,,,Gonzaga Bulldogs,
-2026-03-16,PORTER PICKS,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,THE GAMBLING GAWD,NBA,Orlando Magic,4,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -4,Orlando Magic,
-2026-03-16,THE GAMBLING GAWD,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,
-2026-03-16,A11 BETS,NBA,Phoenix Suns,9.5,Phoenix Suns @ Boston Celtics,Boston Celtics -9.5,Phoenix Suns,
-2026-03-16,CASH IT BABY,NBA,San Antonio Spurs,-8.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -8.5,San Antonio Spurs,
-2026-03-16,CASH IT BABY,NHL,Detroit Red Wings,ML,Calgary Flames @ Detroit Red Wings,,Detroit Red Wings,
-2026-03-16,CASH IT BABY,NHL,Colorado Avalanche,ML,Pittsburgh Penguins @ Colorado Avalanche,,Colorado Avalanche,
-2026-03-16,HAMMERING HANK,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,PARLAY SAFARI,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,
-2026-03-16,PARLAY SAFARI,NBA,Portland Trail Blazers,-10.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10.5,Portland Trail Blazers,
-2026-03-16,PARLAY SAFARI,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,PORTER PICKS,NBA,Phoenix Suns,9,Phoenix Suns @ Boston Celtics,Boston Celtics -9,Phoenix Suns,
-2026-03-16,TAIL TO WIN,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,
-2026-03-16,BET LABS,NBA,LA Clippers,8,San Antonio Spurs @ LA Clippers,LA Clippers +8,LA Clippers,
-2026-03-16,DARTH FADER,NBA,Memphis Grizzlies,7,Memphis Grizzlies @ Chicago Bulls,Memphis Grizzlies +7,Memphis Grizzlies,
-2026-03-16,DARTH FADER,NBA,Atlanta Hawks,-3,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3,Atlanta Hawks,
-2026-03-16,BANKROLL BILL,NBA,Portland Trail Blazers,-10,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10,Portland Trail Blazers,
-2026-03-16,KIMS PICKS,NBA,Golden State Warriors,-7.5,Golden State Warriors @ Washington Wizards,Golden State Warriors -7.5,Golden State Warriors,
-2026-03-16,KIMS PICKS,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,
-2026-03-16,KIMS PICKS,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,
-2026-03-16,MR BIG BETS,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,AF SPORTS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,CASH CING,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,
-2026-03-16,CASH CING,NBA,New Orleans Pelicans,-8,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8,New Orleans Pelicans,
-2026-03-16,CASH CING,NBA,Chicago Bulls,-6,Memphis Grizzlies @ Chicago Bulls,Chicago Bulls -6,Chicago Bulls,
-2026-03-16,CASH CING,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,
-2026-03-16,MICAH ROBERTS,CBB,Miami (Ohio) RedHawks,7,,,Miami (Ohio) RedHawks +7,Miami (Ohio) RedHawks
-2026-03-16,THOMAS CASALE,CBB,North Carolina Tar Heels,-1.5,,,North Carolina Tar Heels -1.5,North Carolina Tar Heels
-2026-03-16,ALGO PICKS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,ANALYTICS CAPPER,NBA,Atlanta Hawks,-3,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3,Atlanta Hawks,
-2026-03-16,ANALYTICS CAPPER,NBA,Portland Trail Blazers,-10.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10.5,Portland Trail Blazers,
-2026-03-16,ANALYTICS CAPPER,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,ANALYTICS CAPPER,NBA,Houston Rockets,-2,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2,Houston Rockets,
-2026-03-16,ANALYTICS CAPPER,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,
-2026-03-16,BANKROLL BILL,NHL,Los Angeles Kings,ML,Los Angeles Kings @ New York Rangers,,Los Angeles Kings,
-2026-03-16,BEEZO WINS,NBA,San Antonio Spurs,-9.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -9.5,San Antonio Spurs,
-2026-03-16,BEEZO WINS,NBA,Los Angeles Lakers,3.5,Los Angeles Lakers @ Houston Rockets,Houston Rockets -3.5,Los Angeles Lakers,
-2026-03-16,BEEZO WINS,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,BEEZO WINS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,BEEZO WINS,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,BEEZO WINS,NHL,New York Rangers,ML,Los Angeles Kings @ New York Rangers,,New York Rangers,
-2026-03-16,CODY COVERS,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,
-2026-03-16,CODY COVERS,NHL,Calgary Flames,1.5,Calgary Flames @ Detroit Red Wings,Calgary Flames +1.5,Calgary Flames,
-2026-03-16,CODY COVERS,NHL,Colorado Avalanche,-1.5,Pittsburgh Penguins @ Colorado Avalanche,Colorado Avalanche -1.5,Colorado Avalanche,
-2026-03-16,CODY COVERS,NBA,New Orleans Pelicans,-7.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -7.5,New Orleans Pelicans,
-2026-03-16,CODY COVERS,NBA,Washington Wizards,8.5,Golden State Warriors @ Washington Wizards,Washington Wizards +8.5,Washington Wizards,
-2026-03-16,CODY COVERS,NBA,Portland Trail Blazers,-8.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -8.5,Portland Trail Blazers,
-2026-03-16,CODY COVERS,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,
-2026-03-16,CODY COVERS,NBA,LA Clippers,8.5,San Antonio Spurs @ LA Clippers,LA Clippers +8.5,LA Clippers,
-2026-03-16,DPATT,NBA,Orlando Magic,5.5,Orlando Magic @ Atlanta Hawks,Orlando Magic +5.5,Orlando Magic,
-2026-03-16,DPATT,NBA,San Antonio Spurs,-5.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -5.5,San Antonio Spurs,
-2026-03-16,DPATT,NBA,Phoenix Suns,10.5,Phoenix Suns @ Boston Celtics,Phoenix Suns +10.5,Phoenix Suns,
-2026-03-16,DUCK INVESTMENTS,NBA,Los Angeles Lakers,2,Los Angeles Lakers @ Houston Rockets,Los Angeles Lakers +2,Los Angeles Lakers,
-2026-03-16,DUCK INVESTMENTS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,DUCK INVESTMENTS,NHL,Colorado Avalanche,-1.5,Pittsburgh Penguins @ Colorado Avalanche,Colorado Avalanche -1.5,Colorado Avalanche,
-2026-03-16,DUCK INVESTMENTS,NHL,Los Angeles Kings,ML,Los Angeles Kings @ New York Rangers,,Los Angeles Kings,
-2026-03-16,EXCLUSIVE PLAY,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,LEAR LOCKS,NHL,Colorado Avalanche,ML,Pittsburgh Penguins @ Colorado Avalanche,,Colorado Avalanche,
-2026-03-16,MAIN PLAY,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,
-2026-03-16,MICAH ROBERTS,NBA,Los Angeles Lakers,2.5,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2.5,Los Angeles Lakers,
-2026-03-16,MONUMENTAL,NBA,San Antonio Spurs,-6,San Antonio Spurs @ LA Clippers,San Antonio Spurs -6,San Antonio Spurs,
-2026-03-16,MR E,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,SEAN PERRY WINS,NHL,Utah Mammoth,1.5,Utah Mammoth @ Dallas Stars,Dallas Stars -1.5,Utah Mammoth,
-2026-03-16,SENSEI SAM,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,SENSEI SAM,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,SHARP INVESTMENTS,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,
-2026-03-16,DQUAN PICKS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,VONN,NBA,Orlando Magic,4.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -4.5,Orlando Magic,
-2026-03-16,VTUFF,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,
-2026-03-16,ANON,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,
-2026-03-16,SEAN PERRY WINS,NBA,San Antonio Spurs,-6.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -6.5,San Antonio Spurs,
-2026-03-17,ANDERS PICKS,CBB,UNLV Rebels,+3.5,UNLV Rebels @ UC Irvine Anteaters,UC Irvine Anteaters -3.5,UNLV Rebels,
-2026-03-17,ANDERS PICKS,CBB,St. Thomas-Minnesota Tommies,+2.5,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,Seattle U Redhawks -2.5,St. Thomas-Minnesota Tommies,
+2026-03-16,PORTER PICKS,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,THE GAMBLING GAWD,NBA,Orlando Magic,4,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -4,Orlando Magic,lose
+2026-03-16,THE GAMBLING GAWD,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,lose
+2026-03-16,A11 BETS,NBA,Phoenix Suns,9.5,Phoenix Suns @ Boston Celtics,Boston Celtics -9.5,Phoenix Suns,win
+2026-03-16,CASH IT BABY,NBA,San Antonio Spurs,-8.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -8.5,San Antonio Spurs,lose
+2026-03-16,CASH IT BABY,NHL,Detroit Red Wings,ML,Calgary Flames @ Detroit Red Wings,,Detroit Red Wings,win
+2026-03-16,CASH IT BABY,NHL,Colorado Avalanche,ML,Pittsburgh Penguins @ Colorado Avalanche,,Colorado Avalanche,lose
+2026-03-16,HAMMERING HANK,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,PARLAY SAFARI,NBA,Orlando Magic,3.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3.5,Orlando Magic,lose
+2026-03-16,PARLAY SAFARI,NBA,Portland Trail Blazers,-10.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10.5,Portland Trail Blazers,win
+2026-03-16,PARLAY SAFARI,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,PORTER PICKS,NBA,Phoenix Suns,9,Phoenix Suns @ Boston Celtics,Boston Celtics -9,Phoenix Suns,win
+2026-03-16,TAIL TO WIN,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,lose
+2026-03-16,BET LABS,NBA,LA Clippers,8,San Antonio Spurs @ LA Clippers,LA Clippers +8,LA Clippers,win
+2026-03-16,DARTH FADER,NBA,Memphis Grizzlies,7,Memphis Grizzlies @ Chicago Bulls,Memphis Grizzlies +7,Memphis Grizzlies,lose
+2026-03-16,DARTH FADER,NBA,Atlanta Hawks,-3,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3,Atlanta Hawks,win
+2026-03-16,BANKROLL BILL,NBA,Portland Trail Blazers,-10,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10,Portland Trail Blazers,win
+2026-03-16,KIMS PICKS,NBA,Golden State Warriors,-7.5,Golden State Warriors @ Washington Wizards,Golden State Warriors -7.5,Golden State Warriors,win
+2026-03-16,KIMS PICKS,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,lose
+2026-03-16,KIMS PICKS,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,win
+2026-03-16,MR BIG BETS,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,AF SPORTS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,CASH CING,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,lose
+2026-03-16,CASH CING,NBA,New Orleans Pelicans,-8,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8,New Orleans Pelicans,win
+2026-03-16,CASH CING,NBA,Chicago Bulls,-6,Memphis Grizzlies @ Chicago Bulls,Chicago Bulls -6,Chicago Bulls,win
+2026-03-16,CASH CING,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,win
+2026-03-16,MICAH ROBERTS,CBB,Miami (Ohio) RedHawks,7,,,Miami (Ohio) RedHawks +7,
+2026-03-16,THOMAS CASALE,CBB,North Carolina Tar Heels,-1.5,,,North Carolina Tar Heels -1.5,
+2026-03-16,ALGO PICKS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,ANALYTICS CAPPER,NBA,Atlanta Hawks,-3,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -3,Atlanta Hawks,win
+2026-03-16,ANALYTICS CAPPER,NBA,Portland Trail Blazers,-10.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -10.5,Portland Trail Blazers,win
+2026-03-16,ANALYTICS CAPPER,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,ANALYTICS CAPPER,NBA,Houston Rockets,-2,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2,Houston Rockets,lose
+2026-03-16,ANALYTICS CAPPER,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,win
+2026-03-16,BANKROLL BILL,NHL,Los Angeles Kings,ML,Los Angeles Kings @ New York Rangers,,Los Angeles Kings,win
+2026-03-16,BEEZO WINS,NBA,San Antonio Spurs,-9.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -9.5,San Antonio Spurs,lose
+2026-03-16,BEEZO WINS,NBA,Los Angeles Lakers,3.5,Los Angeles Lakers @ Houston Rockets,Houston Rockets -3.5,Los Angeles Lakers,win
+2026-03-16,BEEZO WINS,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,BEEZO WINS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,BEEZO WINS,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,BEEZO WINS,NHL,New York Rangers,ML,Los Angeles Kings @ New York Rangers,,New York Rangers,lose
+2026-03-16,CODY COVERS,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,win
+2026-03-16,CODY COVERS,NHL,Calgary Flames,1.5,Calgary Flames @ Detroit Red Wings,Calgary Flames +1.5,Calgary Flames,lose
+2026-03-16,CODY COVERS,NHL,Colorado Avalanche,-1.5,Pittsburgh Penguins @ Colorado Avalanche,Colorado Avalanche -1.5,Colorado Avalanche,lose
+2026-03-16,CODY COVERS,NBA,New Orleans Pelicans,-7.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -7.5,New Orleans Pelicans,win
+2026-03-16,CODY COVERS,NBA,Washington Wizards,8.5,Golden State Warriors @ Washington Wizards,Washington Wizards +8.5,Washington Wizards,win
+2026-03-16,CODY COVERS,NBA,Portland Trail Blazers,-8.5,Portland Trail Blazers @ Brooklyn Nets,Portland Trail Blazers -8.5,Portland Trail Blazers,win
+2026-03-16,CODY COVERS,NBA,Houston Rockets,ML,Los Angeles Lakers @ Houston Rockets,,Houston Rockets,lose
+2026-03-16,CODY COVERS,NBA,LA Clippers,8.5,San Antonio Spurs @ LA Clippers,LA Clippers +8.5,LA Clippers,win
+2026-03-16,DPATT,NBA,Orlando Magic,5.5,Orlando Magic @ Atlanta Hawks,Orlando Magic +5.5,Orlando Magic,lose
+2026-03-16,DPATT,NBA,San Antonio Spurs,-5.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -5.5,San Antonio Spurs,lose
+2026-03-16,DPATT,NBA,Phoenix Suns,10.5,Phoenix Suns @ Boston Celtics,Phoenix Suns +10.5,Phoenix Suns,win
+2026-03-16,DUCK INVESTMENTS,NBA,Los Angeles Lakers,2,Los Angeles Lakers @ Houston Rockets,Los Angeles Lakers +2,Los Angeles Lakers,win
+2026-03-16,DUCK INVESTMENTS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,DUCK INVESTMENTS,NHL,Colorado Avalanche,-1.5,Pittsburgh Penguins @ Colorado Avalanche,Colorado Avalanche -1.5,Colorado Avalanche,lose
+2026-03-16,DUCK INVESTMENTS,NHL,Los Angeles Kings,ML,Los Angeles Kings @ New York Rangers,,Los Angeles Kings,win
+2026-03-16,EXCLUSIVE PLAY,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,LEAR LOCKS,NHL,Colorado Avalanche,ML,Pittsburgh Penguins @ Colorado Avalanche,,Colorado Avalanche,lose
+2026-03-16,MAIN PLAY,NBA,New Orleans Pelicans,-8.5,Dallas Mavericks @ New Orleans Pelicans,New Orleans Pelicans -8.5,New Orleans Pelicans,win
+2026-03-16,MICAH ROBERTS,NBA,Los Angeles Lakers,2.5,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2.5,Los Angeles Lakers,win
+2026-03-16,MONUMENTAL,NBA,San Antonio Spurs,-6,San Antonio Spurs @ LA Clippers,San Antonio Spurs -6,San Antonio Spurs,lose
+2026-03-16,MR E,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,SEAN PERRY WINS,NHL,Utah Mammoth,1.5,Utah Mammoth @ Dallas Stars,Dallas Stars -1.5,Utah Mammoth,win
+2026-03-16,SENSEI SAM,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,SENSEI SAM,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,SHARP INVESTMENTS,NHL,New Jersey Devils,ML,Boston Bruins @ New Jersey Devils,,New Jersey Devils,win
+2026-03-16,DQUAN PICKS,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,VONN,NBA,Orlando Magic,4.5,Orlando Magic @ Atlanta Hawks,Atlanta Hawks -4.5,Orlando Magic,lose
+2026-03-16,VTUFF,NBA,Atlanta Hawks,ML,Orlando Magic @ Atlanta Hawks,,Atlanta Hawks,win
+2026-03-16,ANON,NHL,Dallas Stars,ML,Utah Mammoth @ Dallas Stars,,Dallas Stars,lose
+2026-03-16,SEAN PERRY WINS,NBA,San Antonio Spurs,-6.5,San Antonio Spurs @ LA Clippers,San Antonio Spurs -6.5,San Antonio Spurs,lose
+2026-03-17,ANDERS PICKS,CBB,UNLV Rebels,3.5,UNLV Rebels @ UC Irvine Anteaters,UC Irvine Anteaters -3.5,UNLV Rebels,
+2026-03-17,ANDERS PICKS,CBB,St. Thomas-Minnesota Tommies,2.5,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,Seattle U Redhawks -2.5,St. Thomas-Minnesota Tommies,
 2026-03-17,NEWMARK TENNIS,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
 2026-03-17,NEWMARK TENNIS,NBA,Denver Nuggets,-15,Philadelphia 76ers @ Denver Nuggets,Denver Nuggets -15,Denver Nuggets,
-2026-03-17,PICKS 4 DAYZZZ,CBB,Liberty Flames,+6,Liberty Flames @ George Mason Patriots,George Mason Patriots -6,Liberty Flames,
+2026-03-17,PICKS 4 DAYZZZ,CBB,Liberty Flames,6,Liberty Flames @ George Mason Patriots,George Mason Patriots -6,Liberty Flames,win
 2026-03-17,PICKS 4 DAYZZZ,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
-2026-03-17,PICKS 4 DAYZZZ,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,
+2026-03-17,PICKS 4 DAYZZZ,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,lose
 2026-03-17,PICKS 4 DAYZZZ,NBA,Minnesota Timberwolves,-3.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -3.5,Minnesota Timberwolves,
-2026-03-17,SET POINT BETS,NHL,Boston Bruins,ML,Boston Bruins @ Montreal Canadiens,,Boston Bruins,
+2026-03-17,SET POINT BETS,NHL,Boston Bruins,ML,Boston Bruins @ Montreal Canadiens,,Boston Bruins,lose
 2026-03-17,SET POINT BETS,NHL,Minnesota Wild,ML,Minnesota Wild @ Chicago Blackhawks,,Minnesota Wild,
 2026-03-17,SET POINT BETS,NHL,Winnipeg Jets,ML,Nashville Predators @ Winnipeg Jets,,Winnipeg Jets,
 2026-03-17,SET POINT BETS,NHL,Florida Panthers,ML,Florida Panthers @ Vancouver Canucks,,Florida Panthers,
-2026-03-17,SET POINT BETS,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,
-2026-03-17,SET POINT BETS,NBA,Phoenix Suns,+4,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -4,Phoenix Suns,
-2026-03-17,SET POINT BETS,CBB,Wichita State Shockers,-6.5,Wyoming Cowboys @ Wichita State Shockers,Wichita State Shockers -6.5,Wichita State Shockers,
+2026-03-17,SET POINT BETS,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,win
+2026-03-17,SET POINT BETS,NBA,Phoenix Suns,4,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -4,Phoenix Suns,
+2026-03-17,SET POINT BETS,CBB,Wichita State Shockers,-6.5,Wyoming Cowboys @ Wichita State Shockers,Wichita State Shockers -6.5,Wichita State Shockers,lose
 2026-03-17,SET POINT BETS,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
-2026-03-17,SET POINT BETS,CBB,St. Thomas-Minnesota Tommies,+2,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,Seattle U Redhawks -2,St. Thomas-Minnesota Tommies,
-2026-03-17,THIS GIRL BETZ,NHL,Boston Bruins,ML,Boston Bruins @ Montreal Canadiens,,Boston Bruins,
+2026-03-17,SET POINT BETS,CBB,St. Thomas-Minnesota Tommies,2,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,Seattle U Redhawks -2,St. Thomas-Minnesota Tommies,
+2026-03-17,THIS GIRL BETZ,NHL,Boston Bruins,ML,Boston Bruins @ Montreal Canadiens,,Boston Bruins,lose
 2026-03-17,THIS GIRL BETZ,NHL,Minnesota Wild,ML,Minnesota Wild @ Chicago Blackhawks,,Minnesota Wild,
 2026-03-17,THIS GIRL BETZ,NHL,Winnipeg Jets,ML,Nashville Predators @ Winnipeg Jets,,Winnipeg Jets,
 2026-03-17,THIS GIRL BETZ,NHL,Florida Panthers,ML,Florida Panthers @ Vancouver Canucks,,Florida Panthers,
-2026-03-17,THIS GIRL BETZ,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets +3.5,Charlotte Hornets,
+2026-03-17,THIS GIRL BETZ,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets +3.5,Charlotte Hornets,win
 2026-03-17,THIS GIRL BETZ,NBA,Phoenix Suns,4,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -4,Phoenix Suns,
-2026-03-17,THIS GIRL BETZ,CBB,Wichita State Shockers,-6.5,Wyoming Cowboys @ Wichita State Shockers,Wichita State Shockers -6.5,Wichita State Shockers,
+2026-03-17,THIS GIRL BETZ,CBB,Wichita State Shockers,-6.5,Wyoming Cowboys @ Wichita State Shockers,Wichita State Shockers -6.5,Wichita State Shockers,lose
 2026-03-17,THIS GIRL BETZ,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
 2026-03-17,THIS GIRL BETZ,CBB,St. Thomas-Minnesota Tommies,2,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,St. Thomas-Minnesota Tommies +2,St. Thomas-Minnesota Tommies,
 2026-03-17,A11 BETS,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
-2026-03-17,BET SHARPER,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,
+2026-03-17,BET SHARPER,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,lose
 2026-03-17,BET SHARPER,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
-2026-03-17,DORMROOM DEGENERATES,CBB,George Mason Patriots,-3.5,Liberty Flames @ George Mason Patriots,George Mason Patriots -3.5,George Mason Patriots,
+2026-03-17,DORMROOM DEGENERATES,CBB,George Mason Patriots,-3.5,Liberty Flames @ George Mason Patriots,George Mason Patriots -3.5,George Mason Patriots,lose
 2026-03-17,DORMROOM DEGENERATES,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
-2026-03-17,DORMROOM DEGENERATES,NHL,New York Islanders,ML,New York Islanders @ Toronto Maple Leafs,,New York Islanders,
+2026-03-17,DORMROOM DEGENERATES,NHL,New York Islanders,ML,New York Islanders @ Toronto Maple Leafs,,New York Islanders,win
 2026-03-17,MIKE BARNER,CBB,Seattle U Redhawks,-2,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,Seattle U Redhawks -2,Seattle U Redhawks,
 2026-03-17,MIKE BARNER,CBB,Tulsa Golden Hurricane,-7.5,Stephen F. Austin Lumberjacks @ Tulsa Golden Hurricane,Tulsa Golden Hurricane -7.5,Tulsa Golden Hurricane,
-2026-03-17,NICKY CASHIN,CBB,NC State Wolfpack,+1.5,Texas Longhorns @ NC State Wolfpack,NC State Wolfpack +1.5,NC State Wolfpack,
-2026-03-17,BET LABS,CBB,UMBC Retrievers,+1,UMBC Retrievers @ Howard Bison,UMBC Retrievers +1,UMBC Retrievers,
+2026-03-17,NICKY CASHIN,CBB,NC State Wolfpack,1.5,Texas Longhorns @ NC State Wolfpack,NC State Wolfpack +1.5,NC State Wolfpack,
+2026-03-17,BET LABS,CBB,UMBC Retrievers,1,UMBC Retrievers @ Howard Bison,UMBC Retrievers +1,UMBC Retrievers,lose
 2026-03-17,CBLEZ,NHL,Minnesota Wild,ML,Minnesota Wild @ Chicago Blackhawks,,Minnesota Wild,
-2026-03-17,BET LABS,CBB,UMBC Retrievers,+1,UMBC Retrievers @ Howard Bison,UMBC Retrievers +1,UMBC Retrievers,
+2026-03-17,BET LABS,CBB,UMBC Retrievers,1,UMBC Retrievers @ Howard Bison,UMBC Retrievers +1,UMBC Retrievers,lose
 2026-03-17,CBLEZ,NHL,Nashville Predators,ML,Nashville Predators @ Winnipeg Jets,,Nashville Predators,
 2026-03-17,CBLEZ,NHL,Chicago Blackhawks,ML,Minnesota Wild @ Chicago Blackhawks,,Chicago Blackhawks,
-2026-03-17,CALEB PICKS,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,
+2026-03-17,CALEB PICKS,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,lose
 2026-03-17,CASH IT BABY,NBA,Philadelphia 76ers,-15.5,Philadelphia 76ers @ Denver Nuggets,Denver Nuggets -15.5,Philadelphia 76ers,
 2026-03-17,CASH IT BABY,NBA,San Antonio Spurs,-13.5,San Antonio Spurs @ Sacramento Kings,Sacramento Kings -13.5,San Antonio Spurs,
-2026-03-17,CASH IT BABY,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
+2026-03-17,CASH IT BABY,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
 2026-03-17,CASH IT BABY,NHL,Winnipeg Jets,-1.5,Nashville Predators @ Winnipeg Jets,Winnipeg Jets -1.5,Winnipeg Jets,
-2026-03-17,KIMS PICKS,NBA,Charlotte Hornets,-5.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5.5,Charlotte Hornets,
+2026-03-17,KIMS PICKS,NBA,Charlotte Hornets,-5.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5.5,Charlotte Hornets,win
 2026-03-17,KIMS PICKS,NBA,Minnesota Timberwolves,-3.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -3.5,Minnesota Timberwolves,
 2026-03-17,KIMS PICKS,NHL,Vegas Golden Knights,ML,Buffalo Sabres @ Vegas Golden Knights,,Vegas Golden Knights,
-2026-03-17,PARLAY SAFARI,CBB,Liberty Flames,+3.5,Liberty Flames @ George Mason Patriots,George Mason Patriots -3.5,Liberty Flames,
-2026-03-17,PARLAY SAFARI,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,
+2026-03-17,PARLAY SAFARI,CBB,Liberty Flames,3.5,Liberty Flames @ George Mason Patriots,George Mason Patriots -3.5,Liberty Flames,win
+2026-03-17,PARLAY SAFARI,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,lose
 2026-03-17,PARLAY SAFARI,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
-2026-03-17,PARLAY SAFARI,NBA,New York Knicks,-14.5,Indiana Pacers @ New York Knicks,New York Knicks -14.5,New York Knicks,
+2026-03-17,PARLAY SAFARI,NBA,New York Knicks,-14.5,Indiana Pacers @ New York Knicks,New York Knicks -14.5,New York Knicks,win
 2026-03-17,PARLAY SAFARI,NBA,Minnesota Timberwolves,-3.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -3.5,Minnesota Timberwolves,
-2026-03-17,PORTER PICKS,CBB,Texas Longhorns,+1.5,Texas Longhorns @ NC State Wolfpack,Texas Longhorns +1.5,Texas Longhorns,
-2026-03-17,BANKROLL BILL,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
+2026-03-17,PORTER PICKS,CBB,Texas Longhorns,1.5,Texas Longhorns @ NC State Wolfpack,Texas Longhorns +1.5,Texas Longhorns,
+2026-03-17,BANKROLL BILL,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
 2026-03-17,DOMMY LOCKED,CBB,Tulsa Golden Hurricane,-6.5,Stephen F. Austin Lumberjacks @ Tulsa Golden Hurricane,Tulsa Golden Hurricane -6.5,Tulsa Golden Hurricane,
-2026-03-17,PARDON MY PICK,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,,Carolina Hurricanes,
-2026-03-17,PARDON MY PICK,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,
-2026-03-17,PARDON MY PICK,NBA,Charlotte Hornets,-5.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5.5,Charlotte Hornets,
-2026-03-17,PORTER PICKS,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,
-2026-03-17,PORTER PICKS,NBA,Detroit Pistons,-19,Detroit Pistons @ Washington Wizards,Detroit Pistons -19,Detroit Pistons,
-2026-03-17,PORTER PICKS,NBA,Charlotte Hornets,-5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5,Charlotte Hornets,
-2026-03-17,THE GAMBLING GAWD,NHL,New York Islanders,ML,New York Islanders @ Toronto Maple Leafs,,New York Islanders,
+2026-03-17,PARDON MY PICK,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,,Carolina Hurricanes,lose
+2026-03-17,PARDON MY PICK,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,lose
+2026-03-17,PARDON MY PICK,NBA,Charlotte Hornets,-5.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5.5,Charlotte Hornets,win
+2026-03-17,PORTER PICKS,CBB,UMBC Retrievers,ML,UMBC Retrievers @ Howard Bison,,UMBC Retrievers,lose
+2026-03-17,PORTER PICKS,NBA,Detroit Pistons,-19,Detroit Pistons @ Washington Wizards,Detroit Pistons -19,Detroit Pistons,lose
+2026-03-17,PORTER PICKS,NBA,Charlotte Hornets,-5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5,Charlotte Hornets,win
+2026-03-17,THE GAMBLING GAWD,NHL,New York Islanders,ML,New York Islanders @ Toronto Maple Leafs,,New York Islanders,win
 2026-03-17,THE GAMBLING GAWD,NHL,Buffalo Sabres,ML,Buffalo Sabres @ Vegas Golden Knights,,Buffalo Sabres,
 2026-03-17,THE GAMBLING GAWD,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
-2026-03-17,DARTH FADER,CBB,Texas Longhorns,+1.5,Texas Longhorns @ NC State Wolfpack,NC State Wolfpack -1.5,Texas Longhorns,
-2026-03-17,DARTH FADER,CBB,Miami RedHawks,+6.5,,,Miami RedHawks,
-2026-03-17,DARTH FADER,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
+2026-03-17,DARTH FADER,CBB,Texas Longhorns,1.5,Texas Longhorns @ NC State Wolfpack,NC State Wolfpack -1.5,Texas Longhorns,
+2026-03-17,DARTH FADER,CBB,Miami RedHawks,6.5,,,Miami RedHawks,
+2026-03-17,DARTH FADER,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
 2026-03-17,DARTH FADER,CBB,Oklahoma State Cowboys,-6.5,Davidson Wildcats @ Oklahoma State Cowboys,Oklahoma State Cowboys -6.5,Oklahoma State Cowboys,
 2026-03-17,PROP JOE,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
 2026-03-17,BANKROLL BILL,NHL,Nashville Predators,ML,Nashville Predators @ Winnipeg Jets,,Nashville Predators,
-2026-03-17,MC BETS,CBB,Texas Longhorns,+1.5,Texas Longhorns @ NC State Wolfpack,NC State Wolfpack -1.5,Texas Longhorns,
+2026-03-17,MC BETS,CBB,Texas Longhorns,1.5,Texas Longhorns @ NC State Wolfpack,NC State Wolfpack -1.5,Texas Longhorns,
 2026-03-17,NICKY CASHIN,CBB,Auburn Tigers,-17.5,South Alabama Jaguars @ Auburn Tigers,Auburn Tigers -17.5,Auburn Tigers,
-2026-03-17,AF SPORTS,CBB,Howard Bison,2.5,UMBC Retrievers @ Howard Bison,Howard Bison +2.5,Howard Bison,
-2026-03-17,DIRTY BUBBLE BETS,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
+2026-03-17,AF SPORTS,CBB,Howard Bison,2.5,UMBC Retrievers @ Howard Bison,Howard Bison +2.5,Howard Bison,win
+2026-03-17,DIRTY BUBBLE BETS,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
 2026-03-17,DIRTY BUBBLE BETS,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
 2026-03-17,DIRTY BUBBLE BETS,NHL,Vegas Golden Knights,ML,Buffalo Sabres @ Vegas Golden Knights,,Vegas Golden Knights,
-2026-03-17,HAMMERING HANK,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
-2026-03-17,25 LEGS,CBB,Davidson Wildcats,+7.5,Davidson Wildcats @ Oklahoma State Cowboys,Oklahoma State Cowboys -7.5,Davidson Wildcats,
-2026-03-17,DUCK INVESTMENTS,CBB,Howard Bison,+1.5,UMBC Retrievers @ Howard Bison,Howard Bison -1.5,Howard Bison,
+2026-03-17,HAMMERING HANK,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
+2026-03-17,25 LEGS,CBB,Davidson Wildcats,7.5,Davidson Wildcats @ Oklahoma State Cowboys,Oklahoma State Cowboys -7.5,Davidson Wildcats,
+2026-03-17,DUCK INVESTMENTS,CBB,Howard Bison,1.5,UMBC Retrievers @ Howard Bison,Howard Bison -1.5,Howard Bison,win
 2026-03-17,FIVE,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
 2026-03-17,FIVE,CBB,Oklahoma State Cowboys,ML,Davidson Wildcats @ Oklahoma State Cowboys,,Oklahoma State Cowboys,
-2026-03-17,FIVE,CBB,Yale Bulldogs,ML,UNC Wilmington Seahawks @ Yale Bulldogs,,Yale Bulldogs,
-2026-03-17,FIVE,CBB,Stephen F. Austin Lumberjacks,+7.5,Stephen F. Austin Lumberjacks @ Tulsa Golden Hurricane,Tulsa Golden Hurricane -7.5,Stephen F. Austin Lumberjacks,
-2026-03-17,LEAR LOCKS,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
+2026-03-17,FIVE,CBB,Yale Bulldogs,ML,UNC Wilmington Seahawks @ Yale Bulldogs,,Yale Bulldogs,lose
+2026-03-17,FIVE,CBB,Stephen F. Austin Lumberjacks,7.5,Stephen F. Austin Lumberjacks @ Tulsa Golden Hurricane,Tulsa Golden Hurricane -7.5,Stephen F. Austin Lumberjacks,
+2026-03-17,LEAR LOCKS,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
 2026-03-17,MC BETS,CBB,UNLV Rebels,ML,UNLV Rebels @ UC Irvine Anteaters,,UNLV Rebels,
-2026-03-17,MC BETS,NBA,Orlando Magic,+10.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -10.5,Orlando Magic,
-2026-03-17,SHARP INVESTMENTS,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,
-2026-03-17,SHARP INVESTMENTS,CBB,UNLV Rebels,+1.5,UNLV Rebels @ UC Irvine Anteaters,UC Irvine Anteaters -1.5,UNLV Rebels,
+2026-03-17,MC BETS,NBA,Orlando Magic,10.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -10.5,Orlando Magic,win
+2026-03-17,SHARP INVESTMENTS,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,win
+2026-03-17,SHARP INVESTMENTS,CBB,UNLV Rebels,1.5,UNLV Rebels @ UC Irvine Anteaters,UC Irvine Anteaters -1.5,UNLV Rebels,
 2026-03-17,TAIL TO WIN,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
 2026-03-17,TB SPORTS BETTING,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
-2026-03-17,TB SPORTS BETTING,CBB,UMBC Retrievers,+1,UMBC Retrievers @ Howard Bison,Howard Bison -1,UMBC Retrievers,
+2026-03-17,TB SPORTS BETTING,CBB,UMBC Retrievers,1,UMBC Retrievers @ Howard Bison,Howard Bison -1,UMBC Retrievers,lose
 2026-03-17,VINNY,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
-2026-03-17,VINNY,NBA,Oklahoma City Thunder,-9.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -9.5,Oklahoma City Thunder,
+2026-03-17,VINNY,NBA,Oklahoma City Thunder,-9.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -9.5,Oklahoma City Thunder,lose
 2026-03-17,VINNY,NBA,Cleveland Cavaliers,-9.5,Cleveland Cavaliers @ Milwaukee Bucks,Cleveland Cavaliers -9.5,Cleveland Cavaliers,
 2026-03-17,VINNY,NBA,Minnesota Timberwolves,ML,Phoenix Suns @ Minnesota Timberwolves,,Minnesota Timberwolves,
 2026-03-17,VINNY,NBA,Denver Nuggets,-15.5,Philadelphia 76ers @ Denver Nuggets,Denver Nuggets -15.5,Denver Nuggets,
 2026-03-17,VINNY,NHL,Tampa Bay Lightning,ML,Tampa Bay Lightning @ Seattle Kraken,,Tampa Bay Lightning,
-2026-03-17,YDC,NBA,Charlotte Hornets,-4,Miami Heat @ Charlotte Hornets,Charlotte Hornets -4,Charlotte Hornets,
+2026-03-17,YDC,NBA,Charlotte Hornets,-4,Miami Heat @ Charlotte Hornets,Charlotte Hornets -4,Charlotte Hornets,win
 2026-03-17,YDC,NHL,Vegas Golden Knights,ML,Buffalo Sabres @ Vegas Golden Knights,,Vegas Golden Knights,
 2026-03-17,BEEZO WINS,CBB,Texas Longhorns,ML,Texas Longhorns @ NC State Wolfpack,,Texas Longhorns,
-2026-03-17,BEEZO WINS,CBB,Wichita State Shockers,-5.5,Wyoming Cowboys @ Wichita State Shockers,Wichita State Shockers -5.5,Wichita State Shockers,
+2026-03-17,BEEZO WINS,CBB,Wichita State Shockers,-5.5,Wyoming Cowboys @ Wichita State Shockers,Wichita State Shockers -5.5,Wichita State Shockers,lose
 2026-03-17,BEEZO WINS,CBB,Oklahoma State Cowboys,-8.5,Davidson Wildcats @ Oklahoma State Cowboys,Oklahoma State Cowboys -8.5,Oklahoma State Cowboys,
 2026-03-17,BEEZO WINS,CBB,UC Irvine Anteaters,ML,UNLV Rebels @ UC Irvine Anteaters,,UC Irvine Anteaters,
-2026-03-17,BEEZO WINS,CBB,Stephen F. Austin Lumberjacks,+8.5,Stephen F. Austin Lumberjacks @ Tulsa Golden Hurricane,Stephen F. Austin Lumberjacks +8.5,Stephen F. Austin Lumberjacks,
-2026-03-17,BEEZO WINS,NBA,Phoenix Suns,+4.5,Phoenix Suns @ Minnesota Timberwolves,Phoenix Suns +4.5,Phoenix Suns,
-2026-03-17,BEEZO WINS,NBA,Oklahoma City Thunder,-9.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -9.5,Oklahoma City Thunder,
+2026-03-17,BEEZO WINS,CBB,Stephen F. Austin Lumberjacks,8.5,Stephen F. Austin Lumberjacks @ Tulsa Golden Hurricane,Stephen F. Austin Lumberjacks +8.5,Stephen F. Austin Lumberjacks,
+2026-03-17,BEEZO WINS,NBA,Phoenix Suns,4.5,Phoenix Suns @ Minnesota Timberwolves,Phoenix Suns +4.5,Phoenix Suns,
+2026-03-17,BEEZO WINS,NBA,Oklahoma City Thunder,-9.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -9.5,Oklahoma City Thunder,lose
 2026-03-17,BEEZO WINS,NBA,Cleveland Cavaliers,-9.5,Cleveland Cavaliers @ Milwaukee Bucks,Cleveland Cavaliers -9.5,Cleveland Cavaliers,
 2026-03-17,BEEZO WINS,NHL,Tampa Bay Lightning,ML,Tampa Bay Lightning @ Seattle Kraken,,Tampa Bay Lightning,
-2026-03-17,CHAMBA,NBA,Charlotte Hornets,ML,Miami Heat @ Charlotte Hornets,,Charlotte Hornets,
-2026-03-17,CHAMBA,NBA,Oklahoma City Thunder,-8.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -8.5,Oklahoma City Thunder,
-2026-03-17,CHAMBA,NBA,Phoenix Suns,+5.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -5.5,Phoenix Suns,
-2026-03-17,DPATT,NBA,Charlotte Hornets,ML,Miami Heat @ Charlotte Hornets,,Charlotte Hornets,
-2026-03-17,DPATT,NBA,Orlando Magic,+11.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -11.5,Orlando Magic,
-2026-03-17,DPATT,NBA,Phoenix Suns,+5.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -5.5,Phoenix Suns,
-2026-03-17,DQUAN PICKS,NBA,Miami Heat,+5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5,Miami Heat,
+2026-03-17,CHAMBA,NBA,Charlotte Hornets,ML,Miami Heat @ Charlotte Hornets,,Charlotte Hornets,win
+2026-03-17,CHAMBA,NBA,Oklahoma City Thunder,-8.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -8.5,Oklahoma City Thunder,lose
+2026-03-17,CHAMBA,NBA,Phoenix Suns,5.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -5.5,Phoenix Suns,
+2026-03-17,DPATT,NBA,Charlotte Hornets,ML,Miami Heat @ Charlotte Hornets,,Charlotte Hornets,win
+2026-03-17,DPATT,NBA,Orlando Magic,11.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -11.5,Orlando Magic,win
+2026-03-17,DPATT,NBA,Phoenix Suns,5.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -5.5,Phoenix Suns,
+2026-03-17,DQUAN PICKS,NBA,Miami Heat,5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -5,Miami Heat,lose
 2026-03-17,EXCLUSIVE PLAY,NHL,Minnesota Wild,ML,Minnesota Wild @ Chicago Blackhawks,,Minnesota Wild,
-2026-03-17,HAMMERING HANK,NBA,Oklahoma City Thunder,-9.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -9.5,Oklahoma City Thunder,
+2026-03-17,HAMMERING HANK,NBA,Oklahoma City Thunder,-9.5,Oklahoma City Thunder @ Orlando Magic,Oklahoma City Thunder -9.5,Oklahoma City Thunder,lose
 2026-03-17,PATS PICKS,NBA,Denver Nuggets,-15.5,Philadelphia 76ers @ Denver Nuggets,Denver Nuggets -15.5,Denver Nuggets,
-2026-03-17,PATS PICKS,NBA,Phoenix Suns,+3.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -3.5,Phoenix Suns,
+2026-03-17,PATS PICKS,NBA,Phoenix Suns,3.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -3.5,Phoenix Suns,
 2026-03-17,PATS PICKS,NHL,Tampa Bay Lightning,ML,Tampa Bay Lightning @ Seattle Kraken,,Tampa Bay Lightning,
-2026-03-17,SEAN PERRY WINS,NBA,Charlotte Hornets,ML,Miami Heat @ Charlotte Hornets,,Charlotte Hornets,
+2026-03-17,SEAN PERRY WINS,NBA,Charlotte Hornets,ML,Miami Heat @ Charlotte Hornets,,Charlotte Hornets,win
 2026-03-17,TCC,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
 2026-03-17,TCC,NBA,Sacramento Kings,13.5,San Antonio Spurs @ Sacramento Kings,Sacramento Kings +13.5,Sacramento Kings,
 2026-03-17,THE SHARP SHEETS,CBB,UNLV Rebels,1.5,UNLV Rebels @ UC Irvine Anteaters,UNLV Rebels +1.5,UNLV Rebels,
-2026-03-17,THE SHARP SHEETS,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,
-2026-03-17,TRAVY,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,
-2026-03-17,VTUFF,CBB,Howard Bison,2.5,UMBC Retrievers @ Howard Bison,Howard Bison +2.5,Howard Bison,
-2026-03-17,VTUFF,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,
+2026-03-17,THE SHARP SHEETS,CBB,Howard Bison,ML,UMBC Retrievers @ Howard Bison,,Howard Bison,win
+2026-03-17,TRAVY,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,win
+2026-03-17,VTUFF,CBB,Howard Bison,2.5,UMBC Retrievers @ Howard Bison,Howard Bison +2.5,Howard Bison,win
+2026-03-17,VTUFF,NBA,Charlotte Hornets,-3.5,Miami Heat @ Charlotte Hornets,Charlotte Hornets -3.5,Charlotte Hornets,win
 2026-03-17,VTUFF,CBB,Texas Longhorns,3.5,Texas Longhorns @ NC State Wolfpack,Texas Longhorns +3.5,Texas Longhorns,
 2026-03-17,HAMMERING HANK,CBB,NC State Wolfpack,ML,Texas Longhorns @ NC State Wolfpack,,NC State Wolfpack,
 2026-03-17,KLEOS,NBA,San Antonio Spurs,-13,San Antonio Spurs @ Sacramento Kings,San Antonio Spurs -13,San Antonio Spurs,
-2026-03-17,KLEOS,NBA,New York Knicks,-14,Indiana Pacers @ New York Knicks,New York Knicks -14,New York Knicks,
-2026-03-17,KLEOS,NBA,Phoenix Suns,+4.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -4.5,Phoenix Suns,
-2026-03-17,RANDOM OTHER CAPPERS,CBB,Davidson Wildcats,+7.5,Davidson Wildcats @ Oklahoma State Cowboys,Oklahoma State Cowboys -7.5,Davidson Wildcats,
+2026-03-17,KLEOS,NBA,New York Knicks,-14,Indiana Pacers @ New York Knicks,New York Knicks -14,New York Knicks,win
+2026-03-17,KLEOS,NBA,Phoenix Suns,4.5,Phoenix Suns @ Minnesota Timberwolves,Minnesota Timberwolves -4.5,Phoenix Suns,
+2026-03-17,RANDOM OTHER CAPPERS,CBB,Davidson Wildcats,7.5,Davidson Wildcats @ Oklahoma State Cowboys,Oklahoma State Cowboys -7.5,Davidson Wildcats,
+2026-03-17,ANON,NHL,Winnipeg Jets,ML,Nashville Predators @ Winnipeg Jets,,Winnipeg Jets,
+2026-03-17,LAFORMULA,NBA,Minnesota Timberwolves,ML,Phoenix Suns @ Minnesota Timberwolves,,Minnesota Timberwolves,
+2026-03-17,RANDOM OTHER CAPPERS,NBA,Denver Nuggets,-15,Philadelphia 76ers @ Denver Nuggets,Denver Nuggets -15,Denver Nuggets,
+2026-03-17,TAIL TO WIN,CBB,Seattle U Redhawks,ML,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,,Seattle U Redhawks,
