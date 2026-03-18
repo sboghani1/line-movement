@@ -97,33 +97,22 @@ SONNET_OUTPUT_COST_PER_M = 15.00
 # Local CSV path for GitHub Pages
 LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
 
-# Track if any rows were appended to local CSV
-LOCAL_CSV_APPENDED = False
 
-
-def append_to_local_csv(rows: List[List[str]]) -> int:
-    """Append rows to the local master_sheet.csv file.
-    
-    Args:
-        rows: List of rows to append (each row is a list of strings)
-        
-    Returns:
-        Number of rows appended
-    """
-    global LOCAL_CSV_APPENDED
-    if not rows:
+def sync_master_to_csv(ss) -> int:
+    """Overwrite the local CSV with the current contents of master_sheet in Google Sheets."""
+    ws = populate_results.sheets_call(ss.worksheet, populate_results.MASTER_SHEET)
+    all_values = populate_results.sheets_call(ws.get_all_values)
+    if not all_values:
+        print("  sync_master_to_csv: master_sheet is empty, skipping")
         return 0
-    
-    try:
-        with open(LOCAL_CSV_PATH, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerows(rows)
-        LOCAL_CSV_APPENDED = True
-        print(f"  Appended {len(rows)} rows to local {LOCAL_CSV_PATH}")
-        return len(rows)
-    except Exception as e:
-        print(f"  Warning: Failed to append to local CSV: {e}")
-        return 0
+    header = all_values[0]
+    data   = all_values[1:]
+    with open(LOCAL_CSV_PATH, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(data)
+    print(f"  Synced {len(data)} rows → {LOCAL_CSV_PATH}")
+    return len(data)
 
 
 def git_commit_and_push() -> bool:
@@ -1561,10 +1550,6 @@ def run_stage2(spreadsheet, image_pull_ws):
             picks_new_ws.append_rows(all_finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(all_finalized_rows)} rows to parsed_picks_new")
 
-        # Append to local CSV for GitHub Pages (strip ocr_text col 10)
-        if all_finalized_rows:
-            append_to_local_csv([row[:9] for row in all_finalized_rows])
-
         # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
         finalized_picks_ws.update_acell(
@@ -2004,10 +1989,6 @@ def process_manual_picks_queue(spreadsheet):
             picks_new_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(finalized_rows)} rows to parsed_picks_new")
 
-        # Append to local CSV for GitHub Pages (strip ocr_text col 10)
-        if finalized_rows:
-            append_to_local_csv([row[:9] for row in finalized_rows])
-
         # Update timestamp in finalized_picks A1
         time.sleep(1)  # Rate limit
         finalized_picks_ws.update_acell(
@@ -2269,11 +2250,6 @@ def main():
             f"Tokens: {total_tokens:,} | Cost: ${total_cost:.4f}",
         )
 
-        # Commit and push local CSV changes if any rows were appended
-        if LOCAL_CSV_APPENDED:
-            print("\n── Git Commit & Push ──")
-            git_commit_and_push()
-
         # Populate results for any picks with completed game scores
         print("\n── Populate Results ──")
         try:
@@ -2283,8 +2259,13 @@ def main():
                     spreadsheet, sheet_name, header_row_index, scores, dry_run=False
                 )
                 print(f"  {sheet_name}: {resolved} results filled, {skipped_already} already set, {skipped_no_score} no score yet")
+            sync_master_to_csv(spreadsheet)
         except Exception as e:
             print(f"  populate_results error (non-fatal): {e}")
+
+        # Push CSV — git_commit_and_push is a no-op if nothing changed
+        print("\n── Git Commit & Push ──")
+        git_commit_and_push()
 
         # Brief pause to let Sheets read quota window reset before audit
         print("\n  [quota cooldown] sleeping 30s before audit...")
