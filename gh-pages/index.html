@@ -106,6 +106,12 @@ function mergeToCoarse(data) {
   }
   return Object.keys(merged).length > 0 ? merged : null;
 }
+function sumRecord(data) {
+  if (!data) return null;
+  let wins = 0, losses = 0;
+  for (const d of Object.values(data)) { wins += d.wins||0; losses += d.losses||0; }
+  return wins+losses > 0 ? {wins, losses} : null;
+}
 function resolveActive(verboseLabel, fineBuckets) {
   if (!verboseLabel) return null;
   return fineBuckets ? verboseLabel : (COARSE_MAP[verboseLabel] || verboseLabel);
@@ -206,28 +212,58 @@ const ConsensusLabel = memo(({game}) => {
   );
 });
 
-const RatioRows = memo(({data, activeBucket, bucketList}) => {
-  return bucketList.map(label => {
+const RangeTotal = memo(({rec, color}) => {
+  const p = Math.round(rec.wins/(rec.wins+rec.losses)*100);
+  return <span style={{marginLeft:'auto',fontSize:'0.58rem',fontWeight:'700',color,whiteSpace:'nowrap',paddingLeft:'4px'}}>{rec.wins}-{rec.losses} ({p}%)</span>;
+});
+
+const RatioRows = memo(({data, activeBucket, fadeBucket, bucketList, activeRange, fadeRange, activeIdx, fadeIdx, activeRangeRec, fadeRangeRec, aLo: aLoProp, aHi: aHiProp, fLo: fLoProp, fHi: fHiProp}) => {
+  const anchorIdx = activeIdx !== undefined ? activeIdx : (activeBucket ? bucketList.findIndex(l=>String(l)===String(activeBucket)) : -1);
+  const fadeIdxR  = fadeIdx   !== undefined ? fadeIdx   : (fadeBucket   ? bucketList.findIndex(l=>String(l)===String(fadeBucket))   : -1);
+  const aRange = activeRange || {up:0, down:0};
+  const fRange = fadeRange   || {up:0, down:0};
+  const aLo = aLoProp !== undefined ? aLoProp : (anchorIdx>=0 ? Math.max(0, anchorIdx-aRange.up)                : -1);
+  const aHi = aHiProp !== undefined ? aHiProp : (anchorIdx>=0 ? Math.min(bucketList.length-1, anchorIdx+aRange.down) : -1);
+  const fLo = fLoProp !== undefined ? fLoProp : (fadeIdxR>=0  ? Math.max(0, fadeIdxR-fRange.up)                 : -1);
+  const fHi = fHiProp !== undefined ? fHiProp : (fadeIdxR>=0  ? Math.min(bucketList.length-1, fadeIdxR+fRange.down)  : -1);
+
+  return bucketList.map((label, idx) => {
     const d = data?.[label];
-    const isActive = !!(activeBucket && String(label) === String(activeBucket));
+    const isActive = anchorIdx>=0 && idx>=aLo && idx<=aHi;
+    const isFade   = !isActive && fadeIdxR>=0 && idx>=fLo && idx<=fHi;
+    const isAnchorRow = idx === anchorIdx;
+    const isFadeRow   = !isAnchorRow && idx === fadeIdxR;
     const winRate = d && d.wins+d.losses>0 ? (d.wins/(d.wins+d.losses)*100).toFixed(0) : null;
+
+    // Unified group border: only draw top on first row of group, bottom on last, sides always
+    const isGroupFirst = isActive ? idx===aLo : isFade ? idx===fLo : false;
+    const isGroupLast  = isActive ? idx===aHi : isFade ? idx===fHi : false;
+    const groupColor   = isActive ? 'rgba(255,200,0,0.7)' : isFade ? 'rgba(100,180,255,0.65)' : 'transparent';
+    const borderTop    = (isActive||isFade) && isGroupFirst  ? `2px solid ${groupColor}` : (isActive||isFade) ? '2px solid transparent' : 'none';
+    const borderBottom = (isActive||isFade) && isGroupLast   ? `2px solid ${groupColor}` : (isActive||isFade) ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(255,255,255,0.07)';
+    const borderSides  = (isActive||isFade) ? `2px solid ${groupColor}` : '2px solid transparent';
+    const borderRadius = (isActive||isFade) ? (isGroupFirst&&isGroupLast?'4px':isGroupFirst?'4px 4px 0 0':isGroupLast?'0 0 4px 4px':'0') : '0';
+
     return (
       <div key={label} style={{
         fontSize:'0.65rem',display:'flex',alignItems:'center',gap:'4px',
         padding:'1px 3px',minHeight:'16px',boxSizing:'border-box',
-        borderBottom:'1px solid rgba(255,255,255,0.07)',
-        border: isActive ? '2px solid rgba(255,200,0,0.6)' : '2px solid transparent',
-        borderRadius: isActive ? '3px' : '0',
-        background: isActive ? 'rgba(255,200,0,0.12)' : 'transparent',
+        borderTop, borderBottom,
+        borderLeft: borderSides, borderRight: borderSides,
+        borderRadius,
+        background: isActive ? 'rgba(255,200,0,0.10)' : isFade ? 'rgba(100,180,255,0.07)' : 'transparent',
+        opacity: (isActive||isFade) ? 1 : 0.85,
       }}>
-        <span style={{width:'46px',flexShrink:0,color:isActive?'rgba(255,200,0,0.9)':'rgba(255,255,255,0.6)',fontWeight:isActive?'800':'400',fontFamily:'monospace'}}>{label}</span>
+        <span style={{width:'46px',flexShrink:0,color:isAnchorRow?'rgba(255,200,0,0.9)':isActive?'rgba(255,200,0,0.7)':isFadeRow?'rgba(100,180,255,0.9)':isFade?'rgba(100,180,255,0.7)':'rgba(255,255,255,0.6)',fontWeight:(isActive||isFade)?'700':'400',fontFamily:'monospace'}}>{label}</span>
         {d
           ? <>
-              <span style={{color:isActive?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):'rgba(255,255,255,0.85)',fontWeight:isActive?'800':'400',width:'32px',flexShrink:0,textAlign:'right'}}>{d.wins}-{d.losses}</span>
-              <span style={{color:isActive?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.45)',fontSize:'0.6rem',width:'30px',flexShrink:0,textAlign:'right'}}>({winRate}%)</span>
+              <span style={{color:isActive?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):isFade?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):'rgba(255,255,255,0.85)',fontWeight:(isActive||isFade)?'700':'400',minWidth:'42px',flexShrink:0,textAlign:'right',whiteSpace:'nowrap'}}>{d.wins}-{d.losses}</span>
+              <span style={{color:(isActive||isFade)?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.45)',fontSize:'0.6rem',minWidth:'34px',flexShrink:0,textAlign:'right',whiteSpace:'nowrap'}}>({winRate}%)</span>
             </>
           : <span style={{color:'rgba(255,255,255,0.18)',fontSize:'0.6rem'}}>—</span>
         }
+        {isGroupLast && isActive && activeRangeRec && aHi > aLo && <RangeTotal rec={activeRangeRec} color='rgba(255,200,0,0.8)'/>}
+        {isGroupLast && isFade   && fadeRangeRec   && fHi > fLo   && <RangeTotal rec={fadeRangeRec}   color='rgba(100,180,255,0.8)'/>}
       </div>
     );
   });
@@ -243,9 +279,9 @@ const ThisGameBadge = memo(({ratio}) => {
   );
 });
 
-const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters}) => {
-  const [open,setOpen] = useState(false);
-  const [fineBuckets,setFineBuckets] = useState(true);
+const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters, gameRanges, setBucketRanges}) => {
+  const [open,setOpen] = useState(true);
+  const [fineBuckets,setFineBuckets] = useState(false);
   const [expandedBt,setExpandedBt] = useState({Fav:false,Dog:false,Over:true,Under:true});
 
   useEffect(() => {
@@ -267,6 +303,42 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
   }, [currentGameRatios]);
 
   const toggleBt = useCallback(bt => setExpandedBt(p=>({...p,[bt]:!p[bt]})), []);
+
+  const adjustRange = useCallback((rangeKey, dir, delta) => {
+    setBucketRanges(prev => {
+      const prevGame = prev[game.game] || {};
+      const prevRange = prevGame[rangeKey] || {up:0, down:0};
+      const next = {...prevRange, [dir]: Math.max(0, prevRange[dir]+delta)};
+      return {...prev, [game.game]: {...prevGame, [rangeKey]: next}};
+    });
+  }, [game.game, setBucketRanges]);
+
+  const btnStyle = useCallback((color) => ({
+    background:'none', border:`1px solid ${color}`, borderRadius:'3px',
+    cursor:'pointer', fontSize:'0.55rem', fontWeight:'900', color, lineHeight:1,
+    padding:'1px 4px', flexShrink:0,
+  }), []);
+
+  const calcRangeRecord = useCallback((resolvedData, anchorIdx, rng) => {
+    if (anchorIdx < 0 || !resolvedData) return null;
+    const lo = Math.max(0, anchorIdx - rng.up);
+    const hi = Math.min(bucketList.length-1, anchorIdx + rng.down);
+    let w=0, l=0;
+    for (let i=lo; i<=hi; i++) { const d=resolvedData[bucketList[i]]; if(d){w+=d.wins||0;l+=d.losses||0;} }
+    return w+l>0 ? {wins:w, losses:l} : null;
+  }, [bucketList]);
+
+  const calcSideRecord = useCallback((resolvedData, anchorIdx, rng, dir) => {
+    if (anchorIdx < 0 || !resolvedData) return null;
+    const lo = Math.max(0, anchorIdx - rng.up);
+    const hi = Math.min(bucketList.length-1, anchorIdx + rng.down);
+    const from = dir==='above' ? 0    : hi+1;
+    const to   = dir==='above' ? lo-1 : bucketList.length-1;
+    if (from > to) return null;
+    let w=0, l=0;
+    for (let i=from; i<=to; i++) { const d=resolvedData[bucketList[i]]; if(d){w+=d.wins||0;l+=d.losses||0;} }
+    return w+l>0 ? {wins:w, losses:l} : null;
+  }, [bucketList]);
 
   const hasAny = BET_TYPES.some(bt => {
     const sp = game.sport;
@@ -312,19 +384,24 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
           const acfL = getFilteredL30('All_cappers', bt);
 
           const allTimeSections = [
-            {key:'sport',    label:`${bt} ${sp}`,          data:sd,  has:!!(sd&&Object.keys(sd).length)},
-            {key:'sportCap', label:`${bt} ${sp} Cappers`,  data:scf, has:!!scf},
-            {key:'all',      label:`${bt} All`,            data:ad,  has:!!(ad&&Object.keys(ad).length)},
-            {key:'allCap',   label:`${bt} All Cappers`,    data:acf, has:!!acf},
+            {key:'sport',    label:`${bt} ${sp}`,         data:sd,  has:!!(sd&&Object.keys(sd).length), isL30:false},
+            {key:'sportCap', label:`${bt} ${sp} Cappers`, data:scf, has:!!scf,                          isL30:false},
+            {key:'all',      label:`${bt} All`,           data:ad,  has:!!(ad&&Object.keys(ad).length), isL30:false},
+            {key:'allCap',   label:`${bt} All Cappers`,   data:acf, has:!!acf,                          isL30:false},
           ];
           const l30Sections = [
-            {key:'sport_l',    label:`[L${l30Days}] ${bt} ${sp}`,      data:sdL,  has:!!(sdL&&Object.keys(sdL).length)},
-            {key:'sportCap_l', label:`[L${l30Days}] ${bt} ${sp} Cap`,  data:scfL, has:!!scfL},
-            {key:'all_l',      label:`[L${l30Days}] ${bt} All`,        data:adL,  has:!!(adL&&Object.keys(adL).length)},
-            {key:'allCap_l',   label:`[L${l30Days}] ${bt} All Cap`,    data:acfL, has:!!acfL},
+            {key:'sport_l',    label:`[L${l30Days}] ${bt} ${sp}`,     data:sdL,  has:!!(sdL&&Object.keys(sdL).length), isL30:true},
+            {key:'sportCap_l', label:`[L${l30Days}] ${bt} ${sp} Cap`, data:scfL, has:!!scfL,                           isL30:true},
+            {key:'all_l',      label:`[L${l30Days}] ${bt} All`,       data:adL,  has:!!(adL&&Object.keys(adL).length), isL30:true},
+            {key:'allCap_l',   label:`[L${l30Days}] ${bt} All Cap`,   data:acfL, has:!!acfL,                           isL30:true},
           ];
+          const allSections = [...allTimeSections, ...l30Sections];
 
-          if (!allTimeSections.some(s=>s.has) && !l30Sections.some(s=>s.has) && !cr?.verboseLabel) return null;
+          if (!allSections.some(s=>s.has) && !cr?.verboseLabel) return null;
+
+          const oppCr        = currentGameRatios[OPPOSITE[bt]];
+          const fadeBucketVal = resolveActive(oppCr?.verboseLabel, fineBuckets);
+          const activeBucketVal = resolveActive(cr?.verboseLabel, fineBuckets);
 
           return (
             <div key={bt} style={{marginBottom:'8px'}}>
@@ -338,18 +415,77 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
               {isExpanded && <div style={{marginTop:'4px',marginLeft:'12px'}}>
                 {cr?.verboseLabel && <ThisGameBadge ratio={{...cr, label:cr.verboseLabel}}/>}
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginTop:'4px'}}>
-                  {allTimeSections.map(sec => (
-                    <div key={sec.key} style={{background:'rgba(0,0,0,0.2)',borderRadius:'6px',padding:'8px',border:'1px solid rgba(255,255,255,0.08)'}}>
-                      <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.8)',fontWeight:'700',marginBottom:'4px',borderBottom:'1px solid rgba(255,255,255,0.1)',paddingBottom:'3px'}}>{sec.label}</div>
-                      <RatioRows data={fineBuckets ? sec.data : mergeToCoarse(sec.data)} activeBucket={resolveActive(cr?.verboseLabel, fineBuckets)} bucketList={bucketList}/>
-                    </div>
-                  ))}
-                  {l30Sections.map(sec => (
-                    <div key={sec.key} style={{background:'rgba(255,215,0,0.04)',borderRadius:'6px',padding:'8px',border:'1px solid rgba(255,215,0,0.12)'}}>
-                      <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.8)',fontWeight:'700',marginBottom:'4px',borderBottom:'1px solid rgba(255,215,0,0.15)',paddingBottom:'3px'}}>{sec.label}</div>
-                      <RatioRows data={fineBuckets ? sec.data : mergeToCoarse(sec.data)} activeBucket={resolveActive(cr?.verboseLabel, fineBuckets)} bucketList={bucketList}/>
-                    </div>
-                  ))}
+                  {allSections.map(sec => {
+                    const resolvedData = fineBuckets ? sec.data : mergeToCoarse(sec.data);
+                    const tot    = sumRecord(resolvedData);
+                    const totPct = tot ? Math.round(tot.wins/(tot.wins+tot.losses)*100) : null;
+
+                    const rangeKey   = `${bt}-${sec.key}`;
+                    const range      = gameRanges[rangeKey] || {up:0, down:0};
+                    const activeIdx  = activeBucketVal != null ? bucketList.findIndex(l=>String(l)===String(activeBucketVal)) : -1;
+                    const fadeIdx    = fadeBucketVal   != null ? bucketList.findIndex(l=>String(l)===String(fadeBucketVal))   : -1;
+
+                    const activeRangeRec = calcRangeRecord(resolvedData, activeIdx, range);
+                    const fadeRangeRec   = calcRangeRecord(resolvedData, fadeIdx,   range);
+                    const aboveRec       = calcSideRecord(resolvedData, activeIdx, range, 'above');
+                    const belowRec       = calcSideRecord(resolvedData, activeIdx, range, 'below');
+                    const aboveFadeRec   = calcSideRecord(resolvedData, fadeIdx,   range, 'above');
+                    const belowFadeRec   = calcSideRecord(resolvedData, fadeIdx,   range, 'below');
+
+                    const hasAnchor    = activeIdx >= 0 || fadeIdx >= 0;
+                    const mainIdx      = activeIdx >= 0 ? activeIdx : fadeIdx;
+                    const curLo        = mainIdx >= 0 ? Math.max(0, mainIdx - range.up)                       : -1;
+                    const curHi        = mainIdx >= 0 ? Math.min(bucketList.length-1, mainIdx + range.down)   : -1;
+                    const canExpandUp   = mainIdx >= 0 && curLo > 0;
+                    const canExpandDown = mainIdx >= 0 && curHi < bucketList.length - 1;
+                    const anchorColor  = activeIdx >= 0 ? 'rgba(255,200,0,0.7)' : 'rgba(100,180,255,0.7)';
+
+                    const aLo = activeIdx >= 0 ? Math.max(0, activeIdx - range.up) : -1;
+                    const aHi = activeIdx >= 0 ? Math.min(bucketList.length-1, activeIdx + range.down) : -1;
+                    const fLo = fadeIdx   >= 0 ? Math.max(0, fadeIdx - range.up)   : -1;
+                    const fHi = fadeIdx   >= 0 ? Math.min(bucketList.length-1, fadeIdx + range.down)   : -1;
+
+                    const aboveColor = aboveRec ? 'rgba(255,200,0,0.55)' : 'rgba(100,180,255,0.55)';
+                    const aboveR     = aboveRec || aboveFadeRec;
+                    const belowColor = belowRec ? 'rgba(255,200,0,0.55)' : 'rgba(100,180,255,0.55)';
+                    const belowR     = belowRec || belowFadeRec;
+
+                    return (
+                      <div key={sec.key} style={{background:sec.isL30?'rgba(255,215,0,0.04)':'rgba(0,0,0,0.2)',borderRadius:'6px',padding:'8px',border:`1px solid ${sec.isL30?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.08)'}`}}>
+                        <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.8)',fontWeight:'700',marginBottom:'4px',borderBottom:`1px solid ${sec.isL30?'rgba(255,215,0,0.15)':'rgba(255,255,255,0.1)'}`,paddingBottom:'3px',display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                          <span>{sec.label}</span>
+                          {tot && <span style={{fontSize:'0.6rem',fontWeight:'600',color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap'}}>{tot.wins}-{tot.losses} ({totPct}%)</span>}
+                        </div>
+                        {hasAnchor && <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:'4px',minHeight:'14px',marginBottom:'2px'}}>
+                          <div style={{display:'flex',gap:'2px'}}>
+                            {range.up>0   && <button onClick={()=>adjustRange(rangeKey,'up',-1)}  style={btnStyle('rgba(255,100,100,0.6)')}>▲</button>}
+                            {canExpandUp  && <button onClick={()=>adjustRange(rangeKey,'up',1)}   style={btnStyle(anchorColor)}>▲</button>}
+                          </div>
+                          {aboveR && <span style={{fontSize:'0.58rem',fontWeight:'600',color:aboveColor,whiteSpace:'nowrap'}}>{aboveR.wins}-{aboveR.losses} ({Math.round(aboveR.wins/(aboveR.wins+aboveR.losses)*100)}%)</span>}
+                        </div>}
+                        <RatioRows
+                          data={resolvedData}
+                          activeBucket={activeBucketVal}
+                          fadeBucket={fadeBucketVal}
+                          bucketList={bucketList}
+                          activeRange={range}
+                          fadeRange={range}
+                          activeIdx={activeIdx}
+                          fadeIdx={fadeIdx}
+                          activeRangeRec={activeRangeRec}
+                          fadeRangeRec={fadeRangeRec}
+                          aLo={aLo} aHi={aHi} fLo={fLo} fHi={fHi}
+                        />
+                        {hasAnchor && <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:'4px',minHeight:'14px',marginTop:'2px'}}>
+                          {belowR && <span style={{fontSize:'0.58rem',fontWeight:'600',color:belowColor,whiteSpace:'nowrap'}}>{belowR.wins}-{belowR.losses} ({Math.round(belowR.wins/(belowR.wins+belowR.losses)*100)}%)</span>}
+                          <div style={{display:'flex',gap:'2px'}}>
+                            {range.down>0    && <button onClick={()=>adjustRange(rangeKey,'down',-1)} style={btnStyle('rgba(255,100,100,0.6)')}>▼</button>}
+                            {canExpandDown   && <button onClick={()=>adjustRange(rangeKey,'down',1)}  style={btnStyle(anchorColor)}>▼</button>}
+                          </div>
+                        </div>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>}
             </div>
@@ -400,7 +536,7 @@ const AddFakeButton = memo(({onClick}) => (
   </button>
 ));
 
-const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters, fakeCappers, deletedPicks, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
+const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
   const colors = SPORT_COLORS[game.sport]||SPORT_COLORS.default;
   const sides = Object.entries(game.sides);
   const totalPicks = sides.reduce((s,[,sd])=>s+sd.cappers.length, 0);
@@ -409,7 +545,9 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
 
   const gameDeleted = deletedPicks[game.game] || new Set();
   const gameFakesAll = fakeCappers[game.game] || {};
-  const hasChanges = gameDeleted.size > 0 || Object.values(gameFakesAll).some(arr=>arr.length>0);
+  const gameRanges = bucketRanges[game.game] || {};
+  const hasRangeChanges = Object.keys(gameRanges).some(k => gameRanges[k].up > 0 || gameRanges[k].down > 0);
+  const hasChanges = gameDeleted.size > 0 || Object.values(gameFakesAll).some(arr=>arr.length>0) || hasRangeChanges;
 
   return (
     <div style={{background:isFade?'linear-gradient(135deg,rgba(0,33,165,0.5),rgba(0,33,165,0.3))':'rgba(0,33,165,0.25)',borderRadius:'12px',border:isFade?'3px solid #0021A5':'2px solid rgba(0,33,165,0.4)',overflow:'hidden',boxShadow:isFade?'0 4px 20px rgba(0,33,165,0.4)':'none'}}>
@@ -432,6 +570,8 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
         l30Days={l30Days}
         minPicks={minPicks}
         sectionSetters={sectionSetters}
+        gameRanges={gameRanges}
+        setBucketRanges={setBucketRanges}
       />
       <div style={{padding:'16px 20px'}}>
         {sides.map(([side,sideData],si) => {
@@ -527,6 +667,8 @@ function CapperConsensusTracker() {
   const [l30Days,setL30Days] = useState(30);
   const [minPicksInput,setMinPicksInput] = useState('5');
   const [minPicks,setMinPicks] = useState(5);
+  const [minOpponentInput,setMinOpponentInput] = useState('0');
+  const [minOpponent,setMinOpponent] = useState(0);
   const [loading,setLoading] = useState(true);
   const [loadError,setLoadError] = useState(null);
   const [lastLoaded,setLastLoaded] = useState(null);
@@ -535,7 +677,13 @@ function CapperConsensusTracker() {
   const [fakeCappers, setFakeCappers] = useState({});
   // deletedPicks: { [gameName]: Set of pickKeys }
   const [deletedPicks, setDeletedPicks] = useState({});
+  // bucketRanges: { [gameName]: { [secKey]: { up: n, down: n } } }
+  const [bucketRanges, setBucketRanges] = useState({});
   const fakeCounter = useRef(0);
+  const [refreshState, setRefreshState] = useState('idle'); // idle | loading | success | error
+  const [refreshMsg, setRefreshMsg]     = useState('');
+  const [refreshCooldown, setRefreshCooldown] = useState(false);
+  const refreshTimerRef = useRef(null);
   const sectionSetters = useRef({});
 
   const capperColors = useMemo(() => ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE','#85C1E9','#F8B500','#00CED1','#FF69B4','#32CD32','#FF8C00','#9370DB','#20B2AA','#FFB6C1','#87CEEB','#DEB887','#FA8072','#7B68EE','#00FA9A','#FF6347','#4682B4','#D2691E','#6495ED','#DC143C','#00BFFF','#228B22'], []);
@@ -589,7 +737,7 @@ function CapperConsensusTracker() {
       const isGithubPages = window.location.hostname.includes('github.io');
       if (isGithubPages) {
         try {
-          const basePath = window.location.pathname.replace(/\/[^\/]*$/, ''); const bust = Math.floor(Date.now() / (5 * 60 * 1000)); const csvPath = basePath + '/data/master_sheet.csv?v=' + bust; const res = await fetch(csvPath);
+          const bust = Math.floor(Date.now() / (5 * 60 * 1000)); const basePath = window.location.pathname.replace(/\/[^\/]*$/, ''); const csvPath = basePath + '/data/master_sheet.csv?v=' + bust; const res = await fetch(csvPath);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           parseCsv(await res.text(), true);
           setLastLoaded('Loaded from ' + csvPath);
@@ -668,6 +816,7 @@ function CapperConsensusTracker() {
   const handleResetGame = useCallback((gameName) => {
     setDeletedPicks(prev => { const n={...prev}; delete n[gameName]; return n; });
     setFakeCappers(prev => { const n={...prev}; delete n[gameName]; return n; });
+    setBucketRanges(prev => { const n={...prev}; delete n[gameName]; return n; });
   }, []);
 
   const fakePicks = useMemo(() => {
@@ -818,11 +967,16 @@ function CapperConsensusTracker() {
 
     let filtered=Object.values(games);
     if (selectedCappers.length>0) filtered=filtered.filter(g=>selectedCappers.some(c=>g.cappers.has(c)));
+    if (minOpponent>0) filtered=filtered.filter(g=>{
+      const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
+      return sides.length>=2 && sides[1]>=minOpponent;
+    });
     return filtered.sort((a,b)=>b.picks.length-a.picks.length);
-  }, [filteredPicks, fakeCappers, deletedPicks, capperMap, selectedCappers, getCapperRecords, minPicks]);
+  }, [filteredPicks, fakeCappers, deletedPicks, capperMap, selectedCappers, getCapperRecords, minPicks, minOpponent]);
 
   const applyL30      = useCallback(() => { const v=parseInt(l30Input);      if(!isNaN(v)&&v>0)  setL30Days(v);  }, [l30Input]);
-  const applyMinPicks = useCallback(() => { const v=parseInt(minPicksInput); if(!isNaN(v)&&v>=1) setMinPicks(v); }, [minPicksInput]);
+  const applyMinPicks    = useCallback(() => { const v=parseInt(minPicksInput);    if(!isNaN(v)&&v>=1)  setMinPicks(v);    }, [minPicksInput]);
+  const applyMinOpponent = useCallback(() => { const v=parseInt(minOpponentInput); if(!isNaN(v)&&v>=0)  setMinOpponent(v); }, [minOpponentInput]);
 
   const answerKey = useMemo(() => {
     return gameConsensus.map(game => {
@@ -858,6 +1012,39 @@ function CapperConsensusTracker() {
     }).filter(Boolean).sort((a,b)=>Math.abs(b.mostExtreme.pct-50)-Math.abs(a.mostExtreme.pct-50));
   }, [gameConsensus, ratioHistoryL30, l30Days, minPicks]);
 
+  const handleRefresh = useCallback(async () => {
+    if (refreshCooldown || refreshState === 'loading') return;
+    setRefreshState('loading');
+    setRefreshMsg('');
+    try {
+      const res = await fetch('https://api.github.com/repos/sboghani1/line-movement/actions/workflows/process_discord_images.yml/dispatches', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer GITHUB_PAT_PLACEHOLDER',
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ref: 'main'}),
+      });
+      if (res.status === 204) {
+        setRefreshState('success');
+        setRefreshMsg('✓ Workflow triggered');
+      } else {
+        const body = await res.text();
+        setRefreshState('error');
+        setRefreshMsg(`Error ${res.status}: ${body.slice(0,120)}`);
+      }
+    } catch(e) {
+      setRefreshState('error');
+      setRefreshMsg(`Failed: ${e.message}`);
+    }
+    setRefreshCooldown(true);
+    refreshTimerRef.current = setTimeout(() => {
+      setRefreshCooldown(false);
+      setRefreshState(s => s !== 'error' ? 'idle' : s);
+    }, 60000);
+  }, [refreshCooldown, refreshState]);
+
   const totalFakes = useMemo(() => Object.values(fakeCappers).reduce((s,g)=>s+Object.values(g).reduce((ss,arr)=>ss+arr.length,0),0), [fakeCappers]);
   const totalDeleted = useMemo(() => Object.values(deletedPicks).reduce((s,set)=>s+set.size,0), [deletedPicks]);
 
@@ -865,7 +1052,28 @@ function CapperConsensusTracker() {
     <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#FA4616 0%,#d63a0f 40%,#0021A5 100%)',fontFamily:"'Segoe UI',system-ui,sans-serif",color:'#fff',padding:'20px'}}>
       <div style={{textAlign:'center',marginBottom:'30px',padding:'20px',background:'rgba(0,33,165,0.3)',borderRadius:'16px',border:'2px solid rgba(0,33,165,0.5)'}}>
         <h1 style={{fontSize:'2.5rem',fontWeight:'800',background:'linear-gradient(90deg,#fff,#0021A5,#fff)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',marginBottom:'8px'}}>🎯 FADE FINDER</h1>
-        <p style={{color:'rgba(255,255,255,0.8)',fontSize:'0.9rem',margin:0}}>Capper Consensus Tracker • Donut clear data unless you asked the boss man!!</p>
+        <p style={{color:'rgba(255,255,255,0.8)',fontSize:'0.9rem',marginBottom:'14px'}}>Capper Consensus Tracker • Donut clear data unless you asked the boss man!!</p>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'}}>
+          <div title={refreshCooldown ? 'no clicks for 60s' : ''} style={{display:'inline-block'}}>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshCooldown || refreshState==='loading'}
+              style={{
+                padding:'8px 24px',
+                background: refreshCooldown ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,rgba(255,255,255,0.15),rgba(255,255,255,0.08))',
+                border:'2px solid rgba(255,255,255,0.3)',
+                borderRadius:'8px',
+                color: refreshCooldown ? 'rgba(255,255,255,0.35)' : '#fff',
+                fontSize:'0.85rem',fontWeight:'700',
+                cursor: refreshCooldown ? 'not-allowed' : 'pointer',
+                transition:'all 0.2s',
+                opacity: refreshState==='loading' ? 0.7 : 1,
+              }}>
+              {refreshState==='loading' ? '⏳ Triggering…' : '🔄 Refresh Data'}
+            </button>
+          </div>
+          {refreshMsg && <span style={{fontSize:'0.75rem',fontWeight:'600',color:refreshState==='success'?'#90EE90':'#FF6B6B'}}>{refreshMsg}</span>}
+        </div>
       </div>
 
       <div style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
@@ -901,16 +1109,21 @@ function CapperConsensusTracker() {
           </div>
           <div>
             <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>VERBOSE L (DAYS)</label>
-            <input type="number" min="1" max="365" value={l30Input} onChange={e=>setL30Input(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();}}}
+            <input type="number" min="1" max="365" value={l30Input} onChange={e=>setL30Input(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();}}}
               style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
           </div>
           <div>
-            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>MIN PICKS</label>
-            <input type="number" min="1" max="50" value={minPicksInput} onChange={e=>setMinPicksInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();}}}
+            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>MIN PICKS FOR CONSENSUS</label>
+            <input type="number" min="1" max="50" value={minPicksInput} onChange={e=>setMinPicksInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();}}}
+              style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+          </div>
+          <div>
+            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>MIN PICKS FOR MINORITY</label>
+            <input type="number" min="0" max="50" value={minOpponentInput} onChange={e=>setMinOpponentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();}}}
               style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
           </div>
           <div style={{display:'flex',alignItems:'flex-end'}}>
-            <button onClick={()=>{applyL30();applyMinPicks();}} style={{padding:'10px 16px',background:'linear-gradient(135deg,#0021A5,#001a8c)',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'8px',color:'#fff',fontSize:'0.8rem',fontWeight:'700',cursor:'pointer'}}>↻ Apply</button>
+            <button onClick={()=>{applyL30();applyMinPicks();applyMinOpponent();}} style={{padding:'10px 16px',background:'linear-gradient(135deg,#0021A5,#001a8c)',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'8px',color:'#fff',fontSize:'0.8rem',fontWeight:'700',cursor:'pointer'}}>↻ Apply</button>
           </div>
           <div style={{marginLeft:'auto'}}>
             <div style={{padding:'10px 20px',background:'rgba(0,33,165,0.4)',borderRadius:'8px',border:'2px solid rgba(0,33,165,0.6)',color:'#fff',fontWeight:'600'}}>{filteredPicks.length} picks • {gameConsensus.length} games</div>
@@ -988,6 +1201,8 @@ function CapperConsensusTracker() {
                     sectionSetters={sectionSetters}
                     fakeCappers={fakeCappers}
                     deletedPicks={deletedPicks}
+                    bucketRanges={bucketRanges}
+                    setBucketRanges={setBucketRanges}
                     onAddFake={handleAddFake}
                     onRemoveFake={handleRemoveFake}
                     onDeletePick={handleDeletePick}
