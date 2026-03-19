@@ -68,12 +68,23 @@ PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
 MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
 
-# New audit_data schema: the 9 master columns + audit-specific columns
+# New audit_data schema: status is col B for easy scanning in the sheet
 AUDIT_HEADERS = [
-    "date", "capper", "sport", "pick", "line",
+    "date", "status",
+    "capper", "sport", "pick", "line",
     "game", "spread", "side", "result",
-    "check_failed", "details", "suggested_fix", "status",
+    "check_failed", "details", "suggested_fix",
     "ocr_text",
+]
+
+# Valid status values (applied as data-validation dropdown in the sheet)
+VALID_STATUSES = [
+    "auto_fixed",
+    "needs_review",
+    "opus_approved",
+    "needs_human",
+    "human_approved",
+    "human_rejected",
 ]
 
 # Required columns that must be non-empty for a pick to be considered complete.
@@ -104,18 +115,39 @@ def yesterday_str() -> str:
 
 # ── Google Sheets helpers ─────────────────────────────────────────────────────
 def get_or_create_audit_sheet(ss) -> gspread.Worksheet:
-    """Get or create the audit_data worksheet with the correct headers."""
+    """Get or create the audit_data worksheet with the correct headers and status dropdown."""
     try:
         ws = ss.worksheet(AUDIT_SHEET)
         existing = ws.row_values(1)
         if existing != AUDIT_HEADERS:
             # Schema changed — overwrite header row
             sheets_call(ws.update, "A1", [AUDIT_HEADERS])
+            _apply_status_validation(ws)
         return ws
     except gspread.exceptions.WorksheetNotFound:
         ws = ss.add_worksheet(title=AUDIT_SHEET, rows=1000, cols=len(AUDIT_HEADERS))
         ws.append_row(AUDIT_HEADERS, value_input_option="USER_ENTERED")
+        _apply_status_validation(ws)
         return ws
+
+
+def _apply_status_validation(ws: gspread.Worksheet):
+    """Apply data-validation dropdown for the status column (B2:B1000)."""
+    from gspread.utils import ValidationConditionType
+
+    status_col_idx = AUDIT_HEADERS.index("status")  # 0-based
+    col_letter = chr(ord("A") + status_col_idx)      # "B"
+    validation_range = f"{col_letter}2:{col_letter}1000"
+
+    sheets_call(
+        ws.add_validation,
+        validation_range,
+        ValidationConditionType.one_of_list,
+        VALID_STATUSES,
+        strict=False,       # allow blanks
+        showCustomUi=True,  # show dropdown arrow
+    )
+    print(f"  Applied status dropdown validation to {validation_range}")
 
 
 # ── Schedule loader ───────────────────────────────────────────────────────────
@@ -214,9 +246,10 @@ def make_audit_row(
     status: str,
     ocr_text: str = "",
 ) -> list:
-    """Build a list suitable for appending to audit_data."""
+    """Build a list suitable for appending to audit_data (matches AUDIT_HEADERS order)."""
     return [
         pick_row.get("date", ""),
+        status,
         pick_row.get("capper", ""),
         pick_row.get("sport", ""),
         pick_row.get("pick", ""),
@@ -228,7 +261,6 @@ def make_audit_row(
         check_failed,
         details,
         suggested_fix,
-        status,
         ocr_text,
     ]
 
