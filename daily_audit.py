@@ -68,9 +68,9 @@ PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
 MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
 
-# New audit_data schema: status is col B for easy scanning in the sheet
+# New audit_data schema: status is col B for easy scanning; ms_row links back to master_sheet
 AUDIT_HEADERS = [
-    "date", "status",
+    "date", "status", "ms_row",
     "capper", "sport", "pick", "line",
     "game", "spread", "side", "result",
     "check_failed", "details", "suggested_fix",
@@ -244,12 +244,14 @@ def make_audit_row(
     details: str,
     suggested_fix: str,
     status: str,
+    ms_row: int = 0,
     ocr_text: str = "",
 ) -> list:
     """Build a list suitable for appending to audit_data (matches AUDIT_HEADERS order)."""
     return [
         pick_row.get("date", ""),
         status,
+        ms_row,
         pick_row.get("capper", ""),
         pick_row.get("sport", ""),
         pick_row.get("pick", ""),
@@ -632,7 +634,7 @@ def run_audit(
     print(f"  {len(ocr_index)} OCR entries loaded")
 
     # ── Run checks ───────────────────────────────────────────────────────────
-    audit_results = []   # list of dicts with keys: pick_row, check_failed, details, suggested_fix, status
+    audit_results = []   # list of dicts with keys: pick_row, check_failed, details, suggested_fix, status, ms_row
     clean_count = 0
 
     print(f"\nRunning checks...")
@@ -656,6 +658,8 @@ def run_audit(
         if not findings:
             clean_count += 1
         else:
+            for f in findings:
+                f["ms_row"] = row_num  # tag each finding with master_sheet row
             audit_results.extend(findings)
 
     # Tally by status
@@ -702,6 +706,7 @@ def run_audit(
             details=r["details"],
             suggested_fix=r["suggested_fix"],
             status=r["status"],
+            ms_row=r["ms_row"],
             ocr_text=ocr_text,
         ))
 
