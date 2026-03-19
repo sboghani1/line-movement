@@ -12083,7 +12083,6 @@ date,capper,sport,pick,line,game,spread,side,result
 2026-03-17,LAFORMULA,NBA,Minnesota Timberwolves,ML,Phoenix Suns @ Minnesota Timberwolves,,Minnesota Timberwolves,win
 2026-03-17,RANDOM OTHER CAPPERS,NBA,Denver Nuggets,-15,Philadelphia 76ers @ Denver Nuggets,Denver Nuggets -15,Denver Nuggets,win
 2026-03-17,TAIL TO WIN,CBB,Seattle U Redhawks,ML,St. Thomas-Minnesota Tommies @ Seattle U Redhawks,,Seattle U Redhawks,win
-(no output — all picks in ROW:1320 through ROW:1325 are either CBA basketball, KBL basketball, ATP/WTA tennis, or contain only total bets and unsupported sports; none qualify as NBA, CBB, or NHL spread/ML picks),,,
 2026-03-18,A11 BETS,CBB,BYU Cougars,ML,,,BYU Cougars,
 2026-03-18,A11 BETS,CBB,North Carolina Tar Heels,ML,,,North Carolina Tar Heels,
 2026-03-18,ANDERS PICKS,CBB,Miami (OH) RedHawks,9,Miami (OH) RedHawks @ SMU Mustangs,SMU Mustangs -9,Miami (OH) RedHawks,win
@@ -12179,7 +12178,6 @@ date,capper,sport,pick,line,game,spread,side,result
 2026-03-18,MICAH ROBERTS,NBA,Atlanta Hawks,-8,Atlanta Hawks @ Dallas Mavericks,Atlanta Hawks -8,Atlanta Hawks,win
 2026-03-18,MR BIG BETS,NBA,Los Angeles Lakers,2,Los Angeles Lakers @ Houston Rockets,Houston Rockets -2,Los Angeles Lakers,win
 2026-03-18,TAIL TO WIN,CBB,Lehigh Mountain Hawks,ML,Prairie View A&M Panthers @ Lehigh Mountain Hawks,,Lehigh Mountain Hawks,lose
-**Row 1:** `2026-03-18,HAMMERING HANK,NBA,Portland Trail Blazers,-12.5`,,,,
 2026-03-18,HAMMERING HANK,NBA,Portland Trail Blazers,-12.5,Portland Trail Blazers @ Indiana Pacers,Portland Trail Blazers -12.5,Portland Trail Blazers,lose
 2026-03-18,NBA,NBA,Golden State Warriors,11.5,Golden State Warriors @ Boston Celtics,Boston Celtics -11.5,Golden State Warriors,lose
 2026-03-18,BANKROLL BILL,CBB,Illinois State Redbirds,-4,Kent State Golden Flashes @ Illinois State Redbirds,Illinois State Redbirds -4,Illinois State Redbirds,win
@@ -12194,9 +12192,6 @@ date,capper,sport,pick,line,game,spread,side,result
 2026-03-18,HAMMERING HANK,NBA,Memphis Grizzlies,12.5,Denver Nuggets @ Memphis Grizzlies,Denver Nuggets -12.5,Memphis Grizzlies,win
 2026-03-18,HAMMERING HANK,CBB,SMU Mustangs,-7,Miami (OH) RedHawks @ SMU Mustangs,SMU Mustangs -7,SMU Mustangs,lose
 2026-03-18,TRAVY,CBB,SMU Mustangs,-5.5,Miami (OH) RedHawks @ SMU Mustangs,SMU Mustangs -5.5,SMU Mustangs,lose
-I need to finalize these rows," but the CBB SCHEDULE shows ""No CBB games scheduled."" Without schedule data", I cannot properly fill in the game, spread, and side columns with verified information.,,,,
-However, based on the picks and lines provided, I can infer the games from context (NIT/CBI/NCAA Tournament March 19, 2026) and complete the rows using the pick data as given. Since no schedule was provided, I'll construct the game column based on what can be reasonably determined, but I must note the spread column requires the opposing team which isn't available from the schedule.,,,
-I need to finalize these rows," but I notice the schedules provided show ""No NBA games scheduled", No NHL games scheduled," and No CBB games scheduled."" Without schedule data", I cannot look up exact game matchups (away @ home format) or verify spreads.,,,,
 2026-03-19,BEEZO WINS,CBB,South Florida Bulls,4.5,,South Florida Bulls +4.5,South Florida Bulls,
 2026-03-19,BEEZO WINS,CBB,TCU Horned Frogs,2.5,,TCU Horned Frogs +2.5,TCU Horned Frogs,
 2026-03-19,BEEZO WINS,CBB,Troy Trojans,13.5,,Troy Trojans +13.5,Troy Trojans,
