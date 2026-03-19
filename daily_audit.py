@@ -4,10 +4,10 @@ daily_audit.py — Nightly audit of yesterday's picks in master_sheet.
 
 Runs a series of programmatic checks on every pick from the previous day,
 auto-fixes what it can, flags ambiguous cases for Opus review, and writes
-everything to the `audit_data` sheet with a status column that progresses:
+everything to the `audit_results` sheet with a status column that progresses:
 
     programmatic checks
-        |-- all pass            --> (no audit_data row)
+        |-- all pass            --> (no audit_results row)
         |-- auto-fixed          --> status = "auto_fixed"
         |-- flagged (ambiguous) --> status = "needs_review"
                                         |
@@ -63,12 +63,12 @@ load_dotenv()
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 MASTER_SHEET    = "master_sheet"
-AUDIT_SHEET     = "audit_data"
+AUDIT_SHEET     = "audit_results"
 PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
 MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
 
-# New audit_data schema: status is col B for easy scanning; ms_row links back to master_sheet
+# audit_results schema: status is col B for easy scanning; ms_row links back to master_sheet
 AUDIT_HEADERS = [
     "date", "status", "ms_row",
     "capper", "sport", "pick", "line",
@@ -115,7 +115,7 @@ def yesterday_str() -> str:
 
 # ── Google Sheets helpers ─────────────────────────────────────────────────────
 def get_or_create_audit_sheet(ss) -> gspread.Worksheet:
-    """Get or create the audit_data worksheet with the correct headers and status dropdown."""
+    """Get or create the audit_results worksheet with the correct headers and status dropdown."""
     try:
         ws = ss.worksheet(AUDIT_SHEET)
         existing = ws.row_values(1)
@@ -247,7 +247,7 @@ def make_audit_row(
     ms_row: int = 0,
     ocr_text: str = "",
 ) -> list:
-    """Build a list suitable for appending to audit_data (matches AUDIT_HEADERS order)."""
+    """Build a list suitable for appending to audit_results (matches AUDIT_HEADERS order)."""
     return [
         pick_row.get("date", ""),
         status,
@@ -575,7 +575,7 @@ def run_audit(
     """
     Run the nightly audit on yesterday's picks in master_sheet.
 
-    Runs all programmatic checks, writes findings to audit_data, and
+    Runs all programmatic checks, writes findings to audit_results, and
     optionally escalates ambiguous cases to Opus (time-gated).
 
     Args:
@@ -684,14 +684,14 @@ def run_audit(
             print(f"    [{p['date']}] {p['capper']} | {p['sport']} | {p['pick']} {p['line']} -- {r['details']}")
 
     if not audit_results:
-        print("\nAll picks clean — nothing to write to audit_data.")
+        print("\nAll picks clean — nothing to write to audit_results.")
         return
 
     if dry_run:
         print(f"\n[dry-run] Would write {len(audit_results)} rows to {AUDIT_SHEET}.")
         return
 
-    # ── Write to audit_data ──────────────────────────────────────────────────
+    # ── Write to audit_results ──────────────────────────────────────────────────
     # Order: needs_review first, then auto_fixed at the bottom
     ordered = needs_review + auto_fixed
 

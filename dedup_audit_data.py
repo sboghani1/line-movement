@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-dedup_audit_data.py — Remove duplicate rows from audit_data sheet.
+dedup_audit_data.py — Remove duplicate rows from audit_results sheet.
 
 For each (date, capper, sport, pick, line) key, keeps only the LAST occurrence
 (i.e. the row that appears latest in the sheet). Earlier duplicates are deleted.
@@ -12,32 +12,16 @@ Usage:
   .venv/bin/python3 dedup_audit_data.py              # write
 """
 
-import os
-import json
-import base64
 import argparse
 import time
 
-import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
+
+from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client
 
 load_dotenv()
 
-GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
-AUDIT_SHEET     = "audit_data"
-
-
-def get_gspread_client():
-    creds_b64 = os.environ.get("GOOGLE_CREDENTIALS", "")
-    if not creds_b64:
-        raise ValueError("GOOGLE_CREDENTIALS not set")
-    creds_dict = json.loads(base64.b64decode(creds_b64).decode())
-    creds = Credentials.from_service_account_info(creds_dict, scopes=[
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ])
-    return gspread.authorize(creds)
+AUDIT_SHEET = "audit_results"
 
 
 def main():
