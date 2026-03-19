@@ -695,8 +695,26 @@ def run_audit(
     # Order: needs_review first, then auto_fixed at the bottom
     ordered = needs_review + auto_fixed
 
+    # Load existing audit rows to avoid duplicates (keyed by ms_row)
+    ws_audit = get_or_create_audit_sheet(ss)
+    time.sleep(1)
+    existing_audit = sheets_call(ws_audit.get_all_values)
+    existing_ms_rows = set()
+    if len(existing_audit) > 1:
+        audit_hdr = existing_audit[0]
+        ms_row_idx = audit_hdr.index("ms_row") if "ms_row" in audit_hdr else None
+        if ms_row_idx is not None:
+            for row in existing_audit[1:]:
+                if len(row) > ms_row_idx and row[ms_row_idx].strip():
+                    existing_ms_rows.add(row[ms_row_idx].strip())
+
     rows_to_write = []
+    skipped_existing = 0
     for r in ordered:
+        # Skip if this master_sheet row already has an audit entry
+        if str(r["ms_row"]) in existing_ms_rows:
+            skipped_existing += 1
+            continue
         p = r["pick_row"]
         ocr_key = (p["date"], p["capper"], p["sport"], p["pick"], p["line"])
         ocr_text = ocr_index.get(ocr_key, "")
@@ -710,9 +728,14 @@ def run_audit(
             ocr_text=ocr_text,
         ))
 
+    if skipped_existing:
+        print(f"  Skipped {skipped_existing} rows already in {AUDIT_SHEET}")
+
+    if not rows_to_write:
+        print(f"\nNo new rows to write to {AUDIT_SHEET}.")
+        return
+
     print(f"\nWriting {len(rows_to_write)} rows to {AUDIT_SHEET}...")
-    ws_audit = get_or_create_audit_sheet(ss)
-    time.sleep(1)
     sheets_call(ws_audit.append_rows, rows_to_write, value_input_option="USER_ENTERED")
     print(f"  Appended {len(rows_to_write)} rows to {AUDIT_SHEET}")
 
