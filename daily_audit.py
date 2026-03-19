@@ -26,7 +26,6 @@ Usage:
 import os
 import re
 import json
-import base64
 import argparse
 import time
 from datetime import datetime, timedelta, timezone
@@ -36,16 +35,15 @@ from collections import defaultdict
 import anthropic
 import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
 
 # Import reusable helpers from audit_hallucinations
 from audit_hallucinations import pick_in_ocr, opus_audit_suspects, ABBREV_MAP
 from activity_logger import log_activity
 from populate_results import determine_result, find_score, load_scores
+from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT_TO_SCHED
 
 load_dotenv()
 
-GOOGLE_SHEET_ID    = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 
 # parsed_picks_new is the append-only source of truth for the audit.
 # It mirrors master_sheet but also carries ocr_text (col 10) so the auditor
@@ -55,7 +53,6 @@ GOOGLE_SHEET_ID    = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 PICKS_NEW_SHEET    = "parsed_picks_new"
 
 AUDIT_SHEET        = "audit_data"
-SPORT_TO_SCHED     = {"nba": "nba_schedule", "cbb": "cbb_schedule", "nhl": "nhl_schedule"}
 
 PICKS_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
 AUDIT_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "reason", "ocr_text"]
@@ -93,35 +90,7 @@ def yesterday_str() -> str:
     return yesterday.strftime("%Y-%m-%d")
 
 
-# ── Retry helper ───────────────────────────────────────────────────────────────
-def sheets_call(fn, *args, retries=6, **kwargs):
-    """Call fn(*args, **kwargs) with exponential backoff on 429 rate-limit errors."""
-    delay = 15
-    for attempt in range(retries):
-        try:
-            return fn(*args, **kwargs)
-        except gspread.exceptions.APIError as e:
-            if e.response.status_code == 429 and attempt < retries - 1:
-                print(f"  [rate limit] waiting {delay}s before retry {attempt+2}/{retries}...")
-                time.sleep(delay)
-                delay = min(delay * 2, 120)
-            else:
-                raise
-
-
-# ── Google Sheets auth ─────────────────────────────────────────────────────────
-def get_gspread_client():
-    creds_b64 = os.environ.get("GOOGLE_CREDENTIALS", "")
-    if not creds_b64:
-        raise ValueError("GOOGLE_CREDENTIALS not set")
-    creds_dict = json.loads(base64.b64decode(creds_b64).decode())
-    creds = Credentials.from_service_account_info(creds_dict, scopes=[
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ])
-    return gspread.authorize(creds)
-
-
+# ── Google Sheets helpers ─────────────────────────────────────────────────────
 def get_or_create_audit_sheet(ss) -> gspread.Worksheet:
     """Get or create the audit_data worksheet with the correct headers."""
     try:

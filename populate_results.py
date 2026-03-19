@@ -25,36 +25,16 @@ Usage:
 
 import os
 import re
-import json
-import base64
 import argparse
-import time
 from collections import defaultdict
 from typing import Optional
 
 import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
+
+from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT_TO_SCHED
 
 load_dotenv()
-
-GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
-
-
-def sheets_call(fn, *args, retries=6, **kwargs):
-    """Call fn(*args, **kwargs) with exponential backoff on 429 rate-limit errors."""
-    delay = 15
-    for attempt in range(retries):
-        try:
-            return fn(*args, **kwargs)
-        except gspread.exceptions.APIError as e:
-            if e.response.status_code == 429 and attempt < retries - 1:
-                print(f"  [rate limit] waiting {delay}s before retry {attempt+2}/{retries}...")
-                time.sleep(delay)
-                delay = min(delay * 2, 120)
-            else:
-                raise
-SPORT_TO_SCHED  = {"nba": "nba_schedule", "cbb": "cbb_schedule", "nhl": "nhl_schedule"}
 
 # master_sheet columns (0-indexed, header is row 1)
 MASTER_HEADERS  = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
@@ -63,18 +43,6 @@ PICKS_NEW_SHEET    = "parsed_picks_new"
 MASTER_SHEET       = "master_sheet"
 MASTER_SHEET_NEW   = "master_sheet_new"
 
-
-# ── Google Sheets auth ────────────────────────────────────────────────────────
-def get_gspread_client():
-    creds_b64 = os.environ.get("GOOGLE_CREDENTIALS", "")
-    if not creds_b64:
-        raise ValueError("GOOGLE_CREDENTIALS not set")
-    creds_dict = json.loads(base64.b64decode(creds_b64).decode())
-    creds = Credentials.from_service_account_info(creds_dict, scopes=[
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ])
-    return gspread.authorize(creds)
 
 
 # ── Score parsing ─────────────────────────────────────────────────────────────

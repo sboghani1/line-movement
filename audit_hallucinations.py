@@ -22,7 +22,6 @@ Flags:
 import os
 import re
 import json
-import base64
 import argparse
 import time
 from typing import List, Dict, Tuple
@@ -30,11 +29,10 @@ from typing import List, Dict, Tuple
 import anthropic
 import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
+
+from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client
 
 load_dotenv()
-
-GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 SHEET_NAME = "parsed_picks_new"
 
 HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
@@ -166,19 +164,6 @@ ABBREV_MAP = {
     "BGSU": ["bowling green falcons", "bowling green"],
     "KSU": ["kansas state wildcats", "kent state golden flashes"],
 }
-
-
-# ── Google Sheets auth ────────────────────────────────────────────────────────
-def get_gspread_client():
-    creds_b64 = os.environ.get("GOOGLE_CREDENTIALS", "")
-    if not creds_b64:
-        raise ValueError("GOOGLE_CREDENTIALS not set")
-    creds_dict = json.loads(base64.b64decode(creds_b64).decode())
-    creds = Credentials.from_service_account_info(creds_dict, scopes=[
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ])
-    return gspread.authorize(creds)
 
 
 # ── Pass 1: fast substring check ─────────────────────────────────────────────

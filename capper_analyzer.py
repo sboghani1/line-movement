@@ -24,10 +24,10 @@ load_dotenv()
 
 import anthropic
 import gspread
-from google.oauth2.service_account import Credentials
 from PIL import Image
 
 from activity_logger import log_activity
+from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call
 import daily_audit
 import populate_results
 
@@ -35,7 +35,6 @@ import populate_results
 DISCORD_USER_TOKEN = os.environ.get("DISCORD_USER_TOKEN", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 DISCORD_CHANNEL_ID = "1384768734727508019"
-GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 WORKSHEET_NAME = "image_pull"
 
 FIELDNAMES = [
@@ -100,8 +99,8 @@ LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
 
 def sync_master_to_csv(ss) -> int:
     """Overwrite the local CSV with the current contents of master_sheet in Google Sheets."""
-    ws = populate_results.sheets_call(ss.worksheet, populate_results.MASTER_SHEET)
-    all_values = populate_results.sheets_call(ws.get_all_values)
+    ws = sheets_call(ss.worksheet, populate_results.MASTER_SHEET)
+    all_values = sheets_call(ws.get_all_values)
     if not all_values:
         print("  sync_master_to_csv: master_sheet is empty, skipping")
         return 0
@@ -187,23 +186,6 @@ EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,
 
 
 # ── Google Sheets Setup ──────────────────────────────────────────────────────
-def get_gspread_client():
-    """Authenticate with Google Sheets using service account credentials."""
-    creds_b64 = os.environ.get("GOOGLE_CREDENTIALS", "")
-    if not creds_b64:
-        raise ValueError("GOOGLE_CREDENTIALS environment variable not set")
-
-    creds_json = base64.b64decode(creds_b64).decode("utf-8")
-    creds_dict = json.loads(creds_json)
-
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    return gspread.authorize(credentials)
-
-
 def get_worksheet():
     """Get or create the worksheet for storing image URLs."""
     client = get_gspread_client()
