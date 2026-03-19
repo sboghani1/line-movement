@@ -67,7 +67,7 @@ AUDIT_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "s
 PST_OFFSET = timezone(timedelta(hours=-8))
 
 # Opus only runs if the script fires within this window after midnight PST.
-# discord_image_fetcher.py is scheduled nightly, so the gate ensures Opus
+# capper_analyzer.py is scheduled nightly, so the gate ensures Opus
 # runs exactly once per day (the midnight invocation) without needing a
 # separate cron job for the audit. Any run outside the window still does
 # Pass 1 (free) but skips the expensive Opus call.
@@ -375,7 +375,7 @@ ROWS TO AUDIT:
 # ── Main ───────────────────────────────────────────────────────────────────────
 def run_audit(ss, target_date: str = None, dry_run: bool = False, force_opus: bool = False):
     """
-    Run the daily hallucination audit. Designed to be called from discord_image_fetcher.py
+    Run the daily hallucination audit. Designed to be called from capper_analyzer.py
     with an already-open gspread spreadsheet object.
 
     Args:

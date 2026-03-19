@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Discord Image Fetcher
-Fetches the most recent image from a Discord channel using a user token.
-Works for channels you can view as a regular member.
-Inserts the image URL into a Google Sheet.
+Capper Analyzer
+Fetches the most recent image from a Discord channel using a user token,
+OCRs pick images with Claude, parses and finalizes picks with schedule
+matching, and appends results to Google Sheets + local CSV.
 """
 
 import base64

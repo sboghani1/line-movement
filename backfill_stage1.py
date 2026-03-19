@@ -6,7 +6,7 @@ Steps:
   1. Dedup image_pull_new in-sheet: remove exact-duplicate rows by
      (pick_date, capper_name, ocr_text) — keeps the first occurrence.
   2. Parse each remaining row's OCR text with Claude Sonnet using
-     [ROW:N] anchoring (same pattern as discord_image_fetcher.py).
+     [ROW:N] anchoring (same pattern as capper_analyzer.py).
   3. Write parsed picks to parsed_picks_new (headers on row 3, data row 4+).
   4. After each batch: deduplicate ML vs spread picks (same capper+date+pick).
 

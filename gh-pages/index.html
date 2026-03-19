@@ -1017,7 +1017,7 @@ function CapperConsensusTracker() {
     setRefreshState('loading');
     setRefreshMsg('');
     try {
-      const res = await fetch('https://api.github.com/repos/sboghani1/line-movement/actions/workflows/process_discord_images.yml/dispatches', {
+      const res = await fetch('https://api.github.com/repos/sboghani1/line-movement/actions/workflows/capper_analyzer.yml/dispatches', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer __TRIGGER_PAT__',

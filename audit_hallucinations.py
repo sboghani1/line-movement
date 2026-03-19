@@ -8,7 +8,7 @@ Two-pass approach:
                  genuine hallucinations vs. legitimate abbreviation/nickname usage
 
 The Opus auditor is a standalone function `opus_audit_suspects()` that can be
-imported and called from any workflow (e.g. discord_image_fetcher.py on a
+imported and called from any workflow (e.g. capper_analyzer.py on a
 scheduled basis to catch new hallucinations as they come in).
 
 CLI usage:

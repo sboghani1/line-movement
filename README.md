@@ -14,11 +14,11 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 ### Core Scripts (GitHub Actions automation)
 | File | Workflow | Description |
 |------|----------|-------------|
-| `discord_image_fetcher.py` | Every 15 min | Main script: fetch Discord images, OCR with Claude, parse picks, finalize with schedule matching, append to Google Sheets + local CSV. Also runs `daily_audit.py` at the end of each nightly invocation. |
+| `capper_analyzer.py` | Every 15 min | Main script: fetch Discord images, OCR with Claude, parse picks, finalize with schedule matching, append to Google Sheets + local CSV. Also runs `daily_audit.py` at the end of each nightly invocation. |
 | `espn_schedule_fetcher.py` | Daily 10am ET | Fetch NBA/CBB/NHL schedules from ESPN for pick validation |
 | `nba_odds_poller.py` | Every 3 hours | Poll betting odds from The Odds API |
 | `activity_logger.py` | N/A (imported) | Log activity to Google Sheets activity_log tab |
-| `daily_audit.py` | Nightly (via discord_image_fetcher) | Two-pass hallucination audit of yesterday's picks. Pass 1: free Python substring check. Pass 2: Claude Opus confirmation — only fires within 15 min after midnight PST. Appends failures to `audit_data` sheet and logs Opus cost to `activity_log`. |
+| `daily_audit.py` | Nightly (via capper_analyzer) | Two-pass hallucination audit of yesterday's picks. Pass 1: free Python substring check. Pass 2: Claude Opus confirmation — only fires within 15 min after midnight PST. Appends failures to `audit_data` sheet and logs Opus cost to `activity_log`. |
 | `audit_hallucinations.py` | Manual / imported by daily_audit | Standalone two-pass hallucination audit for any picks sheet. Contains reusable `pick_in_ocr()`, `ABBREV_MAP`, and `opus_audit_suspects()` used by `daily_audit.py`. |
 
 ### Backfill Scripts (one-time historical import)
@@ -84,7 +84,7 @@ Required secrets in GitHub Actions:
 
 | Workflow | Schedule | Trigger |
 |----------|----------|---------|
-| `process_discord_images.yml` | Every 15 min | Manual |
+| `capper_analyzer.yml` | Every 15 min | Manual |
 | `espn_schedule.yml` | Daily 10am ET | Manual |
 | `poll_odds.yml` | Every 3 hours | Manual |
 | `deploy-pages.yml` | On push to gh-pages/ | Manual |

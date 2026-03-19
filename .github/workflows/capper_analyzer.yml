@@ -1,4 +1,4 @@
-name: Process Discord Images
+name: Capper Analyzer
 
 on:
   schedule:
@@ -40,14 +40,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Process Discord images
+      - name: Run Capper Analyzer
         id: process
         env:
           DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python discord_image_fetcher.py
+          python capper_analyzer.py
           # Check if CSV was updated
           if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q 'gh-pages/data/master_sheet.csv'; then
             echo "csv_updated=true" >> $GITHUB_OUTPUT

@@ -12,10 +12,10 @@
 ║                                                                               ║
 ║  WHY DEPRECATED:                                                              ║
 ║  - Discord bot tokens require server integration/permissions                  ║
-║  - Replaced by discord_image_fetcher.py which uses USER token                 ║
+║  - Replaced by capper_analyzer.py which uses USER token                       ║
 ║  - User token approach is simpler for personal automation                     ║
 ║                                                                               ║
-║  REPLACEMENT: discord_image_fetcher.py                                        ║
+║  REPLACEMENT: capper_analyzer.py                                              ║
 ║  - Uses DISCORD_USER_TOKEN instead of DISCORD_BOT_TOKEN                       ║
 ║  - Same OCR/parsing logic, better channel access                              ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
