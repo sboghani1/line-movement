@@ -279,15 +279,23 @@ const ThisGameBadge = memo(({ratio}) => {
   );
 });
 
-const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters, gameRanges, setBucketRanges}) => {
+const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, sectionSetters, btSetters, gameRanges, setBucketRanges}) => {
   const [open,setOpen] = useState(true);
   const [fineBuckets,setFineBuckets] = useState(false);
   const [expandedBt,setExpandedBt] = useState({Fav:false,Dog:false,Over:true,Under:true});
 
   useEffect(() => {
     sectionSetters.current[game.game] = setOpen;
-    return () => { delete sectionSetters.current[game.game]; };
-  }, [game.game, sectionSetters]);
+    if (btSetters) btSetters.current[game.game] = (bts) => setExpandedBt(prev => {
+      const next = {...prev};
+      bts.forEach(bt => { next[bt] = true; });
+      return next;
+    });
+    return () => {
+      delete sectionSetters.current[game.game];
+      if (btSetters) delete btSetters.current[game.game];
+    };
+  }, [game.game, sectionSetters, btSetters]);
 
   const bucketList = fineBuckets ? VERBOSE_BUCKET_LABELS : COARSE_LABELS;
   const currentGameRatios = game.currentRatios;
@@ -414,7 +422,12 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
 
               {isExpanded && <div style={{marginTop:'4px',marginLeft:'12px'}}>
                 {cr?.verboseLabel && <ThisGameBadge ratio={{...cr, label:cr.verboseLabel}}/>}
-                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginTop:'4px'}}>
+                <div style={{fontSize:'0.72rem',color:'#fff',fontWeight:'700',marginBottom:'6px',display:'flex',gap:'16px'}}>
+                  <span>consensus: {minPicks}–{maxPicks}</span>
+                  <span>minority: {minOpponent}–{maxOpponent}</span>
+                </div>
+                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',marginTop:'4px'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(160px,1fr))',gap:'8px',minWidth:'660px'}}>
                   {allSections.map(sec => {
                     const resolvedData = fineBuckets ? sec.data : mergeToCoarse(sec.data);
                     const tot    = sumRecord(resolvedData);
@@ -487,6 +500,7 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
                     );
                   })}
                 </div>
+                </div>
               </div>}
             </div>
           );
@@ -536,7 +550,7 @@ const AddFakeButton = memo(({onClick}) => (
   </button>
 ));
 
-const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, sectionSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
+const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, sectionSetters, btSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, collapsed, onToggleCollapse, isForeground, onForeground, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
   const colors = SPORT_COLORS[game.sport]||SPORT_COLORS.default;
   const sides = Object.entries(game.sides);
   const totalPicks = sides.reduce((s,[,sd])=>s+sd.cappers.length, 0);
@@ -550,30 +564,35 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
   const hasChanges = gameDeleted.size > 0 || Object.values(gameFakesAll).some(arr=>arr.length>0) || hasRangeChanges;
 
   return (
-    <div style={{background:isFade?'linear-gradient(135deg,rgba(0,33,165,0.5),rgba(0,33,165,0.3))':'rgba(0,33,165,0.25)',borderRadius:'12px',border:isFade?'3px solid #0021A5':'2px solid rgba(0,33,165,0.4)',overflow:'hidden',boxShadow:isFade?'0 4px 20px rgba(0,33,165,0.4)':'none'}}>
-      <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'16px 20px',borderBottom:'1px solid rgba(0,33,165,0.4)',flexWrap:'wrap'}}>
+    <div style={{background:isFade?'linear-gradient(135deg,rgba(0,33,165,0.5),rgba(0,33,165,0.3))':'rgba(0,33,165,0.25)',borderRadius:'12px',border:isFade?'3px solid #0021A5':'2px solid rgba(0,33,165,0.4)',overflow:'visible',boxShadow:isFade?'0 4px 20px rgba(0,33,165,0.4)':'none'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'16px 20px',borderBottom:collapsed?'none':'1px solid rgba(0,33,165,0.4)',flexWrap:'wrap',cursor:'pointer'}} onClick={onToggleCollapse}>
+        <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.5)',flexShrink:0,transition:'transform 0.2s',display:'inline-block',transform:collapsed?'rotate(0deg)':'rotate(90deg)'}}>▶</span>
         <span style={{padding:'4px 10px',background:colors.bg,color:colors.text,borderRadius:'4px',fontSize:'0.75rem',fontWeight:'700'}}>{game.sport}</span>
         <span style={{fontWeight:'600',fontSize:'1.1rem'}}>{game.game}</span>
         <ConsensusLabel game={game}/>
-        {isFade && <span style={{marginLeft:'auto',padding:'4px 12px',background:'linear-gradient(135deg,#0021A5,#001580)',borderRadius:'20px',fontSize:'0.75rem',fontWeight:'700',border:'2px solid #fff'}}>🎯 FADE ALERT</span>}
+        <button onClick={e=>{e.stopPropagation();onForeground();}} style={{marginLeft:'auto',padding:'4px 12px',background:isForeground?'linear-gradient(135deg,#FA4616,#d63a0f)':'rgba(255,255,255,0.1)',borderRadius:'20px',fontSize:'0.75rem',fontWeight:'700',border:isForeground?'2px solid #FA4616':'2px solid rgba(255,255,255,0.3)',cursor:'pointer',color:'#fff',whiteSpace:'nowrap',flexShrink:0}}>📌 {isForeground?'Foregrounded':'Foreground'}</button>
         {hasChanges && (
-          <button onClick={()=>onResetGame(game.game)}
-            style={{padding:'4px 12px',background:'rgba(255,150,50,0.15)',border:'2px solid rgba(255,150,50,0.5)',borderRadius:'6px',cursor:'pointer',fontSize:'0.72rem',fontWeight:'700',color:'rgba(255,180,80,0.9)',marginLeft:isFade?'8px':'auto',whiteSpace:'nowrap'}}>
+          <button onClick={e=>{e.stopPropagation();onResetGame(game.game);}}
+            style={{padding:'4px 12px',background:'rgba(255,150,50,0.15)',border:'2px solid rgba(255,150,50,0.5)',borderRadius:'6px',cursor:'pointer',fontSize:'0.72rem',fontWeight:'700',color:'rgba(255,180,80,0.9)',marginLeft:'8px',whiteSpace:'nowrap'}}>
             ↺ reset changes
           </button>
         )}
       </div>
-      <CapperRatioHistory
+      {!collapsed && <CapperRatioHistory
         game={game}
         ratioHistory={ratioHistory}
         ratioHistoryL30={ratioHistoryL30}
         l30Days={l30Days}
         minPicks={minPicks}
+        minOpponent={minOpponent}
+        maxPicks={maxPicks}
+        maxOpponent={maxOpponent}
         sectionSetters={sectionSetters}
+        btSetters={btSetters}
         gameRanges={gameRanges}
         setBucketRanges={setBucketRanges}
-      />
-      <div style={{padding:'16px 20px'}}>
+      />}
+      {!collapsed && <div style={{padding:'16px 20px'}}>
         {sides.map(([side,sideData],si) => {
           const cappers=sideData.cappers, pct=Math.round((cappers.length/totalPicks)*100);
           const isHeavy=cappers.length===maxCount&&cappers.length>=2;
@@ -615,7 +634,7 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 });
@@ -639,7 +658,7 @@ const AnswerKey = memo(({answerKey, l30Days, minPicks, gameConsensus, sectionSet
               <div key={i} style={{display:'flex',flexDirection:'column',gap:'2px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
                   <span style={{color:'#FFD700',fontSize:'0.75rem'}}>•</span>
-                  <button onClick={()=>{ const idx=gameConsensus.findIndex(g=>g.game===item.game); const el=document.getElementById(`game-card-${idx}`); if(el){el.scrollIntoView({behavior:'smooth',block:'start'});const setter=sectionSetters.current[item.game];if(setter)setter(true);}}}
+                  <button onClick={()=>{ const idx=gameConsensus.findIndex(g=>g===item.game); const el=document.getElementById(`game-card-${idx}`); if(el){el.scrollIntoView({behavior:'smooth',block:'start'});const setter=sectionSetters.current[item.game];if(setter)setter(true);}}}
                     style={{background:'none',border:'none',cursor:'pointer',color:'#85C1E9',fontSize:'0.8rem',fontWeight:'600',textDecoration:'underline',textAlign:'left',padding:0}}>
                     {item.game}
                   </button>
@@ -669,6 +688,10 @@ function CapperConsensusTracker() {
   const [minPicks,setMinPicks] = useState(5);
   const [minOpponentInput,setMinOpponentInput] = useState('0');
   const [minOpponent,setMinOpponent] = useState(0);
+  const [maxPicksInput,setMaxPicksInput] = useState('100');
+  const [maxPicks,setMaxPicks] = useState(100);
+  const [maxOpponentInput,setMaxOpponentInput] = useState('100');
+  const [maxOpponent,setMaxOpponent] = useState(100);
   const [loading,setLoading] = useState(true);
   const [loadError,setLoadError] = useState(null);
   const [lastLoaded,setLastLoaded] = useState(null);
@@ -679,12 +702,16 @@ function CapperConsensusTracker() {
   const [deletedPicks, setDeletedPicks] = useState({});
   // bucketRanges: { [gameName]: { [secKey]: { up: n, down: n } } }
   const [bucketRanges, setBucketRanges] = useState({});
+  // collapsedGames: { [gameName]: bool } — true = collapsed
+  const [collapsedGames, setCollapsedGames] = useState({});
+  const [foregroundGame, setForegroundGame] = useState(null);
   const fakeCounter = useRef(0);
   const [refreshState, setRefreshState] = useState('idle'); // idle | loading | success | error
   const [refreshMsg, setRefreshMsg]     = useState('');
   const [refreshCooldown, setRefreshCooldown] = useState(false);
   const refreshTimerRef = useRef(null);
   const sectionSetters = useRef({});
+  const btSetters = useRef({}); // { [gameName]: (bts: string[]) => void }
 
   const capperColors = useMemo(() => ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE','#85C1E9','#F8B500','#00CED1','#FF69B4','#32CD32','#FF8C00','#9370DB','#20B2AA','#FFB6C1','#87CEEB','#DEB887','#FA8072','#7B68EE','#00FA9A','#FF6347','#4682B4','#D2691E','#6495ED','#DC143C','#00BFFF','#228B22'], []);
 
@@ -737,10 +764,13 @@ function CapperConsensusTracker() {
       const isGithubPages = window.location.hostname.includes('github.io');
       if (isGithubPages) {
         try {
-          const bust = Math.floor(Date.now() / (5 * 60 * 1000)); const basePath = window.location.pathname.replace(/\/[^\/]*$/, ''); const csvPath = basePath + '/data/master_sheet.csv?v=' + bust; const res = await fetch(csvPath);
+          const bust = Math.floor(Date.now() / (5 * 60 * 1000));
+          const basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
+          const csvPath = basePath + '/data/master_sheet.csv?v=' + bust;
+          const res = await fetch(csvPath);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           parseCsv(await res.text(), true);
-          setLastLoaded('Loaded from ' + csvPath);
+          setLastLoaded('Loaded from /data/master_sheet.csv');
           setStorageStatus('loaded');
         } catch(err) {
           setLoadError('Failed to load master_sheet.csv: '+err.message);
@@ -887,7 +917,8 @@ function CapperConsensusTracker() {
     return [...real, ...fakes];
   }, [filteredPicks, fakePicks, selectedSport, deletedPicks]);
 
-  const gameConsensus = useMemo(() => {
+  // Build game data — reacts to fakes/deletes but does NOT sort
+  const gameConsensusMap = useMemo(() => {
     const games = {};
 
     // First pass: build from filteredPicks to assign stable pickKeys
@@ -911,14 +942,12 @@ function CapperConsensusTracker() {
 
       Object.keys(game.sides).forEach(side => {
         const sd = game.sides[side];
-        // Active = not deleted
         sd.cappers = sd.allCappers.filter(c => !gameDeleted.has(c.pickKey));
         sd.wins = 0; sd.losses = 0; sd.winningCappers = []; sd.losingCappers = [];
         sd.cappers.forEach(c => {
           if (c.result==='win'){sd.wins++;sd.winningCappers.push(c.capper);}
           else if (c.result==='lose'){sd.losses++;sd.losingCappers.push(c.capper);}
         });
-        // Add fakes
         const sideFakes = gameFakes[side] || [];
         sideFakes.forEach(f => {
           sd.cappers.push({capper:f.capper,line:'',pick:side,pickKey:f.id,capperColor:'rgba(255,200,0,0.7)',betType:null,sport:f.sport,sportRecord:null,allRecord:null,result:null,isFake:true});
@@ -926,7 +955,6 @@ function CapperConsensusTracker() {
         game.cappers = new Set([...sd.cappers.map(c=>c.capper)]);
       });
 
-      // Also add picks to game.picks for ratio history (active only, no fakes)
       game.picks = [];
       Object.entries(game.sides).forEach(([side, sd]) => {
         sd.allCappers.filter(c => !(deletedPicks[game.game]||new Set()).has(c.pickKey)).forEach(c => {
@@ -965,21 +993,44 @@ function CapperConsensusTracker() {
       game.currentRatios = ratios;
     });
 
-    let filtered=Object.values(games);
+    return games;
+  }, [filteredPicks, fakeCappers, deletedPicks, capperMap, getCapperRecords, minPicks]);
+
+  // Stable ordered list — only re-sorts when settings change, not on fake/delete edits
+  const gameConsensus = useMemo(() => {
+    const allGames = Object.values(gameConsensusMap);
+    let filtered = allGames;
     if (selectedCappers.length>0) filtered=filtered.filter(g=>selectedCappers.some(c=>g.cappers.has(c)));
     if (minOpponent>0) filtered=filtered.filter(g=>{
       const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
       return sides.length>=2 && sides[1]>=minOpponent;
     });
-    return filtered.sort((a,b)=>b.picks.length-a.picks.length);
-  }, [filteredPicks, fakeCappers, deletedPicks, capperMap, selectedCappers, getCapperRecords, minPicks, minOpponent]);
+    if (maxPicks<100) filtered=filtered.filter(g=>{
+      const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
+      return sides[0]<=maxPicks;
+    });
+    if (maxOpponent<100) filtered=filtered.filter(g=>{
+      const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
+      return sides.length<2 || sides[1]<=maxOpponent;
+    });
+    const sorted = filtered.sort((a,b)=>b.picks.length-a.picks.length);
+    // Return stable keys so the list order doesn't change on fake/delete
+    return sorted.map(g=>g.game);
+  }, [gameConsensusMap, selectedCappers, minOpponent, maxPicks, maxOpponent]);
+
+  // Derive the ordered game objects from stable keys
+  const gameConsensusList = useMemo(() =>
+    gameConsensus.map(key => gameConsensusMap[key]).filter(Boolean),
+  [gameConsensus, gameConsensusMap]);
 
   const applyL30      = useCallback(() => { const v=parseInt(l30Input);      if(!isNaN(v)&&v>0)  setL30Days(v);  }, [l30Input]);
   const applyMinPicks    = useCallback(() => { const v=parseInt(minPicksInput);    if(!isNaN(v)&&v>=1)  setMinPicks(v);    }, [minPicksInput]);
-  const applyMinOpponent = useCallback(() => { const v=parseInt(minOpponentInput); if(!isNaN(v)&&v>=0)  setMinOpponent(v); }, [minOpponentInput]);
+  const applyMinOpponent = useCallback(() => { const v=parseInt(minOpponentInput); if(!isNaN(v)&&v>=0)   setMinOpponent(v);  }, [minOpponentInput]);
+  const applyMaxPicks    = useCallback(() => { const v=parseInt(maxPicksInput);    if(!isNaN(v)&&v>=1)   setMaxPicks(v);    }, [maxPicksInput]);
+  const applyMaxOpponent = useCallback(() => { const v=parseInt(maxOpponentInput); if(!isNaN(v)&&v>=0)   setMaxOpponent(v); }, [maxOpponentInput]);
 
   const answerKey = useMemo(() => {
-    return gameConsensus.map(game => {
+    return gameConsensusList.map(game => {
       const ratios = game.currentRatios;
       const bt = BET_TYPES.find(b=>ratios[b]?.verboseLabel);
       if (!bt) return null;
@@ -1010,14 +1061,14 @@ function CapperConsensusTracker() {
       const mostExtreme=rates.reduce((best,r)=>Math.abs(r.pct-50)>Math.abs(best.pct-50)?r:best, rates[0]);
       return {game:game.game, bt, verboseLabel, mostExtreme, consensusSideCount:csc, consensusTotalCappers:ctc};
     }).filter(Boolean).sort((a,b)=>Math.abs(b.mostExtreme.pct-50)-Math.abs(a.mostExtreme.pct-50));
-  }, [gameConsensus, ratioHistoryL30, l30Days, minPicks]);
+  }, [gameConsensusList, ratioHistoryL30, l30Days, minPicks]);
 
   const handleRefresh = useCallback(async () => {
     if (refreshCooldown || refreshState === 'loading') return;
     setRefreshState('loading');
-    setRefreshMsg('');
+    setRefreshMsg('Triggering pipeline...');
     try {
-      const res = await fetch('https://api.github.com/repos/sboghani1/line-movement/actions/workflows/capper_analyzer.yml/dispatches', {
+      const res = await fetch('https://api.github.com/repos/sboghani1/line-movement/actions/workflows/process_discord_images.yml/dispatches', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer __TRIGGER_PAT__',
@@ -1028,15 +1079,15 @@ function CapperConsensusTracker() {
       });
       if (res.status === 204) {
         setRefreshState('success');
-        setRefreshMsg('✓ Workflow triggered');
+        setRefreshMsg('Pipeline triggered! Check back in ~5 minutes.');
       } else {
-        const body = await res.text();
+        const text = await res.text();
         setRefreshState('error');
-        setRefreshMsg(`Error ${res.status}: ${body.slice(0,120)}`);
+        setRefreshMsg(`Error ${res.status}: ${text}`);
       }
     } catch(e) {
       setRefreshState('error');
-      setRefreshMsg(`Failed: ${e.message}`);
+      setRefreshMsg(`Error: ${e.message}`);
     }
     setRefreshCooldown(true);
     refreshTimerRef.current = setTimeout(() => {
@@ -1049,7 +1100,7 @@ function CapperConsensusTracker() {
   const totalDeleted = useMemo(() => Object.values(deletedPicks).reduce((s,set)=>s+set.size,0), [deletedPicks]);
 
   return (
-    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#FA4616 0%,#d63a0f 40%,#0021A5 100%)',fontFamily:"'Segoe UI',system-ui,sans-serif",color:'#fff',padding:'20px'}}>
+    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#FA4616 0%,#d63a0f 40%,#0021A5 100%)',fontFamily:"'Segoe UI',system-ui,sans-serif",color:'#fff',padding:'20px',overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       <div style={{textAlign:'center',marginBottom:'30px',padding:'20px',background:'rgba(0,33,165,0.3)',borderRadius:'16px',border:'2px solid rgba(0,33,165,0.5)'}}>
         <h1 style={{fontSize:'2.5rem',fontWeight:'800',background:'linear-gradient(90deg,#fff,#0021A5,#fff)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',marginBottom:'8px'}}>🎯 FADE FINDER</h1>
         <p style={{color:'rgba(255,255,255,0.8)',fontSize:'0.9rem',marginBottom:'14px'}}>Capper Consensus Tracker • Donut clear data unless you asked the boss man!!</p>
@@ -1094,39 +1145,49 @@ function CapperConsensusTracker() {
       </div>
 
       {picks.length>0 && <div style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
-        <div style={{display:'flex',gap:'16px',marginBottom:'16px',flexWrap:'wrap',alignItems:'flex-end'}}>
-          <div>
-            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>SPORT</label>
-            <select value={selectedSport} onChange={e=>setSelectedSport(e.target.value)} style={{padding:'10px 16px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',cursor:'pointer'}}>
-              {sports.map(s=><option key={s} value={s} style={{background:'#0021A5'}}>{s}</option>)}
-            </select>
+        <div style={{display:'flex',flexDirection:'column',gap:'12px',marginBottom:'16px'}}>
+          <div style={{display:'flex',gap:'16px',flexWrap:'wrap',alignItems:'flex-end'}}>
+            <div>
+              <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>SPORT</label>
+              <select value={selectedSport} onChange={e=>setSelectedSport(e.target.value)} style={{padding:'10px 16px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',cursor:'pointer'}}>
+                {sports.map(s=><option key={s} value={s} style={{background:'#0021A5'}}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>DATE</label>
+              <select value={selectedDate||''} onChange={e=>setSelectedDate(e.target.value)} style={{padding:'10px 16px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',cursor:'pointer'}}>
+                {dates.map(d=><option key={d} value={d} style={{background:'#0021A5'}}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>VERBOSE L (DAYS)</label>
+              <input type="number" min="1" max="365" value={l30Input} onChange={e=>setL30Input(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}}
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+            </div>
+            <div style={{marginLeft:'auto'}}>
+              <div style={{padding:'10px 20px',background:'rgba(0,33,165,0.4)',borderRadius:'8px',border:'2px solid rgba(0,33,165,0.6)',color:'#fff',fontWeight:'600'}}>{filteredPicks.length} picks • {gameConsensusList.length} games</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:'24px',flexWrap:'wrap',alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <label style={{color:'rgba(255,255,255,0.7)',fontSize:'0.8rem',fontWeight:'600',whiteSpace:'nowrap',minWidth:'80px'}}>CONSENSUS</label>
+              <input type="number" min="1" max="50" value={minPicksInput} onChange={e=>setMinPicksInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}} placeholder="min"
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+              <span style={{color:'rgba(255,255,255,0.4)',fontSize:'0.8rem'}}>–</span>
+              <input type="number" min="1" max="200" value={maxPicksInput} onChange={e=>setMaxPicksInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}} placeholder="max"
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <label style={{color:'rgba(255,255,255,0.7)',fontSize:'0.8rem',fontWeight:'600',whiteSpace:'nowrap',minWidth:'80px'}}>MINORITY</label>
+              <input type="number" min="0" max="50" value={minOpponentInput} onChange={e=>setMinOpponentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}} placeholder="min"
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+              <span style={{color:'rgba(255,255,255,0.4)',fontSize:'0.8rem'}}>–</span>
+              <input type="number" min="0" max="200" value={maxOpponentInput} onChange={e=>setMaxOpponentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}} placeholder="max"
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+            </div>
           </div>
           <div>
-            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>DATE</label>
-            <select value={selectedDate||''} onChange={e=>setSelectedDate(e.target.value)} style={{padding:'10px 16px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',cursor:'pointer'}}>
-              {dates.map(d=><option key={d} value={d} style={{background:'#0021A5'}}>{d}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>VERBOSE L (DAYS)</label>
-            <input type="number" min="1" max="365" value={l30Input} onChange={e=>setL30Input(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();}}}
-              style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
-          </div>
-          <div>
-            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>MIN PICKS FOR CONSENSUS</label>
-            <input type="number" min="1" max="50" value={minPicksInput} onChange={e=>setMinPicksInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();}}}
-              style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
-          </div>
-          <div>
-            <label style={{display:'block',marginBottom:'6px',color:'rgba(255,255,255,0.8)',fontSize:'0.8rem',fontWeight:'600'}}>MIN PICKS FOR MINORITY</label>
-            <input type="number" min="0" max="50" value={minOpponentInput} onChange={e=>setMinOpponentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();}}}
-              style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
-          </div>
-          <div style={{display:'flex',alignItems:'flex-end'}}>
-            <button onClick={()=>{applyL30();applyMinPicks();applyMinOpponent();}} style={{padding:'10px 16px',background:'linear-gradient(135deg,#0021A5,#001a8c)',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'8px',color:'#fff',fontSize:'0.8rem',fontWeight:'700',cursor:'pointer'}}>↻ Apply</button>
-          </div>
-          <div style={{marginLeft:'auto'}}>
-            <div style={{padding:'10px 20px',background:'rgba(0,33,165,0.4)',borderRadius:'8px',border:'2px solid rgba(0,33,165,0.6)',color:'#fff',fontWeight:'600'}}>{filteredPicks.length} picks • {gameConsensus.length} games</div>
+            <button onClick={()=>{applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}} style={{padding:'10px 16px',background:'linear-gradient(135deg,#0021A5,#001a8c)',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'8px',color:'#fff',fontSize:'0.8rem',fontWeight:'700',cursor:'pointer'}}>↻ Apply</button>
           </div>
         </div>
 
@@ -1177,7 +1238,7 @@ function CapperConsensusTracker() {
         })}
       </div>}
 
-      {picks.length>0 && answerKey.length>0 && <AnswerKey answerKey={answerKey} l30Days={l30Days} minPicks={minPicks} gameConsensus={gameConsensus} sectionSetters={sectionSetters}/>}
+      {picks.length>0 && answerKey.length>0 && <AnswerKey answerKey={answerKey} l30Days={l30Days} minPicks={minPicks} gameConsensus={gameConsensusList} sectionSetters={sectionSetters}/>}
 
       {picks.length===0&&!loading
         ? <div style={{textAlign:'center',padding:'60px 20px',background:'rgba(0,33,165,0.25)',borderRadius:'16px',border:'2px dashed rgba(0,33,165,0.5)'}}>
@@ -1190,19 +1251,50 @@ function CapperConsensusTracker() {
               <h2 style={{color:'#fff',fontWeight:'400'}}>Loading...</h2>
             </div>
           : <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
-              {gameConsensus.map((game,idx) => (
-                <div key={`${game.game}-${idx}`} id={`game-card-${idx}`}>
+              {(foregroundGame
+                ? [gameConsensusList.find(g=>g.game===foregroundGame), ...gameConsensusList.filter(g=>g.game!==foregroundGame)].filter(Boolean)
+                : gameConsensusList
+              ).map((game,idx) => (
+                <div key={game.game} id={`game-card-${idx}`}>
                   <GameCard
                     game={game}
                     ratioHistory={ratioHistory}
                     ratioHistoryL30={ratioHistoryL30}
                     l30Days={l30Days}
                     minPicks={minPicks}
+                    minOpponent={minOpponent}
+                    maxPicks={maxPicks}
+                    maxOpponent={maxOpponent}
                     sectionSetters={sectionSetters}
+                    btSetters={btSetters}
                     fakeCappers={fakeCappers}
                     deletedPicks={deletedPicks}
                     bucketRanges={bucketRanges}
                     setBucketRanges={setBucketRanges}
+                    collapsed={collapsedGames[game.game] !== false}
+                    onToggleCollapse={()=>setCollapsedGames(prev=>({...prev,[game.game]:prev[game.game]===false?true:false}))}
+                    isForeground={foregroundGame===game.game}
+                    onForeground={()=>{
+                      const isAlready = foregroundGame===game.game;
+                      setForegroundGame(isAlready ? null : game.game);
+                      if (!isAlready) {
+                        setCollapsedGames(prev=>({...prev,[game.game]:false}));
+                        // Compute consensus and minority counts from live side data
+                        const sideCounts = Object.values(game.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
+                        const consensusCount = sideCounts[0] || 0;
+                        const minorityCount  = sideCounts[1] || 0;
+                        if (consensusCount > 0) { setMinPicks(consensusCount); setMinPicksInput(String(consensusCount)); }
+                        if (minorityCount  > 0) { setMinOpponent(minorityCount); setMinOpponentInput(String(minorityCount)); }
+                        // Expand relevant bet type sections after a tick (so CapperRatioHistory has mounted)
+                        setTimeout(() => {
+                          const setter = btSetters.current[game.game];
+                          if (setter) {
+                            const activeBts = BET_TYPES.filter(bt => game.currentRatios?.[bt]?.verboseLabel);
+                            setter(activeBts.length > 0 ? activeBts : ['Fav','Dog','Over','Under']);
+                          }
+                        }, 50);
+                      }
+                    }}
                     onAddFake={handleAddFake}
                     onRemoveFake={handleRemoveFake}
                     onDeletePick={handleDeletePick}
