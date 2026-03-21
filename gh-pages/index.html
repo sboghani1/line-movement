@@ -136,7 +136,7 @@ function buildGameGroups(picksSubset) {
   return gameGroups;
 }
 
-function applyLabelFn(gameGroups, labelFn) {
+function applyLabelFn(gameGroups, labelFn, maxConsensus = Infinity, maxMinority = Infinity) {
   const history = {};
   const addEntry = (key, bt, label, win, cappers) => {
     if (!history[key]) history[key] = {Fav:{},Dog:{},Over:{},Under:{}};
@@ -148,8 +148,10 @@ function applyLabelFn(gameGroups, labelFn) {
     const {sport, cappers} = g;
     BET_TYPES.forEach(bt => {
       const opp = OPPOSITE[bt];
-      const heavy = g[bt], light = g[opp];
+      const heavy = g[bt], light = g[opp]; // heavy = consensus (majority) side, light = minority (opponent) side
       if (heavy.length <= light.length || heavy.length === 0) return;
+      if (heavy.length > maxConsensus) return;
+      if (light.length > maxMinority) return;
       const total = heavy.length + light.length;
       const label = labelFn(heavy.length, total); if (!label) return;
       const wins = heavy.filter(e=>e.res==='win').length;
@@ -165,9 +167,9 @@ function applyLabelFn(gameGroups, labelFn) {
   return history;
 }
 
-function buildRatioHistory(picksSubset, minTotal = 5) {
+function buildRatioHistory(picksSubset, minTotal = 5, maxConsensus = Infinity, maxMinority = Infinity) {
   const groups = buildGameGroups(picksSubset);
-  return applyLabelFn(groups, (h, t) => getVerboseRatioLabel(h, t, minTotal));
+  return applyLabelFn(groups, (h, t) => getVerboseRatioLabel(h, t, minTotal), maxConsensus, maxMinority);
 }
 
 function filterCapperData(btData, gameCappers) {
@@ -246,21 +248,21 @@ const RatioRows = memo(({data, activeBucket, fadeBucket, bucketList, activeRange
 
     return (
       <div key={label} style={{
-        fontSize:'0.65rem',display:'flex',alignItems:'center',gap:'4px',
-        padding:'1px 3px',minHeight:'16px',boxSizing:'border-box',
+        fontSize:'0.75rem',display:'flex',alignItems:'center',gap:'4px',
+        padding:'1px 3px',minHeight:'18px',boxSizing:'border-box',
         borderTop, borderBottom,
         borderLeft: borderSides, borderRight: borderSides,
         borderRadius,
         background: isActive ? 'rgba(255,200,0,0.10)' : isFade ? 'rgba(100,180,255,0.07)' : 'transparent',
         opacity: (isActive||isFade) ? 1 : 0.85,
       }}>
-        <span style={{width:'46px',flexShrink:0,color:isAnchorRow?'rgba(255,200,0,0.9)':isActive?'rgba(255,200,0,0.7)':isFadeRow?'rgba(100,180,255,0.9)':isFade?'rgba(100,180,255,0.7)':'rgba(255,255,255,0.6)',fontWeight:(isActive||isFade)?'700':'400',fontFamily:'monospace'}}>{label}</span>
+        <span style={{width:'46px',flexShrink:0,color:isAnchorRow?'rgba(255,200,0,0.9)':isActive?'rgba(255,200,0,0.7)':isFadeRow?'rgba(100,180,255,0.9)':isFade?'rgba(100,180,255,0.7)':'rgba(255,255,255,0.6)',fontWeight:(isActive||isFade)?'800':'600',fontFamily:'monospace'}}>{label}</span>
         {d
           ? <>
-              <span style={{color:isActive?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):isFade?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):'rgba(255,255,255,0.85)',fontWeight:(isActive||isFade)?'700':'400',minWidth:'42px',flexShrink:0,textAlign:'right',whiteSpace:'nowrap'}}>{d.wins}-{d.losses}</span>
-              <span style={{color:(isActive||isFade)?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.45)',fontSize:'0.6rem',minWidth:'34px',flexShrink:0,textAlign:'right',whiteSpace:'nowrap'}}>({winRate}%)</span>
+              <span style={{color:isActive?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):isFade?(d.wins>d.losses?'#90EE90':d.losses>d.wins?'#FF6B6B':'#fff'):'rgba(255,255,255,0.85)',fontWeight:(isActive||isFade)?'800':'600',minWidth:'42px',flexShrink:0,textAlign:'right',whiteSpace:'nowrap'}}>{d.wins}-{d.losses}</span>
+              <span style={{color:(isActive||isFade)?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.55)',fontSize:'0.7rem',fontWeight:'600',minWidth:'34px',flexShrink:0,textAlign:'right',whiteSpace:'nowrap'}}>({winRate}%)</span>
             </>
-          : <span style={{color:'rgba(255,255,255,0.18)',fontSize:'0.6rem'}}>—</span>
+          : <span style={{color:'rgba(255,255,255,0.18)',fontSize:'0.7rem'}}>—</span>
         }
         {isGroupLast && isActive && activeRangeRec && aHi > aLo && <RangeTotal rec={activeRangeRec} color='rgba(255,200,0,0.8)'/>}
         {isGroupLast && isFade   && fadeRangeRec   && fHi > fLo   && <RangeTotal rec={fadeRangeRec}   color='rgba(100,180,255,0.8)'/>}
@@ -465,9 +467,9 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
 
                     return (
                       <div key={sec.key} style={{background:sec.isL30?'rgba(255,215,0,0.04)':'rgba(0,0,0,0.2)',borderRadius:'6px',padding:'8px',border:`1px solid ${sec.isL30?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.08)'}`}}>
-                        <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.8)',fontWeight:'700',marginBottom:'4px',borderBottom:`1px solid ${sec.isL30?'rgba(255,215,0,0.15)':'rgba(255,255,255,0.1)'}`,paddingBottom:'3px',display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                          <span>{sec.label}</span>
-                          {tot && <span style={{fontSize:'0.6rem',fontWeight:'600',color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap'}}>{tot.wins}-{tot.losses} ({totPct}%)</span>}
+                        <div style={{marginBottom:'4px',borderBottom:`1px solid ${sec.isL30?'rgba(255,215,0,0.15)':'rgba(255,255,255,0.1)'}`,paddingBottom:'3px'}}>
+                          <div style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.9)',fontWeight:'700',lineHeight:'1.3'}}>{sec.label}</div>
+                          {tot && <div style={{fontSize:'0.72rem',fontWeight:'700',color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap'}}>{tot.wins}-{tot.losses} ({totPct}%)</div>}
                         </div>
                         {hasAnchor && <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:'4px',minHeight:'14px',marginBottom:'2px'}}>
                           <div style={{display:'flex',gap:'2px'}}>
@@ -891,14 +893,14 @@ function CapperConsensusTracker() {
     return records;
   }, [picks]);
 
-  const ratioHistory = useMemo(() => buildRatioHistory(picks, minPicks), [picks, minPicks]);
+  const ratioHistory = useMemo(() => buildRatioHistory(picks, minPicks, maxPicks, maxOpponent), [picks, minPicks, maxPicks, maxOpponent]);
 
   const ratioHistoryL30 = useMemo(() => {
     if (!selectedDate) return {};
     const cutoff = new Date(selectedDate); cutoff.setDate(cutoff.getDate()-l30Days);
     const cutoffStr = cutoff.toISOString().slice(0,10);
-    return buildRatioHistory(picks.filter(p=>p.date<selectedDate&&p.date>=cutoffStr), minPicks);
-  }, [picks, selectedDate, l30Days, minPicks]);
+    return buildRatioHistory(picks.filter(p=>p.date<selectedDate&&p.date>=cutoffStr), minPicks, maxPicks, maxOpponent);
+  }, [picks, selectedDate, l30Days, minPicks, maxPicks, maxOpponent]);
 
   const filteredPicks = useMemo(() => picks.filter(p => {
     if (selectedSport!=='ALL'&&p.sport!==selectedSport) return false;
@@ -1001,33 +1003,38 @@ function CapperConsensusTracker() {
     const allGames = Object.values(gameConsensusMap);
     let filtered = allGames;
     if (selectedCappers.length>0) filtered=filtered.filter(g=>selectedCappers.some(c=>g.cappers.has(c)));
-    if (minOpponent>0) filtered=filtered.filter(g=>{
-      const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
-      return sides.length>=2 && sides[1]>=minOpponent;
-    });
-    if (maxPicks<100) filtered=filtered.filter(g=>{
-      const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
-      return sides[0]<=maxPicks;
-    });
-    if (maxOpponent<100) filtered=filtered.filter(g=>{
-      const sides=Object.values(g.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
-      return sides.length<2 || sides[1]<=maxOpponent;
+    filtered=filtered.filter(g=>{
+      const consensus = g.consensusSideCount || 0;
+      const minority  = (g.consensusTotalCappers || 0) - consensus;
+      if (consensus < minPicks)    return false;
+      if (consensus > maxPicks)    return false;
+      if (minOpponent>0 && minority < minOpponent) return false;
+      if (minority > maxOpponent)  return false;
+      return true;
     });
     const sorted = filtered.sort((a,b)=>b.picks.length-a.picks.length);
     // Return stable keys so the list order doesn't change on fake/delete
     return sorted.map(g=>g.game);
-  }, [gameConsensusMap, selectedCappers, minOpponent, maxPicks, maxOpponent]);
+  }, [gameConsensusMap, selectedCappers, minPicks, minOpponent, maxPicks, maxOpponent]);
 
   // Derive the ordered game objects from stable keys
-  const gameConsensusList = useMemo(() =>
-    gameConsensus.map(key => gameConsensusMap[key]).filter(Boolean),
-  [gameConsensus, gameConsensusMap]);
+  const gameConsensusList = useMemo(() => {
+    const list = gameConsensus.map(key => gameConsensusMap[key]).filter(Boolean);
+    return list;
+  }, [gameConsensus, gameConsensusMap]);
 
-  const applyL30      = useCallback(() => { const v=parseInt(l30Input);      if(!isNaN(v)&&v>0)  setL30Days(v);  }, [l30Input]);
-  const applyMinPicks    = useCallback(() => { const v=parseInt(minPicksInput);    if(!isNaN(v)&&v>=1)  setMinPicks(v);    }, [minPicksInput]);
-  const applyMinOpponent = useCallback(() => { const v=parseInt(minOpponentInput); if(!isNaN(v)&&v>=0)   setMinOpponent(v);  }, [minOpponentInput]);
-  const applyMaxPicks    = useCallback(() => { const v=parseInt(maxPicksInput);    if(!isNaN(v)&&v>=1)   setMaxPicks(v);    }, [maxPicksInput]);
-  const applyMaxOpponent = useCallback(() => { const v=parseInt(maxOpponentInput); if(!isNaN(v)&&v>=0)   setMaxOpponent(v); }, [maxOpponentInput]);
+  const applyAll = () => {
+    const vL = parseInt(l30Input);         if(!isNaN(vL)&&vL>0)  setL30Days(vL);
+    const vMin = parseInt(minPicksInput);  if(!isNaN(vMin)&&vMin>=1)  { setMinPicks(vMin); }
+    const vMino = parseInt(minOpponentInput); if(!isNaN(vMino)&&vMino>=0) setMinOpponent(vMino);
+    const vMax = parseInt(maxPicksInput);  if(!isNaN(vMax)&&vMax>=1)  { setMaxPicks(vMax); }
+    const vMaxo = parseInt(maxOpponentInput); if(!isNaN(vMaxo)&&vMaxo>=0) setMaxOpponent(vMaxo);
+  };
+  const applyL30         = applyAll;
+  const applyMinPicks    = applyAll;
+  const applyMinOpponent = applyAll;
+  const applyMaxPicks    = applyAll;
+  const applyMaxOpponent = applyAll;
 
   const answerKey = useMemo(() => {
     return gameConsensusList.map(game => {
