@@ -73,6 +73,11 @@ PICKS_COLUMNS = [
 # Maximum number of messages to process per run
 MAX_MESSAGES_PER_RUN = 500
 
+# Regex that matches any totals (over/under) line value so they can be
+# filtered out before writing to master_sheet.  Catches all formats seen
+# in practice: "U138.5", "O 136.5", "under 6.5", "over 151.5".
+_TOTAL_LINE_RE = re.compile(r'^[OoUu](?:ver|nder)?\s*\d', re.IGNORECASE)
+
 # Maximum images per OCR batch (Claude supports up to 20)
 OCR_BATCH_SIZE = 15
 
@@ -1287,11 +1292,18 @@ def run_stage2(spreadsheet, image_pull_ws):
             if len(row) < 11:
                 row.append("discord_all_in_one")
 
-        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text)
+        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text).
+        # Filter out totals (O/U lines) — master_sheet is sides-only.
         if all_finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_rows = [row[:9] + [row[10]] for row in all_finalized_rows]
+            master_rows = [
+                row[:9] + [row[10]] for row in all_finalized_rows
+                if not _TOTAL_LINE_RE.match(str(row[4]))
+            ]
+            skipped_totals = len(all_finalized_rows) - len(master_rows)
+            if skipped_totals:
+                print(f"  Skipped {skipped_totals} total (O/U) rows — not written to master_sheet")
             master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
@@ -1739,11 +1751,18 @@ def process_manual_picks_queue(spreadsheet):
             if len(row) < 11:
                 row.append("discord_all_in_one")
 
-        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text)
+        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text).
+        # Filter out totals (O/U lines) — master_sheet is sides-only.
         if finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_rows = [row[:9] + [row[10]] for row in finalized_rows]
+            master_rows = [
+                row[:9] + [row[10]] for row in finalized_rows
+                if not _TOTAL_LINE_RE.match(str(row[4]))
+            ]
+            skipped_totals = len(finalized_rows) - len(master_rows)
+            if skipped_totals:
+                print(f"  Skipped {skipped_totals} total (O/U) rows — not written to master_sheet")
             master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
