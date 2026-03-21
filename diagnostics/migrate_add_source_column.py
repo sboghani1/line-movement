@@ -10,6 +10,9 @@ import os
 import sys
 import time
 
+# Allow imports from project root
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from dotenv import load_dotenv
 
 load_dotenv()
