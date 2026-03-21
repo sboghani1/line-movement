@@ -1340,7 +1340,11 @@ def backfill_ocr(worksheet):
     rows_needing_ocr = []
     rows_with_ocr = 0
     for i, row in enumerate(all_values[2:], start=3):  # Start at row 3 (1-indexed)
-        if len(row) >= 4 and row[3]:  # Has URL
+        if len(row) >= 4 and row[3]:  # Has source ref
+            # Skip non-URL source refs (e.g. "telegram:channel:msg_id") — these
+            # cannot be re-downloaded via requests and are OCR'd at fetch time.
+            if not row[3].startswith("http"):
+                continue
             has_ocr = len(row) >= 5 and row[4].strip()
             if not has_ocr:
                 rows_needing_ocr.append((i, row[3]))
