@@ -42,7 +42,7 @@ PROP_RE = re.compile('|'.join(PROP_PATTERNS), re.IGNORECASE)
 def is_total(line: str) -> bool:
     """Over/Under game totals: line is just O/U + number (not a spread)."""
     l = line.strip()
-    return bool(re.match(r'^[OoUu]\s*\d', l))
+    return bool(re.match(r'^[OoUu](?:ver|nder)?\s*\d', l, re.IGNORECASE))
 
 def is_prop(line: str, pick: str) -> bool:
     text = line + " " + pick
