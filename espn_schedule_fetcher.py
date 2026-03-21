@@ -29,6 +29,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from activity_logger import log_activity
+from sheets_utils import sheets_call
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
@@ -124,7 +125,7 @@ def get_existing_games(worksheet) -> Dict[str, Dict]:
     Returns dict with {row_idx, spread, over_under, score}.
     """
     try:
-        all_values = worksheet.get_all_values()
+        all_values = sheets_call(worksheet.get_all_values)
         games = {}
         for i, row in enumerate(all_values[1:], start=2):
             if len(row) >= 4 and row[1] and row[2] and row[3]:
@@ -198,7 +199,7 @@ def update_scores_for_sheet(
     Returns (updated_count, change_details).
     """
     worksheet = get_or_create_worksheet(spreadsheet, worksheet_name)
-    all_rows = worksheet.get_all_values()
+    all_rows = sheets_call(worksheet.get_all_values)
     headers = all_rows[0]
 
     try:
@@ -281,7 +282,7 @@ def update_scores_for_sheet(
                 print(f"    ⚠️  No ESPN result for: {away_team} @ {home_team} on {date_key} — will retry next run")
 
         if date_batch:
-            worksheet.batch_update(date_batch)
+            sheets_call(worksheet.batch_update, date_batch)
             total_written += len(date_batch)
             print(f"    {date_key}: wrote {len(date_batch)} updates")
 
@@ -470,7 +471,7 @@ def write_games_to_sheet(
         print(f"  ✅ {game['game_date']}: {game_label} — {game['game_time']} — {game['spread']} O/U {game['over_under']}")
 
     if new_rows:
-        worksheet.append_rows(new_rows, value_input_option="USER_ENTERED")
+        sheets_call(worksheet.append_rows, new_rows, value_input_option="USER_ENTERED")
 
     if odds_updates:
         batch = [
@@ -480,7 +481,7 @@ def write_games_to_sheet(
             }
             for row_idx, col, value in odds_updates
         ]
-        worksheet.batch_update(batch)
+        sheets_call(worksheet.batch_update, batch)
 
     return len(new_rows), len(odds_updates), change_details
 
