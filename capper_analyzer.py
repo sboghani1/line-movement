@@ -68,6 +68,7 @@ PICKS_COLUMNS = [
     "side",
     "result",
     "ocr_text",
+    "source",   # index 10 — "discord_all_in_one" or "telegram"
 ]
 
 # Image extensions to look for
@@ -1517,15 +1518,23 @@ def run_stage2(spreadsheet, image_pull_ws):
             for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Also append to master_sheet (strip ocr_text col 10)
+        # Tag all rows with source (index 10). Hardcoded "discord_all_in_one" until
+        # Telegram wiring is added in Step 3 of the integration plan.
+        for row in all_finalized_rows:
+            while len(row) < 10:
+                row.append("")
+            if len(row) < 11:
+                row.append("discord_all_in_one")
+
+        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text)
         if all_finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_rows = [row[:9] for row in all_finalized_rows]
+            master_rows = [row[:9] + [row[10]] for row in all_finalized_rows]
             master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
-        # Append full rows (with ocr_text) to parsed_picks_new for daily audit
+        # Append full rows (with ocr_text + source) to parsed_picks_new for daily audit
         if all_finalized_rows:
             picks_new_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_NEW_SHEET)
             time.sleep(1)  # Rate limit
@@ -1956,15 +1965,23 @@ def process_manual_picks_queue(spreadsheet):
             for row in finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Also append to master_sheet (strip ocr_text col 10)
+        # Tag all rows with source (index 10). Manual picks queue is always "discord_all_in_one"
+        # until multi-source wiring is added in Step 3 of the integration plan.
+        for row in finalized_rows:
+            while len(row) < 10:
+                row.append("")
+            if len(row) < 11:
+                row.append("discord_all_in_one")
+
+        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text)
         if finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             time.sleep(1)  # Rate limit
-            master_rows = [row[:9] for row in finalized_rows]
+            master_rows = [row[:9] + [row[10]] for row in finalized_rows]
             master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
-        # Append full rows (with ocr_text) to parsed_picks_new for daily audit
+        # Append full rows (with ocr_text + source) to parsed_picks_new for daily audit
         if finalized_rows:
             picks_new_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_NEW_SHEET)
             time.sleep(1)  # Rate limit
