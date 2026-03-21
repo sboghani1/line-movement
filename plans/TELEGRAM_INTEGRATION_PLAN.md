@@ -22,9 +22,11 @@ point Discord rows do. Everything downstream (Stage 1/2, sheets, CSV, git push) 
 ### Key interface decisions
 
 - **Discord**: keeps URL-based OCR (CDN URL stored in `image_pull`, backfill still works)
-- **Telegram**: bytes-based OCR (image downloaded at fetch time, no public URL)
+- **Telegram**: bytes-based OCR (image downloaded at fetch time, no public URL). `backfill_ocr`
+  also handles Telegram rows by re-downloading via Telethon using the encoded `channel_id:msg_id`
+  — same resilience as Discord, different download mechanism.
 - **`image_pull` source ref**: Discord rows keep CDN URL; Telegram rows store `telegram:{channel_id}:{msg_id}`
-- **`source` column**: added as the last column in `master_sheet` and `parsed_picks_new`; value is `"discord"` or `"telegram"`
+- **`source` column**: added as the last column in `master_sheet` and `parsed_picks_new`; value is `"discord_all_in_one"` or `"telegram_cappers_free"`
 
 ---
 
@@ -82,21 +84,16 @@ is identical to before. No errors in Actions logs.
 
 ---
 
-### Step 2 — Guard `backfill_ocr` against non-URL rows
+### Step 2 — Guard `backfill_ocr` against non-URL rows (temporary)
 
 **Why:** `backfill_ocr` runs every 15 minutes and passes every source-ref from
 `image_pull` into `requests.get()`. A `telegram:...` string would throw an error.
 This guard must land before any Telegram rows appear in the sheet.
 
-**Change:** In `backfill_ocr`, skip rows where the source ref does not start with `"http"`:
-
-```python
-# existing:
-urls = [url for _, url in batch]
-
-# becomes:
-urls = [url for _, url in batch if url.startswith("http")]
-```
+**Change:** In `backfill_ocr`, skip rows where the source ref does not start with `"http"`.
+A `TODO` comment marks this as temporary — Step 3 replaces the skip with proper
+Telegram backfill via Telethon (parse `telegram:channel_id:msg_id`, re-download bytes,
+OCR). This preserves the same crash-recovery resilience as the Discord URL backfill.
 
 **Verify:** Run a cycle, confirm no errors, Discord backfill still works.
 
@@ -193,7 +190,7 @@ Verify Stage 1 correctly returns no rows for these rather than hallucinating pic
 
 ## What Is Explicitly Not Changed
 
-- `backfill_ocr` logic (except the one `startswith("http")` guard)
+- `backfill_ocr` logic (except the temporary `startswith("http")` guard, replaced in Step 3)
 - `extract_text_from_images_batch` — Discord uses this unchanged
 - Stage 1 / Stage 2 parsing functions (until tuning in Step 5)
 - Sheets write logic
