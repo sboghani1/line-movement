@@ -354,7 +354,7 @@ def check_missing_columns(
 
 # Cache so we only fetch the D+1 schedule once per audit run, regardless of
 # how many picks have an empty game column.
-_schedule_cache: Dict[str, Tuple[str, Dict]] = {}  # target_date -> (d1_date, schedule_d1)
+_schedule_cache: Dict[str, Tuple[str, Dict]] = {}
 
 
 def check_next_day_game(
@@ -440,32 +440,26 @@ def check_next_day_game(
 
     original_date = pick.get("date", "")
 
-    if not dry_run:
-        updates = {
-            "date":   d1_date,
-            "game":   matched_game,
-            "side":   matched_team,
-            "spread": new_spread,
-        }
-        if new_result:
-            updates["result"] = new_result
-
-        for field, value in updates.items():
-            cell = gspread.utils.rowcol_to_a1(
-                ms_row_num, MASTER_HEADERS.index(field) + 1
-            )
-            sheets_call(ms_ws.update, cell, [[value]])
-
-
-    corrected_pick = {
-        **pick,
+    updates = {
         "date":   d1_date,
         "game":   matched_game,
         "side":   matched_team,
         "spread": new_spread,
     }
     if new_result:
-        corrected_pick["result"] = new_result
+        updates["result"] = new_result
+
+    if not dry_run:
+        batch = [
+            {
+                "range":  gspread.utils.rowcol_to_a1(ms_row_num, MASTER_HEADERS.index(field) + 1),
+                "values": [[value]],
+            }
+            for field, value in updates.items()
+        ]
+        sheets_call(ms_ws.batch_update, batch)
+
+    corrected_pick = {**pick, **updates}
 
     fix_parts = [f"date={d1_date}", f"game={matched_game}", f"side={matched_team}"]
     if new_spread:
