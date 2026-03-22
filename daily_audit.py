@@ -367,7 +367,7 @@ def check_advance_pick_date(
     Handles cappers who post picks the night before a game (advance picks) or
     UTC boundary cases where the pick's stored date is one day before the game.
 
-    - 0 matches on D+1 → return None (let check_missing_columns handle it)
+    - 0 matches on D+1 → return None
     - 1 match on D+1  → auto-fix: patch date/game/side/spread/result in master_sheet
     - 2+ matches      → needs_review with match details
     """
@@ -392,7 +392,7 @@ def check_advance_pick_date(
             matches.append((away, home))
 
     if not matches:
-        return None  # no D+1 game found — let check_missing_columns handle it
+        return None  # no D+1 game found
 
     if len(matches) > 1:
         match_strs = [f"{a} @ {h}" for a, h in matches]
