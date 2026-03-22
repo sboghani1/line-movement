@@ -860,15 +860,14 @@ def run_audit(
     # Order: needs_review first, then auto_fixed at the bottom
     ordered = needs_review + auto_fixed
 
-    # Load existing audit rows.
-    # Build index: ms_row_str → [(audit_sheet_row_1based, current_status)]
-    # Used both to skip duplicates and to upgrade needs_review → auto_fixed.
     ws_audit = get_or_create_audit_sheet(ss)
     time.sleep(1)
-    existing_audit = sheets_call(ws_audit.get_all_values)
+
+    # Build index of existing audit rows: ms_row_str → [(audit_row_1based, status)]
     existing_audit_index: Dict[str, List[Tuple[int, str]]] = {}
+    existing_audit = sheets_call(ws_audit.get_all_values)
     if len(existing_audit) > 1:
-        audit_hdr = existing_audit[0]
+        audit_hdr   = existing_audit[0]
         ms_row_idx  = audit_hdr.index("ms_row")  if "ms_row"  in audit_hdr else None
         status_idx  = audit_hdr.index("status")  if "status"  in audit_hdr else 1
         if ms_row_idx is not None:
@@ -881,47 +880,50 @@ def run_audit(
                         (i, row[status_idx].strip())
                     )
 
-    rows_to_write  = []
-    rows_to_update = []   # [(audit_sheet_row_1based, new_row_values)]
-    skipped_existing = 0
-
-    for r in ordered:
-        ms_row_str = str(r["ms_row"])
+    def _audit_row(r: dict) -> list:
         p = r["pick_row"]
-        ocr_key  = (p["date"], p["capper"], p["sport"], p["pick"], p["line"])
-        ocr_text = ocr_index.get(ocr_key, "")
-        new_row  = make_audit_row(
+        return make_audit_row(
             pick_row=p,
             check_failed=r["check_failed"],
             details=r["details"],
             suggested_fix=r["suggested_fix"],
             status=r["status"],
             ms_row=r["ms_row"],
-            ocr_text=ocr_text,
+            ocr_text=ocr_index.get((p["date"], p["capper"], p["sport"], p["pick"], p["line"]), ""),
         )
 
-        if ms_row_str in existing_audit_index:
-            if r["status"] == "auto_fixed":
-                # Upgrade any existing rows whose status can be overwritten
-                for audit_row_num, current_status in existing_audit_index[ms_row_str]:
-                    if current_status in AUTO_FIX_ELIGIBLE:
-                        rows_to_update.append((audit_row_num, new_row))
-                    else:
-                        skipped_existing += 1
-            else:
-                skipped_existing += 1
-        else:
-            rows_to_write.append(new_row)
-
-    if skipped_existing:
-        print(f"  Skipped {skipped_existing} rows already in {AUDIT_SHEET}")
+    # ── Pass 1: upgrade existing needs_review rows that were auto-fixed ───────
+    rows_to_update = []  # [(audit_row_1based, new_row_values)]
+    upgraded_ms_rows: set = set()
+    for r in auto_fixed:
+        ms_row_str = str(r["ms_row"])
+        if ms_row_str not in existing_audit_index:
+            continue
+        new_row = _audit_row(r)
+        for audit_row_num, current_status in existing_audit_index[ms_row_str]:
+            if current_status in AUTO_FIX_ELIGIBLE:
+                rows_to_update.append((audit_row_num, new_row))
+        upgraded_ms_rows.add(ms_row_str)
 
     if rows_to_update:
         print(f"\nUpgrading {len(rows_to_update)} existing audit rows (needs_review -> auto_fixed)...")
         for audit_row_num, new_row_vals in rows_to_update:
-            col_range = f"A{audit_row_num}"
-            sheets_call(ws_audit.update, col_range, [new_row_vals])
+            sheets_call(ws_audit.update, f"A{audit_row_num}", [new_row_vals])
         print(f"  Upgraded {len(rows_to_update)} rows in {AUDIT_SHEET}")
+
+    # ── Pass 2: append findings that have no existing audit row ───────────────
+    rows_to_write = []
+    skipped_existing = 0
+    for r in ordered:
+        ms_row_str = str(r["ms_row"])
+        if ms_row_str in existing_audit_index:
+            if ms_row_str not in upgraded_ms_rows:
+                skipped_existing += 1
+            continue
+        rows_to_write.append(_audit_row(r))
+
+    if skipped_existing:
+        print(f"  Skipped {skipped_existing} rows already in {AUDIT_SHEET}")
 
     if rows_to_write:
         print(f"\nWriting {len(rows_to_write)} rows to {AUDIT_SHEET}...")
