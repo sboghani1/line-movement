@@ -28,7 +28,10 @@ from PIL import Image
 
 from activity_logger import log_activity
 from git_utils import git_push_csv
-from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call
+from sheets_utils import (
+    GOOGLE_SHEET_ID, get_gspread_client, sheets_read, sheets_write,
+    get_schedule_for_date,
+)
 import daily_audit
 import populate_results
 from discord_fetcher import get_messages_with_images_since
@@ -102,8 +105,8 @@ LOCAL_CSV_PATH = "gh-pages/data/master_sheet.csv"
 
 def sync_master_to_csv(ss) -> int:
     """Overwrite the local CSV with the current contents of master_sheet in Google Sheets."""
-    ws = sheets_call(ss.worksheet, populate_results.MASTER_SHEET)
-    all_values = sheets_call(ws.get_all_values)
+    ws = sheets_read(ss.worksheet, populate_results.MASTER_SHEET)
+    all_values = sheets_read(ws.get_all_values)
     if not all_values:
         print("  sync_master_to_csv: master_sheet is empty, skipping")
         return 0
@@ -157,12 +160,12 @@ def get_worksheet():
     spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
 
     try:
-        worksheet = spreadsheet.worksheet(WORKSHEET_NAME)
+        worksheet = sheets_read(spreadsheet.worksheet, WORKSHEET_NAME)
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(
             title=WORKSHEET_NAME, rows=1000, cols=len(FIELDNAMES)
         )
-        worksheet.append_row(FIELDNAMES)
+        sheets_write(worksheet.append_row, FIELDNAMES)
 
     return worksheet
 
@@ -171,7 +174,7 @@ def get_existing_urls(worksheet) -> set:
     """Get a set of existing image URLs (column 4) to avoid duplicates."""
     try:
         # Get all values from column 4 (image_url)
-        col_values = worksheet.col_values(4)
+        col_values = sheets_read(worksheet.col_values, 4)
         # Skip header row (row 2 is first data row since row 1 is timestamp)
         return set(col_values[2:]) if len(col_values) > 2 else set()
     except Exception:
@@ -181,7 +184,7 @@ def get_existing_urls(worksheet) -> set:
 def get_urls_with_ocr(worksheet) -> set:
     """Get URLs that already have OCR text (column 5 is not empty)."""
     try:
-        all_values = worksheet.get_all_values()
+        all_values = sheets_read(worksheet.get_all_values)
         # Skip row 1 (timestamp) and row 2 (header)
         urls_with_ocr = set()
         for row in all_values[2:]:
@@ -195,19 +198,20 @@ def get_urls_with_ocr(worksheet) -> set:
 def get_or_create_picks_worksheet(spreadsheet, sheet_name: str):
     """Get or create a picks worksheet with proper structure."""
     try:
-        worksheet = spreadsheet.worksheet(sheet_name)
+        worksheet = sheets_read(spreadsheet.worksheet, sheet_name)
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(
             title=sheet_name, rows=1000, cols=len(PICKS_COLUMNS)
         )
         # Row 1: timestamp placeholder
-        worksheet.update_acell(
+        sheets_write(
+            worksheet.update_acell,
             "A1", datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d %H:%M:%S")
         )
         # Row 2: DO NOT EDIT label
-        worksheet.update_acell("A2", "DO NOT EDIT ANYTHING ABOVE THIS ROW")
+        sheets_write(worksheet.update_acell, "A2", "DO NOT EDIT ANYTHING ABOVE THIS ROW")
         # Row 3: column headers
-        worksheet.append_row(PICKS_COLUMNS)
+        sheets_write(worksheet.append_row, PICKS_COLUMNS)
     return worksheet
 
 
@@ -217,8 +221,8 @@ def get_known_cappers(spreadsheet) -> List[str]:
     Returns unique capper names to help normalize manual queue cappers.
     """
     try:
-        worksheet = spreadsheet.worksheet(FINALIZED_PICKS_SHEET)
-        all_values = worksheet.get_all_values()
+        worksheet = sheets_read(spreadsheet.worksheet, FINALIZED_PICKS_SHEET)
+        all_values = sheets_read(worksheet.get_all_values)
         # Data starts at row 4 (0-indexed: row 3+)
         # Column B (index 1) is capper
         cappers = set()
@@ -232,50 +236,6 @@ def get_known_cappers(spreadsheet) -> List[str]:
         return []
 
 
-def get_schedule_for_date(spreadsheet, sheet_name: str, target_date: str) -> List[dict]:
-    """Get games from a schedule sheet for a specific date.
-
-    Args:
-        spreadsheet: The gspread spreadsheet object
-        sheet_name: Name of the schedule sheet
-        target_date: Date in YYYY-MM-DD format
-
-    Returns:
-        List of game dicts with away_team, home_team, spread, over_under
-    """
-    try:
-        worksheet = spreadsheet.worksheet(sheet_name)
-        all_values = worksheet.get_all_values()
-        if len(all_values) < 2:
-            return []
-
-        # Row 1 is headers: fetch_date, game_date, away_team, home_team, game_time, spread, over_under, ...
-        headers = all_values[0]
-        games = []
-
-        for row in all_values[1:]:
-            if len(row) < 4:
-                continue
-            row_dict = dict(zip(headers, row))
-            game_date = row_dict.get("game_date", "")
-
-            if game_date == target_date:
-                games.append(
-                    {
-                        "away_team": row_dict.get("away_team", ""),
-                        "home_team": row_dict.get("home_team", ""),
-                        "spread": row_dict.get("spread", ""),
-                        "over_under": row_dict.get("over_under", ""),
-                        "game_time": row_dict.get("game_time", ""),
-                    }
-                )
-
-        return games
-    except gspread.WorksheetNotFound:
-        return []
-    except Exception as e:
-        print(f"Error fetching schedule from {sheet_name}: {e}")
-        return []
 
 
 def format_schedule_for_prompt(games: List[dict], sport: str) -> str:
@@ -309,7 +269,7 @@ def get_last_run_timestamp(worksheet) -> Optional[datetime]:
 
 def update_last_run_timestamp(worksheet, utc_time: datetime):
     """Update cell A1 with the current UTC timestamp."""
-    worksheet.update_acell("A1", utc_time.strftime("%Y-%m-%d %H:%M:%S"))
+    sheets_write(worksheet.update_acell, "A1", utc_time.strftime("%Y-%m-%d %H:%M:%S"))
 
 
 # ── Claude OCR ───────────────────────────────────────────────────────────────
@@ -907,7 +867,7 @@ def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
     Returns:
         List of (row_index, capper_name, message_date, ocr_text) tuples
     """
-    all_values = worksheet.get_all_values()
+    all_values = sheets_read(worksheet.get_all_values)
     rows_to_process = []
 
     # Row 1 = timestamp, Row 2 = DO NOT EDIT, Row 3+ = data
@@ -1047,8 +1007,7 @@ def run_stage1(spreadsheet, image_pull_ws):
         except Exception as e:
             print(f"Stage 1 batch failed: {e}")
             # Mark failed rows
-            time.sleep(2)
-            all_values = image_pull_ws.get_all_values()
+            all_values = sheets_read(image_pull_ws.get_all_values)
             cells_to_update = []
             for row_idx, _, _, _ in batch:
                 current_stage = (
@@ -1065,7 +1024,7 @@ def run_stage1(spreadsheet, image_pull_ws):
                     gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
                 )
             if cells_to_update:
-                image_pull_ws.update_cells(cells_to_update)
+                sheets_write(image_pull_ws.update_cells, cells_to_update)
             continue
 
     if all_parsed_rows:
@@ -1075,25 +1034,23 @@ def run_stage1(spreadsheet, image_pull_ws):
         )
 
         # Batch append rows to parsed_picks
-        time.sleep(1)  # Rate limit
-        parsed_picks_ws.append_rows(all_parsed_rows, value_input_option="USER_ENTERED")
+        sheets_write(parsed_picks_ws.append_rows, all_parsed_rows, value_input_option="USER_ENTERED")
         for row in all_parsed_rows:
             print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
 
         # Update timestamp in parsed_picks A1
-        time.sleep(1)  # Rate limit
-        parsed_picks_ws.update_acell(
+        sheets_write(
+            parsed_picks_ws.update_acell,
             "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
         )
 
     # Batch update successfully processed rows as stage_1_parsed
     if all_processed_row_idxs:
-        time.sleep(1)  # Rate limit
         cells_to_update = [
             gspread.Cell(row_idx, 6, "stage_1_parsed")
             for row_idx in all_processed_row_idxs
         ]
-        image_pull_ws.update_cells(cells_to_update)
+        sheets_write(image_pull_ws.update_cells, cells_to_update)
 
     # Log activity
     log_activity(
@@ -1133,13 +1090,13 @@ def run_stage2(spreadsheet, image_pull_ws):
 
     # Get parsed_picks worksheet
     try:
-        parsed_picks_ws = spreadsheet.worksheet(PARSED_PICKS_SHEET)
+        parsed_picks_ws = sheets_read(spreadsheet.worksheet, PARSED_PICKS_SHEET)
     except gspread.WorksheetNotFound:
         print("No parsed_picks sheet found, skipping Stage 2")
         return
 
     # Get all rows from parsed_picks (row 4+)
-    all_values = parsed_picks_ws.get_all_values()
+    all_values = sheets_read(parsed_picks_ws.get_all_values)
     if len(all_values) < 4:
         print("No rows in parsed_picks to finalize")
         return
@@ -1222,8 +1179,7 @@ def run_stage2(spreadsheet, image_pull_ws):
 
         # Deduplicate: if a spread pick exists for the same capper+game+date,
         # drop any ML pick for that same group (handles both orderings).
-        time.sleep(1)  # Rate limit
-        existing_fp_values = finalized_picks_ws.get_all_values()
+        existing_fp_values = sheets_read(finalized_picks_ws.get_all_values)
         # Sheet layout: row 1 = timestamp, row 2 = DO NOT EDIT, row 3 = headers, row 4+ = data
         existing_fp_data = existing_fp_values[3:] if len(existing_fp_values) > 3 else []
         existing_data_start_row = 4  # 1-based sheet row of existing_fp_data[0]
@@ -1235,13 +1191,12 @@ def run_stage2(spreadsheet, image_pull_ws):
         # Delete existing ML rows superseded by incoming spread picks (reverse order
         # so row indices stay valid as we delete from bottom up)
         for sheet_row in sorted(ml_rows_to_delete, reverse=True):
-            time.sleep(0.5)  # Rate limit
-            finalized_picks_ws.delete_rows(sheet_row)
+            sheets_write(finalized_picks_ws.delete_rows, sheet_row)
 
         # Batch append rows to finalized_picks
         if all_finalized_rows:
-            time.sleep(1)  # Rate limit
-            finalized_picks_ws.append_rows(
+            sheets_write(
+                finalized_picks_ws.append_rows,
                 all_finalized_rows, value_input_option="USER_ENTERED"
             )
             for row in all_finalized_rows:
@@ -1259,7 +1214,6 @@ def run_stage2(spreadsheet, image_pull_ws):
         # Filter out totals (O/U lines) — master_sheet is sides-only.
         if all_finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
-            time.sleep(1)  # Rate limit
             master_rows = [
                 row[:9] + [row[10]] for row in all_finalized_rows
                 if not _TOTAL_LINE_RE.match(str(row[4]))
@@ -1267,37 +1221,33 @@ def run_stage2(spreadsheet, image_pull_ws):
             skipped_totals = len(all_finalized_rows) - len(master_rows)
             if skipped_totals:
                 print(f"  Skipped {skipped_totals} total (O/U) rows — not written to master_sheet")
-            master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
+            sheets_write(master_ws.append_rows, master_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
         # Append full rows (with ocr_text + source) to parsed_picks_new for daily audit
         if all_finalized_rows:
             picks_new_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_NEW_SHEET)
-            time.sleep(1)  # Rate limit
-            picks_new_ws.append_rows(all_finalized_rows, value_input_option="USER_ENTERED")
+            sheets_write(picks_new_ws.append_rows, all_finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(all_finalized_rows)} rows to parsed_picks_new")
 
         # Update timestamp in finalized_picks A1
-        time.sleep(1)  # Rate limit
-        finalized_picks_ws.update_acell(
+        sheets_write(
+            finalized_picks_ws.update_acell,
             "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
         )
 
     # Delete processed rows from parsed_picks (rows 4+) in one batch
     if len(all_values) > 3:
-        time.sleep(1)  # Rate limit
-        parsed_picks_ws.delete_rows(4, len(all_values))
+        sheets_write(parsed_picks_ws.delete_rows, 4, len(all_values))
 
     # Batch update image_pull rows to stage_2_finalized
-    time.sleep(1)  # Rate limit
-    image_pull_values = image_pull_ws.get_all_values()
+    image_pull_values = sheets_read(image_pull_ws.get_all_values)
     cells_to_update = []
     for i, row in enumerate(image_pull_values[2:], start=3):
         if len(row) > 5 and row[5] == "stage_1_parsed":
             cells_to_update.append(gspread.Cell(i, 6, "stage_2_finalized"))
     if cells_to_update:
-        time.sleep(1)  # Rate limit
-        image_pull_ws.update_cells(cells_to_update)
+        sheets_write(image_pull_ws.update_cells, cells_to_update)
 
     # Log activity
     log_activity(
@@ -1309,7 +1259,7 @@ def run_stage2(spreadsheet, image_pull_ws):
 
 def backfill_ocr(worksheet):
     """Run OCR on existing rows that are missing OCR text."""
-    all_values = worksheet.get_all_values()
+    all_values = sheets_read(worksheet.get_all_values)
 
     # Find rows needing OCR (row index, url) - skip row 1 (timestamp) and row 2 (header)
     rows_needing_ocr = []
@@ -1365,8 +1315,7 @@ def backfill_ocr(worksheet):
 
     # Batch update all OCR results
     if all_ocr_updates:
-        time.sleep(1)  # Rate limit
-        worksheet.update_cells(all_ocr_updates)
+        sheets_write(worksheet.update_cells, all_ocr_updates)
 
     print(f"\n✅ Backfilled OCR for {len(rows_needing_ocr)} rows")
 
@@ -1396,13 +1345,13 @@ def process_manual_picks_queue(spreadsheet):
 
     # Get manual_picks_queue worksheet
     try:
-        manual_ws = spreadsheet.worksheet(MANUAL_PICKS_QUEUE_SHEET)
+        manual_ws = sheets_read(spreadsheet.worksheet, MANUAL_PICKS_QUEUE_SHEET)
     except gspread.WorksheetNotFound:
         print("No manual_picks_queue sheet found, skipping manual processing")
         return
 
     # Get all rows (row 3 = headers, row 4+ = data)
-    all_values = manual_ws.get_all_values()
+    all_values = sheets_read(manual_ws.get_all_values)
     if len(all_values) < 4:
         print("No rows in manual_picks_queue to process")
         return
@@ -1506,8 +1455,7 @@ def process_manual_picks_queue(spreadsheet):
 
     # Batch update cells
     if cells_to_update:
-        time.sleep(1)  # Rate limit
-        manual_ws.update_cells(cells_to_update)
+        sheets_write(manual_ws.update_cells, cells_to_update)
         print(f"Updated {len(cells_to_update)} cells (ocr_text + stage)")
 
     if not picks_to_parse:
@@ -1579,14 +1527,13 @@ def process_manual_picks_queue(spreadsheet):
         )
 
         # Batch append rows to parsed_picks
-        time.sleep(1)  # Rate limit
-        parsed_picks_ws.append_rows(parsed_rows, value_input_option="USER_ENTERED")
+        sheets_write(parsed_picks_ws.append_rows, parsed_rows, value_input_option="USER_ENTERED")
         for row in parsed_rows:
             print(f"  Added: {row[1]} - {row[2]} {row[3]} {row[4]}")
 
         # Update timestamp in parsed_picks A1
-        time.sleep(1)  # Rate limit
-        parsed_picks_ws.update_acell(
+        sheets_write(
+            parsed_picks_ws.update_acell,
             "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
         )
 
@@ -1600,12 +1547,12 @@ def process_manual_picks_queue(spreadsheet):
     print("\n── Manual Queue Stage 2: Finalizing picks ──")
 
     try:
-        parsed_picks_ws = spreadsheet.worksheet(PARSED_PICKS_SHEET)
+        parsed_picks_ws = sheets_read(spreadsheet.worksheet, PARSED_PICKS_SHEET)
     except gspread.WorksheetNotFound:
         print("No parsed_picks sheet found after Stage 1")
         return
 
-    all_parsed = parsed_picks_ws.get_all_values()
+    all_parsed = sheets_read(parsed_picks_ws.get_all_values)
     if len(all_parsed) < 4:
         print("No rows in parsed_picks to finalize")
         return
@@ -1683,8 +1630,7 @@ def process_manual_picks_queue(spreadsheet):
 
         # Deduplicate: if a spread pick exists for the same capper+game+date,
         # drop any ML pick for that same group (handles both orderings).
-        time.sleep(1)  # Rate limit
-        existing_fp_values = finalized_picks_ws.get_all_values()
+        existing_fp_values = sheets_read(finalized_picks_ws.get_all_values)
         existing_fp_data = existing_fp_values[3:] if len(existing_fp_values) > 3 else []
         existing_data_start_row = 4  # 1-based sheet row of existing_fp_data[0]
 
@@ -1694,13 +1640,12 @@ def process_manual_picks_queue(spreadsheet):
 
         # Delete existing ML rows superseded by incoming spread picks
         for sheet_row in sorted(ml_rows_to_delete, reverse=True):
-            time.sleep(0.5)  # Rate limit
-            finalized_picks_ws.delete_rows(sheet_row)
+            sheets_write(finalized_picks_ws.delete_rows, sheet_row)
 
         # Batch append rows to finalized_picks
         if finalized_rows:
-            time.sleep(1)  # Rate limit
-            finalized_picks_ws.append_rows(
+            sheets_write(
+                finalized_picks_ws.append_rows,
                 finalized_rows, value_input_option="USER_ENTERED"
             )
             for row in finalized_rows:
@@ -1718,7 +1663,6 @@ def process_manual_picks_queue(spreadsheet):
         # Filter out totals (O/U lines) — master_sheet is sides-only.
         if finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
-            time.sleep(1)  # Rate limit
             master_rows = [
                 row[:9] + [row[10]] for row in finalized_rows
                 if not _TOTAL_LINE_RE.match(str(row[4]))
@@ -1726,26 +1670,24 @@ def process_manual_picks_queue(spreadsheet):
             skipped_totals = len(finalized_rows) - len(master_rows)
             if skipped_totals:
                 print(f"  Skipped {skipped_totals} total (O/U) rows — not written to master_sheet")
-            master_ws.append_rows(master_rows, value_input_option="USER_ENTERED")
+            sheets_write(master_ws.append_rows, master_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(master_rows)} rows to master_sheet")
 
         # Append full rows (with ocr_text + source) to parsed_picks_new for daily audit
         if finalized_rows:
             picks_new_ws = get_or_create_picks_worksheet(spreadsheet, PARSED_PICKS_NEW_SHEET)
-            time.sleep(1)  # Rate limit
-            picks_new_ws.append_rows(finalized_rows, value_input_option="USER_ENTERED")
+            sheets_write(picks_new_ws.append_rows, finalized_rows, value_input_option="USER_ENTERED")
             print(f"  Also appended {len(finalized_rows)} rows to parsed_picks_new")
 
         # Update timestamp in finalized_picks A1
-        time.sleep(1)  # Rate limit
-        finalized_picks_ws.update_acell(
+        sheets_write(
+            finalized_picks_ws.update_acell,
             "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S")
         )
 
     # Delete processed rows from parsed_picks (rows 4+)
     if len(all_parsed) > 3:
-        time.sleep(1)  # Rate limit
-        parsed_picks_ws.delete_rows(4, len(all_parsed))
+        sheets_write(parsed_picks_ws.delete_rows, 4, len(all_parsed))
 
     log_activity(
         spreadsheet,
@@ -1754,13 +1696,12 @@ def process_manual_picks_queue(spreadsheet):
     )
 
     # Step 6: Update stage to "finalized" in manual_picks_queue
-    time.sleep(1)  # Rate limit
     final_cells = []
     for row_idx, _, _, _, _ in rows_needing_processing:
         final_cells.append(gspread.Cell(row_idx, 8, "finalized"))
 
     if final_cells:
-        manual_ws.update_cells(final_cells)
+        sheets_write(manual_ws.update_cells, final_cells)
 
     # Print summary
     print("\n── Manual Queue Summary ──")
@@ -1776,8 +1717,7 @@ def process_manual_picks_queue(spreadsheet):
     )
 
     # Update timestamp in manual_picks_queue A1
-    time.sleep(1)  # Rate limit
-    manual_ws.update_acell("A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S"))
+    sheets_write(manual_ws.update_acell, "A1", now_eastern.strftime("%Y-%m-%d %H:%M:%S"))
 
     print("✅ Manual picks queue processing complete")
 
@@ -1800,7 +1740,7 @@ def main():
         # Get the spreadsheet and worksheet
         client = get_gspread_client()
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
-        worksheet = spreadsheet.worksheet(WORKSHEET_NAME)
+        worksheet = sheets_read(spreadsheet.worksheet, WORKSHEET_NAME)
 
         # Get the last run timestamp from A1
         last_run = get_last_run_timestamp(worksheet)
@@ -1927,18 +1867,17 @@ def main():
 
                 # Batch insert all rows
                 if rows_to_insert:
-                    next_row = len(worksheet.get_all_values()) + 1
+                    next_row = len(sheets_read(worksheet.get_all_values)) + 1
                     end_row = next_row + len(rows_to_insert) - 1
-                    
+
                     # Expand sheet if needed
                     if end_row > worksheet.row_count:
                         new_row_count = end_row + 100  # Add buffer
                         print(f"Expanding sheet from {worksheet.row_count} to {new_row_count} rows")
-                        worksheet.resize(rows=new_row_count)
-                        time.sleep(1)  # Rate limit after resize
-                    
-                    time.sleep(1)  # Rate limit
-                    worksheet.update(
+                        sheets_write(worksheet.resize, rows=new_row_count)
+
+                    sheets_write(
+                        worksheet.update,
                         range_name=f"A{next_row}:F{end_row}",
                         values=rows_to_insert,
                         value_input_option="USER_ENTERED",
