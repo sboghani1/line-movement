@@ -351,14 +351,20 @@ def check_missing_columns(
 
 
 # ── Check 2: Next day game ────────────────────────────────────────────────────
+
+# Cache so we only fetch the D+1 schedule once per audit run, regardless of
+# how many picks have an empty game column.
+_schedule_cache: Dict[str, Tuple[str, Dict]] = {}  # target_date -> (d1_date, schedule_d1)
+
+
 def check_next_day_game(
     pick: dict,
     scores: dict,
     ms_ws: gspread.Worksheet,
     ms_row_num: int,
     dry_run: bool,
-    schedule_d1: Dict[str, List[Tuple[str, str]]],
-    d1_date: str,
+    ss,
+    target_date: str,
 ) -> Optional[dict]:
     """
     If game is empty, try to match the pick against the D+1 schedule.
@@ -373,6 +379,15 @@ def check_next_day_game(
     # Fast-path: game already matched, nothing to do
     if pick.get("game", "").strip():
         return None
+
+    # Lazy-load D+1 schedule (cached across picks in the same audit run)
+    if target_date not in _schedule_cache:
+        from datetime import date as _date
+        d1_date = str(_date.fromisoformat(target_date) + timedelta(days=1))
+        print(f"\nLoading D+1 schedule for {d1_date}...")
+        schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
+        _schedule_cache[target_date] = (d1_date, schedule_d1)
+    d1_date, schedule_d1 = _schedule_cache[target_date]
 
     sport = pick.get("sport", "").strip().lower()
     pick_team = pick.get("pick", "").strip()
@@ -762,12 +777,6 @@ def run_audit(
     schedule_context = format_schedule_context(schedule)
     print(f"Schedule context:\n{schedule_context}")
 
-    # D+1 schedule — loaded lazily in the check loop only if needed
-    from datetime import date as _date
-    d = _date.fromisoformat(target_date)
-    d1_date = str(d + timedelta(days=1))
-    schedule_d1 = None  # loaded on first pick with empty game
-
     # Load OCR index for ocr_text column in audit rows
     print(f"\nLoading OCR text from {PICKS_NEW_SHEET}...")
     ocr_index = load_ocr_index(ss, target_date)
@@ -788,13 +797,9 @@ def run_audit(
             findings.append(result)
 
         # Check 2: advance pick date (only relevant when game is empty)
-        if not pick_dict.get("game", "").strip():
-            if schedule_d1 is None:
-                print(f"\nLoading D+1 schedule for {d1_date}...")
-                schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
         result = check_next_day_game(
             pick_dict, scores, ms_ws, row_num, dry_run,
-            schedule_d1=schedule_d1 or {}, d1_date=d1_date,
+            ss=ss, target_date=target_date,
         )
         if result:
             findings.append(result)
