@@ -15,7 +15,7 @@ import argparse
 import base64
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from itertools import zip_longest
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
@@ -489,17 +489,23 @@ def write_games_to_sheet(
 def run_sport(
     spreadsheet, sport: str, date_str: str, formatted_date: str, timestamp: str,
     score_limit: Optional[int] = None,
+    do_score_backfill: bool = True,
 ):
-    """Run score backfill + schedule fetch for a single sport."""
+    """Run score backfill + schedule fetch for a single sport.
+
+    do_score_backfill=False skips the score backfill step (used for future dates
+    where games haven't been played yet).
+    """
     worksheet_name = SPORT_WORKSHEETS[sport]
 
-    score_count, score_details = update_scores_for_sheet(spreadsheet, worksheet_name, sport, limit=score_limit)
-    log_activity(
-        spreadsheet,
-        "backfill_scores",
-        f"{sport.upper()} scores: {score_count} rows updated",
-        {"details": ", ".join(score_details) if score_details else "no updates"},
-    )
+    if do_score_backfill:
+        score_count, score_details = update_scores_for_sheet(spreadsheet, worksheet_name, sport, limit=score_limit)
+        log_activity(
+            spreadsheet,
+            "backfill_scores",
+            f"{sport.upper()} scores: {score_count} rows updated",
+            {"details": ", ".join(score_details) if score_details else "no updates"},
+        )
 
     worksheet = get_or_create_worksheet(spreadsheet, worksheet_name)
     existing_games = get_existing_games(worksheet)
@@ -539,9 +545,31 @@ def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_l
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
 
         labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL", "nfl": "🏈 NFL", "cfb": "🏈 College Football", "mlb": "⚾ MLB"}
+
+        # Build list of dates to fetch schedules for: today + next 2 days.
+        # Score backfill only runs for the primary date (future games aren't complete yet).
+        primary_date = datetime.strptime(date_str, "%Y%m%d").date()
+        schedule_dates = [
+            (date_str, formatted_date, True),   # today — with score backfill
+            *[
+                (
+                    (primary_date + timedelta(days=d)).strftime("%Y%m%d"),
+                    (primary_date + timedelta(days=d)).strftime("%Y-%m-%d"),
+                    False,  # no score backfill for future dates
+                )
+                for d in (1, 2)
+            ],
+        ]
+
         for s in sports:
             print(f"\n{labels[s]}...")
-            run_sport(spreadsheet, s, date_str, formatted_date, timestamp, score_limit=score_limit)
+            for fetch_date_str, fetch_formatted, do_backfill in schedule_dates:
+                if not do_backfill:
+                    print(f"  Fetching {fetch_formatted} schedule (advance)...")
+                run_sport(
+                    spreadsheet, s, fetch_date_str, fetch_formatted, timestamp,
+                    score_limit=score_limit, do_score_backfill=do_backfill,
+                )
 
         print(f"\n✅ Done!")
 
