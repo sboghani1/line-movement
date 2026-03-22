@@ -350,8 +350,8 @@ def check_missing_columns(
     }
 
 
-# ── Check 2: Advance pick date ────────────────────────────────────────────────
-def check_advance_pick_date(
+# ── Check 2: Next day game ────────────────────────────────────────────────────
+def check_next_day_game(
     pick: dict,
     scores: dict,
     ms_ws: gspread.Worksheet,
@@ -397,7 +397,7 @@ def check_advance_pick_date(
         match_strs = [f"{a} @ {h}" for a, h in matches]
         return {
             "pick_row": pick,
-            "check_failed": "advance_pick_date",
+            "check_failed": "next_day_game",
             "details": f"pick matches {len(matches)} games on D+1 ({d1_date}): {'; '.join(match_strs)}",
             "suggested_fix": "",
             "status": "needs_review",
@@ -471,7 +471,7 @@ def check_advance_pick_date(
 
     return {
         "pick_row": corrected_pick,
-        "check_failed": "advance_pick_date",
+        "check_failed": "next_day_game",
         "details": details,
         "suggested_fix": "; ".join(fix_parts),
         "status": status,
@@ -792,7 +792,7 @@ def run_audit(
             if schedule_d1 is None:
                 print(f"\nLoading D+1 schedule for {d1_date}...")
                 schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
-        result = check_advance_pick_date(
+        result = check_next_day_game(
             pick_dict, scores, ms_ws, row_num, dry_run,
             schedule_d1=schedule_d1 or {}, d1_date=d1_date,
         )
