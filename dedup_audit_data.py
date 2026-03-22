@@ -40,7 +40,7 @@ def main():
         print("Sheet is empty.")
         return
 
-    header = all_values[0]
+    header = all_values[4]  # header is row 5 (4 metadata rows above)
     col = {h: i for i, h in enumerate(header)}
     date_col   = col.get("date",   0)
     capper_col = col.get("capper", 1)
@@ -48,9 +48,9 @@ def main():
     pick_col   = col.get("pick",   3)
     line_col   = col.get("line",   4)
 
-    # Map key -> list of 1-based sheet row numbers (row 1 = header)
+    # Map key -> list of 1-based sheet row numbers (row 5 = header, row 6 = first data)
     key_to_rows = {}
-    for idx, row in enumerate(all_values[1:], start=2):  # 1-based, skip header
+    for idx, row in enumerate(all_values[5:], start=6):  # 1-based, skip metadata + header
         while len(row) <= max(date_col, capper_col, sport_col, pick_col, line_col):
             row.append("")
         key = (

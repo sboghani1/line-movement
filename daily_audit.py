@@ -118,10 +118,10 @@ def get_or_create_audit_sheet(ss) -> gspread.Worksheet:
     """Get or create the audit_results worksheet with the correct headers and status dropdown."""
     try:
         ws = ss.worksheet(AUDIT_SHEET)
-        existing = ws.row_values(1)
+        existing = ws.row_values(5)
         if existing != AUDIT_HEADERS:
             # Schema changed — overwrite header row
-            sheets_call(ws.update, "A1", [AUDIT_HEADERS])
+            sheets_call(ws.update, "A5", [AUDIT_HEADERS])
             _apply_status_validation(ws)
         return ws
     except gspread.exceptions.WorksheetNotFound:
@@ -132,12 +132,12 @@ def get_or_create_audit_sheet(ss) -> gspread.Worksheet:
 
 
 def _apply_status_validation(ws: gspread.Worksheet):
-    """Apply data-validation dropdown for the status column (B2:B1000)."""
+    """Apply data-validation dropdown for the status column (B6:B1000)."""
     from gspread.utils import ValidationConditionType
 
     status_col_idx = AUDIT_HEADERS.index("status")  # 0-based
     col_letter = chr(ord("A") + status_col_idx)      # "B"
-    validation_range = f"{col_letter}2:{col_letter}1000"
+    validation_range = f"{col_letter}6:{col_letter}1000"
 
     sheets_call(
         ws.add_validation,
@@ -700,11 +700,11 @@ def run_audit(
     time.sleep(1)
     existing_audit = sheets_call(ws_audit.get_all_values)
     existing_ms_rows = set()
-    if len(existing_audit) > 1:
-        audit_hdr = existing_audit[0]
+    if len(existing_audit) > 5:
+        audit_hdr = existing_audit[4]  # header is row 5
         ms_row_idx = audit_hdr.index("ms_row") if "ms_row" in audit_hdr else None
         if ms_row_idx is not None:
-            for row in existing_audit[1:]:
+            for row in existing_audit[5:]:
                 if len(row) > ms_row_idx and row[ms_row_idx].strip():
                     existing_ms_rows.add(row[ms_row_idx].strip())
 
