@@ -273,7 +273,7 @@ def make_audit_row(
     ]
 
 
-# ── Check 0: Advance pick date ────────────────────────────────────────────────
+# ── Check 2: Advance pick date ────────────────────────────────────────────────
 def check_advance_pick_date(
     pick: dict,
     scores: dict,
@@ -285,7 +285,7 @@ def check_advance_pick_date(
     ss=None,
 ) -> Optional[dict]:
     """
-    Check 0: If game is empty, try to match the pick against the D+1 schedule.
+    If game is empty, try to match the pick against the D+1 schedule.
 
     Handles cappers who post picks the night before a game (advance picks) or
     UTC boundary cases where the pick's stored date is one day before the game.
@@ -787,25 +787,19 @@ def run_audit(
 
     print(f"\nRunning checks...")
 
-    advance_fixed = 0
-
     for pick_dict, row_num in yesterday_picks:
         findings = []
 
-        # Check 0: advance pick date — runs before missing_columns so a fixed
-        # game column prevents double-flagging
+        # Check 1: missing columns
+        result = check_missing_columns(pick_dict, scores, ms_ws, row_num, dry_run)
+        if result:
+            findings.append(result)
+
+        # Check 2: advance pick date
         result = check_advance_pick_date(
             pick_dict, scores, ms_ws, row_num, dry_run,
             schedule_d1=schedule_d1, d1_date=d1_date, ss=ss,
         )
-        if result:
-            if result["status"] == "auto_fixed":
-                pick_dict.update(result["pick_row"])
-                advance_fixed += 1
-            findings.append(result)
-
-        # Check 1: missing columns
-        result = check_missing_columns(pick_dict, scores, ms_ws, row_num, dry_run)
         if result:
             findings.append(result)
 
@@ -817,6 +811,13 @@ def run_audit(
         # if result: findings.append(result)
         # ... etc.
 
+        # Per-pick deduplication: if the same row produced both an auto_fixed
+        # and a needs_review finding, drop the needs_review — the auto_fix
+        # supersedes it.
+        has_auto_fix = any(f["status"] == "auto_fixed" for f in findings)
+        if has_auto_fix:
+            findings = [f for f in findings if f["status"] != "needs_review"]
+
         if not findings:
             clean_count += 1
         else:
@@ -827,6 +828,7 @@ def run_audit(
     # Tally by status
     auto_fixed = [r for r in audit_results if r["status"] == "auto_fixed"]
     needs_review = [r for r in audit_results if r["status"] == "needs_review"]
+    advance_fixed = sum(1 for r in auto_fixed if r["check_failed"] == "advance_pick_date")
 
     print(f"\nCheck results:")
     print(f"  Clean (no issues):     {clean_count}")
