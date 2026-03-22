@@ -762,12 +762,11 @@ def run_audit(
     schedule_context = format_schedule_context(schedule)
     print(f"Schedule context:\n{schedule_context}")
 
-    # Load D+1 schedule for advance pick detection
+    # D+1 schedule — loaded lazily in the check loop only if needed
     from datetime import date as _date
     d = _date.fromisoformat(target_date)
     d1_date = str(d + timedelta(days=1))
-    print(f"\nLoading D+1 schedule for {d1_date}...")
-    schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
+    schedule_d1 = None  # loaded on first pick with empty game
 
     # Load OCR index for ocr_text column in audit rows
     print(f"\nLoading OCR text from {PICKS_NEW_SHEET}...")
@@ -788,10 +787,14 @@ def run_audit(
         if result:
             findings.append(result)
 
-        # Check 2: advance pick date
+        # Check 2: advance pick date (only relevant when game is empty)
+        if not pick_dict.get("game", "").strip():
+            if schedule_d1 is None:
+                print(f"\nLoading D+1 schedule for {d1_date}...")
+                schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
         result = check_advance_pick_date(
             pick_dict, scores, ms_ws, row_num, dry_run,
-            schedule_d1=schedule_d1, d1_date=d1_date,
+            schedule_d1=schedule_d1 or {}, d1_date=d1_date,
         )
         if result:
             findings.append(result)
