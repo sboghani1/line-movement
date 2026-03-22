@@ -69,7 +69,7 @@ LOCAL_CSV_PATH  = "gh-pages/data/master_sheet.csv"
 
 # Audit statuses that a new auto-fix is allowed to overwrite.
 # Human-reviewed and Opus-reviewed statuses are never touched.
-UPGRADEABLE_FROM = {"needs_review"}
+AUTO_FIX_ELIGIBLE = {"needs_review"}
 PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
 MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
@@ -903,7 +903,7 @@ def run_audit(
             if r["status"] == "auto_fixed":
                 # Upgrade any existing rows whose status can be overwritten
                 for audit_row_num, current_status in existing_audit_index[ms_row_str]:
-                    if current_status in UPGRADEABLE_FROM:
+                    if current_status in AUTO_FIX_ELIGIBLE:
                         rows_to_update.append((audit_row_num, new_row))
                     else:
                         skipped_existing += 1
