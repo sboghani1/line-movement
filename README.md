@@ -18,7 +18,7 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 | `espn_schedule_fetcher.py` | Daily 10am ET | Fetch NBA/CBB/NHL schedules from ESPN for pick validation |
 | `nba_odds_poller.py` | Every 3 hours | Poll betting odds from The Odds API |
 | `activity_logger.py` | N/A (imported) | Log activity to Google Sheets activity_log tab |
-| `daily_audit.py` | Nightly (via capper_analyzer) | Check-based audit of yesterday's picks. Runs programmatic checks (advance pick date, missing columns, result correctness, game matching, etc.), auto-fixes what it can, flags ambiguous cases for review. Writes findings to `audit_results` sheet, upgrades any existing `needs_review` rows when a fix is applied, syncs CSV after any auto-fixes, and logs to `activity_log`. |
+| `daily_audit.py` | Nightly (via capper_analyzer) | Check-based audit of yesterday's picks. Auto-fixes what it can, flags ambiguous cases for Opus review. Writes findings to `audit_results` sheet, upgrades any existing `needs_review` rows when a fix is applied, syncs CSV after any auto-fixes, and logs to `activity_log`. See § "Audit Results Review Process". |
 | `audit_hallucinations.py` | Manual / imported by daily_audit | Standalone two-pass hallucination audit for any picks sheet. Contains reusable `pick_in_ocr()`, `ABBREV_MAP`, and `opus_audit_suspects()` used by `daily_audit.py`. |
 | `remediate.py` | Manual (after audit review) | Apply a remediation file to master_sheet: delete or patch bad rows, update audit_results status, sync CSV. See § "Audit Results Review Process". |
 
