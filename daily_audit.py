@@ -476,12 +476,23 @@ def check_advance_pick_date(
     if new_result:
         fix_parts.append(f"result={new_result}")
 
+    # Only claim auto_fixed if all required columns are now filled.
+    # If result couldn't be computed (score not yet available), the fix is
+    # partial — mark needs_review so the row isn't considered fully resolved.
+    missing_after = [
+        col for col in REQUIRED_COLUMNS if not corrected_pick.get(col, "").strip()
+    ]
+    status = "auto_fixed" if not missing_after else "needs_review"
+    details = f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}"
+    if missing_after:
+        details += f"; result pending (score not yet available)"
+
     return {
         "pick_row": corrected_pick,
         "check_failed": "advance_pick_date",
-        "details": f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}",
+        "details": details,
         "suggested_fix": "; ".join(fix_parts),
-        "status": "auto_fixed",
+        "status": status,
     }
 
 
@@ -811,12 +822,17 @@ def run_audit(
         # if result: findings.append(result)
         # ... etc.
 
-        # Per-pick deduplication: if the same row produced both an auto_fixed
-        # and a needs_review finding, drop the needs_review — the auto_fix
-        # supersedes it.
+        # Per-pick deduplication:
+        # - auto_fixed supersedes needs_review (fully fixed row)
+        # - multiple needs_review: keep only the last one (later checks are
+        #   more specific and have more context than earlier ones)
         has_auto_fix = any(f["status"] == "auto_fixed" for f in findings)
         if has_auto_fix:
             findings = [f for f in findings if f["status"] != "needs_review"]
+        else:
+            review = [f for f in findings if f["status"] == "needs_review"]
+            if len(review) > 1:
+                findings = [f for f in findings if f["status"] != "needs_review"] + [review[-1]]
 
         if not findings:
             clean_count += 1
