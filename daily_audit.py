@@ -359,7 +359,6 @@ def check_advance_pick_date(
     dry_run: bool,
     schedule_d1: Dict[str, List[Tuple[str, str]]],
     d1_date: str,
-    ss=None,
 ) -> Optional[dict]:
     """
     If game is empty, try to match the pick against the D+1 schedule.
@@ -442,23 +441,6 @@ def check_advance_pick_date(
             )
             sheets_call(ms_ws.update, cell, [[value]])
 
-        if ss is not None:
-            log_activity(
-                ss,
-                category="auto_fixed",
-                trace=(
-                    f"advance_pick_date: {pick['capper']} {pick['pick']} {pick['line']} "
-                    f"date {original_date} -> {d1_date}, game={matched_game}"
-                ),
-                metadata={
-                    "check": "advance_pick_date",
-                    "ms_row": ms_row_num,
-                    "original_date": original_date,
-                    "corrected_date": d1_date,
-                    "game": matched_game,
-                    "side": matched_team,
-                },
-            )
 
     corrected_pick = {
         **pick,
@@ -809,7 +791,7 @@ def run_audit(
         # Check 2: advance pick date
         result = check_advance_pick_date(
             pick_dict, scores, ms_ws, row_num, dry_run,
-            schedule_d1=schedule_d1, d1_date=d1_date, ss=ss,
+            schedule_d1=schedule_d1, d1_date=d1_date,
         )
         if result:
             findings.append(result)
@@ -844,7 +826,6 @@ def run_audit(
     # Tally by status
     auto_fixed = [r for r in audit_results if r["status"] == "auto_fixed"]
     needs_review = [r for r in audit_results if r["status"] == "needs_review"]
-    advance_fixed = sum(1 for r in auto_fixed if r["check_failed"] == "advance_pick_date")
 
     print(f"\nCheck results:")
     print(f"  Clean (no issues):     {clean_count}")
@@ -955,14 +936,13 @@ def run_audit(
         trace=(
             f"Audit for {target_date}: "
             f"clean={clean_count} auto_fixed={len(auto_fixed)} "
-            f"advance_fixed={advance_fixed} needs_review={len(needs_review)}"
+            f"needs_review={len(needs_review)}"
         ),
         metadata={
             "date": target_date,
             "total_picks": len(yesterday_picks),
             "clean": clean_count,
             "auto_fixed": len(auto_fixed),
-            "advance_fixed": advance_fixed,
             "needs_review": len(needs_review),
         },
     )
