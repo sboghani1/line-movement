@@ -18,8 +18,9 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 | `espn_schedule_fetcher.py` | Daily 10am ET | Fetch NBA/CBB/NHL schedules from ESPN for pick validation |
 | `nba_odds_poller.py` | Every 3 hours | Poll betting odds from The Odds API |
 | `activity_logger.py` | N/A (imported) | Log activity to Google Sheets activity_log tab |
-| `daily_audit.py` | Nightly (via capper_analyzer) | Check-based audit of yesterday's picks. Runs programmatic checks (missing columns, result correctness, game matching, etc.), auto-fixes what it can, flags ambiguous cases for review. Writes findings to `audit_results` sheet and logs to `activity_log`. |
+| `daily_audit.py` | Nightly (via capper_analyzer) | Check-based audit of yesterday's picks. Runs programmatic checks (advance pick date, missing columns, result correctness, game matching, etc.), auto-fixes what it can, flags ambiguous cases for review. Writes findings to `audit_results` sheet, upgrades any existing `needs_review` rows when a fix is applied, syncs CSV after any auto-fixes, and logs to `activity_log`. |
 | `audit_hallucinations.py` | Manual / imported by daily_audit | Standalone two-pass hallucination audit for any picks sheet. Contains reusable `pick_in_ocr()`, `ABBREV_MAP`, and `opus_audit_suspects()` used by `daily_audit.py`. |
+| `remediate.py` | Manual (after audit review) | Apply a remediation file to master_sheet: delete or patch bad rows, update audit_results status, sync CSV. See § "Audit Results Review Process". |
 
 ### Backfill Scripts (one-time historical import)
 | File | Description |
@@ -106,6 +107,24 @@ Sheet: `1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k`
 | `nhl_schedule` | ESPN NHL schedules |
 | `nba_odds` | Historical odds data |
 | `activity_log` | Script activity log (includes `daily_audit` Opus cost entries) |
+
+## 🩺 Audit Results Review Process
+
+When rows appear in `audit_results`, group by pattern using `check_failed` + `details`, then write a new check in `daily_audit.py`:
+
+```bash
+python daily_audit.py --dry-run --date YYYY-MM-DD   # verify against past affected dates
+python daily_audit.py --date YYYY-MM-DD              # apply — fixes master_sheet, upgrades
+                                                     # needs_review rows to auto_fixed, syncs CSV
+```
+
+### Fix log
+
+| Date | Issue | PR |
+|------|-------|----|
+| 2026-03-21 | Advance pick dates — cappers post picks the night before; Stage 2 searched wrong date's schedule, leaving `game` empty | #14 |
+
+---
 
 ## 🛠 TODO
 

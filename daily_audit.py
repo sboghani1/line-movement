@@ -40,6 +40,7 @@ Usage:
   .venv/bin/python3 daily_audit.py --date 2026-03-17
 """
 
+import csv
 import os
 import re
 import json
@@ -55,7 +56,7 @@ from dotenv import load_dotenv
 
 from audit_hallucinations import pick_in_ocr, ABBREV_MAP
 from activity_logger import log_activity
-from populate_results import determine_result, find_score, load_scores
+from populate_results import determine_result, find_score, load_scores, team_matches
 from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT_TO_SCHED
 
 load_dotenv()
@@ -64,6 +65,11 @@ load_dotenv()
 # ── Constants ─────────────────────────────────────────────────────────────────
 MASTER_SHEET    = "master_sheet"
 AUDIT_SHEET     = "audit_results"
+LOCAL_CSV_PATH  = "gh-pages/data/master_sheet.csv"
+
+# Audit statuses that a new auto-fix is allowed to overwrite.
+# Human-reviewed and Opus-reviewed statuses are never touched.
+UPGRADEABLE_FROM = {"needs_review"}
 PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
 MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
@@ -265,6 +271,141 @@ def make_audit_row(
         suggested_fix,
         ocr_text,
     ]
+
+
+# ── Check 0: Advance pick date ────────────────────────────────────────────────
+def check_advance_pick_date(
+    pick: dict,
+    scores: dict,
+    ms_ws: gspread.Worksheet,
+    ms_row_num: int,
+    dry_run: bool,
+    schedule_d1: Dict[str, List[Tuple[str, str]]],
+    d1_date: str,
+    ss=None,
+) -> Optional[dict]:
+    """
+    Check 0: If game is empty, try to match the pick against the D+1 schedule.
+
+    Handles cappers who post picks the night before a game (advance picks) or
+    UTC boundary cases where the pick's stored date is one day before the game.
+
+    - 0 matches on D+1 → return None (let check_missing_columns handle it)
+    - 1 match on D+1  → auto-fix: patch date/game/side/spread/result in master_sheet
+    - 2+ matches      → needs_review with match details
+    """
+    # Fast-path: game already matched, nothing to do
+    if pick.get("game", "").strip():
+        return None
+
+    sport = pick.get("sport", "").strip().lower()
+    pick_team = pick.get("pick", "").strip()
+    line = pick.get("line", "").strip()
+
+    # Normalize: strip parentheticals like "(OH)" before fuzzy-matching so that
+    # "Miami RedHawks" matches "Miami (OH) RedHawks".
+    def _norm(name: str) -> str:
+        return re.sub(r'\s*\([^)]*\)', '', name).strip()
+
+    pick_norm = _norm(pick_team)
+    d1_games = schedule_d1.get(sport, [])
+    matches = []
+    for away, home in d1_games:
+        if team_matches(pick_norm, _norm(away)) or team_matches(pick_norm, _norm(home)):
+            matches.append((away, home))
+
+    if not matches:
+        return None  # no D+1 game found — let check_missing_columns flag it
+
+    if len(matches) > 1:
+        match_strs = [f"{a} @ {h}" for a, h in matches]
+        return {
+            "pick_row": pick,
+            "check_failed": "advance_pick_date",
+            "details": f"pick matches {len(matches)} games on D+1 ({d1_date}): {'; '.join(match_strs)}",
+            "suggested_fix": "",
+            "status": "needs_review",
+        }
+
+    # Exactly one match — compute corrected values
+    away_team, home_team = matches[0]
+    matched_game = f"{away_team} @ {home_team}"
+
+    if team_matches(pick_team, away_team):
+        matched_team = away_team
+    else:
+        matched_team = home_team
+
+    new_spread = "" if line.upper() == "ML" else f"{matched_team} {line}"
+
+    # Attempt result from D+1 scores (game may already be played).
+    # Use matched_team (the schedule name) for determine_result so that the
+    # team-name lookup inside it matches the game string exactly — the raw
+    # pick_team may differ (e.g. "Miami RedHawks" vs "Miami (OH) RedHawks").
+    new_result = None
+    score_str = find_score(matched_team, d1_date, sport, matched_game, scores)
+    if score_str:
+        new_result = determine_result(matched_team, line, matched_game, score_str)
+
+    original_date = pick.get("date", "")
+
+    if not dry_run:
+        updates = {
+            "date":   d1_date,
+            "game":   matched_game,
+            "side":   matched_team,
+            "spread": new_spread,
+        }
+        if new_result:
+            updates["result"] = new_result
+
+        for field, value in updates.items():
+            cell = gspread.utils.rowcol_to_a1(
+                ms_row_num, MASTER_HEADERS.index(field) + 1
+            )
+            sheets_call(ms_ws.update, cell, [[value]])
+
+        if ss is not None:
+            log_activity(
+                ss,
+                category="auto_fixed",
+                trace=(
+                    f"advance_pick_date: {pick['capper']} {pick['pick']} {pick['line']} "
+                    f"date {original_date} → {d1_date}, game={matched_game}"
+                ),
+                metadata={
+                    "check": "advance_pick_date",
+                    "ms_row": ms_row_num,
+                    "original_date": original_date,
+                    "corrected_date": d1_date,
+                    "game": matched_game,
+                    "side": matched_team,
+                },
+            )
+
+    corrected_pick = {
+        **pick,
+        "date":   d1_date,
+        "game":   matched_game,
+        "side":   matched_team,
+        "spread": new_spread,
+    }
+    if new_result:
+        corrected_pick["result"] = new_result
+
+    fix_parts = [f"date={d1_date}", f"game={matched_game}", f"side={matched_team}"]
+    if new_spread:
+        fix_parts.append(f"spread={new_spread}")
+    if new_result:
+        fix_parts.append(f"result={new_result}")
+
+    return {
+        "pick_row": corrected_pick,
+        "check_failed": "advance_pick_date",
+        "details": f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}",
+        "suggested_fix": "; ".join(fix_parts),
+        "status": "auto_fixed",
+    }
 
 
 # ── Check 1: Missing columns ─────────────────────────────────────────────────
@@ -628,6 +769,13 @@ def run_audit(
     schedule_context = format_schedule_context(schedule)
     print(f"Schedule context:\n{schedule_context}")
 
+    # Load D+1 schedule for advance pick detection
+    from datetime import date as _date
+    d = _date.fromisoformat(target_date)
+    d1_date = str(d + timedelta(days=1))
+    print(f"\nLoading D+1 schedule for {d1_date}...")
+    schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
+
     # Load OCR index for ocr_text column in audit rows
     print(f"\nLoading OCR text from {PICKS_NEW_SHEET}...")
     ocr_index = load_ocr_index(ss, target_date)
@@ -639,8 +787,22 @@ def run_audit(
 
     print(f"\nRunning checks...")
 
+    advance_fixed = 0
+
     for pick_dict, row_num in yesterday_picks:
         findings = []
+
+        # Check 0: advance pick date — runs before missing_columns so a fixed
+        # game column prevents double-flagging
+        result = check_advance_pick_date(
+            pick_dict, scores, ms_ws, row_num, dry_run,
+            schedule_d1=schedule_d1, d1_date=d1_date, ss=ss,
+        )
+        if result:
+            if result["status"] == "auto_fixed":
+                pick_dict.update(result["pick_row"])
+                advance_fixed += 1
+            findings.append(result)
 
         # Check 1: missing columns
         result = check_missing_columns(pick_dict, scores, ms_ws, row_num, dry_run)
@@ -688,37 +850,46 @@ def run_audit(
         return
 
     if dry_run:
-        print(f"\n[dry-run] Would write {len(audit_results)} rows to {AUDIT_SHEET}.")
+        print(f"\n[dry-run] Would write/upgrade {len(audit_results)} row(s) to {AUDIT_SHEET}.")
+        if auto_fixed:
+            print(f"[dry-run] Would sync CSV ({len(auto_fixed)} auto-fix(es)).")
         return
 
     # ── Write to audit_results ──────────────────────────────────────────────────
     # Order: needs_review first, then auto_fixed at the bottom
     ordered = needs_review + auto_fixed
 
-    # Load existing audit rows to avoid duplicates (keyed by ms_row)
+    # Load existing audit rows.
+    # Build index: ms_row_str → [(audit_sheet_row_1based, current_status)]
+    # Used both to skip duplicates and to upgrade needs_review → auto_fixed.
     ws_audit = get_or_create_audit_sheet(ss)
     time.sleep(1)
     existing_audit = sheets_call(ws_audit.get_all_values)
-    existing_ms_rows = set()
+    existing_audit_index: Dict[str, List[Tuple[int, str]]] = {}
     if len(existing_audit) > 1:
         audit_hdr = existing_audit[0]
-        ms_row_idx = audit_hdr.index("ms_row") if "ms_row" in audit_hdr else None
+        ms_row_idx  = audit_hdr.index("ms_row")  if "ms_row"  in audit_hdr else None
+        status_idx  = audit_hdr.index("status")  if "status"  in audit_hdr else 1
         if ms_row_idx is not None:
-            for row in existing_audit[1:]:
-                if len(row) > ms_row_idx and row[ms_row_idx].strip():
-                    existing_ms_rows.add(row[ms_row_idx].strip())
+            for i, row in enumerate(existing_audit[1:], start=2):
+                while len(row) <= max(ms_row_idx, status_idx):
+                    row.append("")
+                ms_row_val = row[ms_row_idx].strip()
+                if ms_row_val:
+                    existing_audit_index.setdefault(ms_row_val, []).append(
+                        (i, row[status_idx].strip())
+                    )
 
-    rows_to_write = []
+    rows_to_write  = []
+    rows_to_update = []   # [(audit_sheet_row_1based, new_row_values)]
     skipped_existing = 0
+
     for r in ordered:
-        # Skip if this master_sheet row already has an audit entry
-        if str(r["ms_row"]) in existing_ms_rows:
-            skipped_existing += 1
-            continue
+        ms_row_str = str(r["ms_row"])
         p = r["pick_row"]
-        ocr_key = (p["date"], p["capper"], p["sport"], p["pick"], p["line"])
+        ocr_key  = (p["date"], p["capper"], p["sport"], p["pick"], p["line"])
         ocr_text = ocr_index.get(ocr_key, "")
-        rows_to_write.append(make_audit_row(
+        new_row  = make_audit_row(
             pick_row=p,
             check_failed=r["check_failed"],
             details=r["details"],
@@ -726,18 +897,38 @@ def run_audit(
             status=r["status"],
             ms_row=r["ms_row"],
             ocr_text=ocr_text,
-        ))
+        )
+
+        if ms_row_str in existing_audit_index:
+            if r["status"] == "auto_fixed":
+                # Upgrade any existing rows whose status can be overwritten
+                for audit_row_num, current_status in existing_audit_index[ms_row_str]:
+                    if current_status in UPGRADEABLE_FROM:
+                        rows_to_update.append((audit_row_num, new_row))
+                    else:
+                        skipped_existing += 1
+            else:
+                skipped_existing += 1
+        else:
+            rows_to_write.append(new_row)
 
     if skipped_existing:
         print(f"  Skipped {skipped_existing} rows already in {AUDIT_SHEET}")
 
-    if not rows_to_write:
-        print(f"\nNo new rows to write to {AUDIT_SHEET}.")
-        return
+    if rows_to_update:
+        print(f"\nUpgrading {len(rows_to_update)} existing audit rows (needs_review -> auto_fixed)...")
+        for audit_row_num, new_row_vals in rows_to_update:
+            col_range = f"A{audit_row_num}"
+            sheets_call(ws_audit.update, col_range, [new_row_vals])
+        print(f"  Upgraded {len(rows_to_update)} rows in {AUDIT_SHEET}")
 
-    print(f"\nWriting {len(rows_to_write)} rows to {AUDIT_SHEET}...")
-    sheets_call(ws_audit.append_rows, rows_to_write, value_input_option="USER_ENTERED")
-    print(f"  Appended {len(rows_to_write)} rows to {AUDIT_SHEET}")
+    if rows_to_write:
+        print(f"\nWriting {len(rows_to_write)} rows to {AUDIT_SHEET}...")
+        sheets_call(ws_audit.append_rows, rows_to_write, value_input_option="USER_ENTERED")
+        print(f"  Appended {len(rows_to_write)} rows to {AUDIT_SHEET}")
+
+    if not rows_to_update and not rows_to_write:
+        print(f"\nNo new rows to write to {AUDIT_SHEET}.")
 
     # ── Log to activity_log ──────────────────────────────────────────────────
     log_activity(
@@ -746,16 +937,27 @@ def run_audit(
         trace=(
             f"Audit for {target_date}: "
             f"clean={clean_count} auto_fixed={len(auto_fixed)} "
-            f"needs_review={len(needs_review)}"
+            f"advance_fixed={advance_fixed} needs_review={len(needs_review)}"
         ),
         metadata={
             "date": target_date,
             "total_picks": len(yesterday_picks),
             "clean": clean_count,
             "auto_fixed": len(auto_fixed),
+            "advance_fixed": advance_fixed,
             "needs_review": len(needs_review),
         },
     )
+
+    # ── Sync CSV if any rows were auto-fixed ─────────────────────────────────
+    if auto_fixed:
+        print(f"\nSyncing CSV ({len(auto_fixed)} auto-fix(es) applied)...")
+        ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
+        all_values  = sheets_call(ms_ws_fresh.get_all_values)
+        if all_values:
+            with open(LOCAL_CSV_PATH, "w", newline="", encoding="utf-8") as f:
+                csv.writer(f).writerows(all_values)
+            print(f"  Synced {len(all_values) - 1} rows -> {LOCAL_CSV_PATH}")
 
     print(f"\nDone. Review {AUDIT_SHEET} sheet for flagged rows.")
 
