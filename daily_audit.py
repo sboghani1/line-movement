@@ -273,141 +273,6 @@ def make_audit_row(
     ]
 
 
-# ── Check 2: Advance pick date ────────────────────────────────────────────────
-def check_advance_pick_date(
-    pick: dict,
-    scores: dict,
-    ms_ws: gspread.Worksheet,
-    ms_row_num: int,
-    dry_run: bool,
-    schedule_d1: Dict[str, List[Tuple[str, str]]],
-    d1_date: str,
-    ss=None,
-) -> Optional[dict]:
-    """
-    If game is empty, try to match the pick against the D+1 schedule.
-
-    Handles cappers who post picks the night before a game (advance picks) or
-    UTC boundary cases where the pick's stored date is one day before the game.
-
-    - 0 matches on D+1 → return None (let check_missing_columns handle it)
-    - 1 match on D+1  → auto-fix: patch date/game/side/spread/result in master_sheet
-    - 2+ matches      → needs_review with match details
-    """
-    # Fast-path: game already matched, nothing to do
-    if pick.get("game", "").strip():
-        return None
-
-    sport = pick.get("sport", "").strip().lower()
-    pick_team = pick.get("pick", "").strip()
-    line = pick.get("line", "").strip()
-
-    # Normalize: strip parentheticals like "(OH)" before fuzzy-matching so that
-    # "Miami RedHawks" matches "Miami (OH) RedHawks".
-    def _norm(name: str) -> str:
-        return re.sub(r'\s*\([^)]*\)', '', name).strip()
-
-    pick_norm = _norm(pick_team)
-    d1_games = schedule_d1.get(sport, [])
-    matches = []
-    for away, home in d1_games:
-        if team_matches(pick_norm, _norm(away)) or team_matches(pick_norm, _norm(home)):
-            matches.append((away, home))
-
-    if not matches:
-        return None  # no D+1 game found — let check_missing_columns flag it
-
-    if len(matches) > 1:
-        match_strs = [f"{a} @ {h}" for a, h in matches]
-        return {
-            "pick_row": pick,
-            "check_failed": "advance_pick_date",
-            "details": f"pick matches {len(matches)} games on D+1 ({d1_date}): {'; '.join(match_strs)}",
-            "suggested_fix": "",
-            "status": "needs_review",
-        }
-
-    # Exactly one match — compute corrected values
-    away_team, home_team = matches[0]
-    matched_game = f"{away_team} @ {home_team}"
-
-    if team_matches(pick_team, away_team):
-        matched_team = away_team
-    else:
-        matched_team = home_team
-
-    new_spread = "" if line.upper() == "ML" else f"{matched_team} {line}"
-
-    # Attempt result from D+1 scores (game may already be played).
-    # Use matched_team (the schedule name) for determine_result so that the
-    # team-name lookup inside it matches the game string exactly — the raw
-    # pick_team may differ (e.g. "Miami RedHawks" vs "Miami (OH) RedHawks").
-    new_result = None
-    score_str = find_score(matched_team, d1_date, sport, matched_game, scores)
-    if score_str:
-        new_result = determine_result(matched_team, line, matched_game, score_str)
-
-    original_date = pick.get("date", "")
-
-    if not dry_run:
-        updates = {
-            "date":   d1_date,
-            "game":   matched_game,
-            "side":   matched_team,
-            "spread": new_spread,
-        }
-        if new_result:
-            updates["result"] = new_result
-
-        for field, value in updates.items():
-            cell = gspread.utils.rowcol_to_a1(
-                ms_row_num, MASTER_HEADERS.index(field) + 1
-            )
-            sheets_call(ms_ws.update, cell, [[value]])
-
-        if ss is not None:
-            log_activity(
-                ss,
-                category="auto_fixed",
-                trace=(
-                    f"advance_pick_date: {pick['capper']} {pick['pick']} {pick['line']} "
-                    f"date {original_date} → {d1_date}, game={matched_game}"
-                ),
-                metadata={
-                    "check": "advance_pick_date",
-                    "ms_row": ms_row_num,
-                    "original_date": original_date,
-                    "corrected_date": d1_date,
-                    "game": matched_game,
-                    "side": matched_team,
-                },
-            )
-
-    corrected_pick = {
-        **pick,
-        "date":   d1_date,
-        "game":   matched_game,
-        "side":   matched_team,
-        "spread": new_spread,
-    }
-    if new_result:
-        corrected_pick["result"] = new_result
-
-    fix_parts = [f"date={d1_date}", f"game={matched_game}", f"side={matched_team}"]
-    if new_spread:
-        fix_parts.append(f"spread={new_spread}")
-    if new_result:
-        fix_parts.append(f"result={new_result}")
-
-    return {
-        "pick_row": corrected_pick,
-        "check_failed": "advance_pick_date",
-        "details": f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}",
-        "suggested_fix": "; ".join(fix_parts),
-        "status": "auto_fixed",
-    }
-
-
 # ── Check 1: Missing columns ─────────────────────────────────────────────────
 def check_missing_columns(
     pick: dict,
@@ -482,6 +347,141 @@ def check_missing_columns(
         "details": f"missing: {', '.join(missing)}",
         "suggested_fix": "",
         "status": "needs_review",
+    }
+
+
+# ── Check 2: Advance pick date ────────────────────────────────────────────────
+def check_advance_pick_date(
+    pick: dict,
+    scores: dict,
+    ms_ws: gspread.Worksheet,
+    ms_row_num: int,
+    dry_run: bool,
+    schedule_d1: Dict[str, List[Tuple[str, str]]],
+    d1_date: str,
+    ss=None,
+) -> Optional[dict]:
+    """
+    If game is empty, try to match the pick against the D+1 schedule.
+
+    Handles cappers who post picks the night before a game (advance picks) or
+    UTC boundary cases where the pick's stored date is one day before the game.
+
+    - 0 matches on D+1 → return None (let check_missing_columns handle it)
+    - 1 match on D+1  → auto-fix: patch date/game/side/spread/result in master_sheet
+    - 2+ matches      → needs_review with match details
+    """
+    # Fast-path: game already matched, nothing to do
+    if pick.get("game", "").strip():
+        return None
+
+    sport = pick.get("sport", "").strip().lower()
+    pick_team = pick.get("pick", "").strip()
+    line = pick.get("line", "").strip()
+
+    # Normalize: strip parentheticals like "(OH)" before fuzzy-matching so that
+    # "Miami RedHawks" matches "Miami (OH) RedHawks".
+    def _norm(name: str) -> str:
+        return re.sub(r'\s*\([^)]*\)', '', name).strip()
+
+    pick_norm = _norm(pick_team)
+    d1_games = schedule_d1.get(sport, [])
+    matches = []
+    for away, home in d1_games:
+        if team_matches(pick_norm, _norm(away)) or team_matches(pick_norm, _norm(home)):
+            matches.append((away, home))
+
+    if not matches:
+        return None  # no D+1 game found — let check_missing_columns handle it
+
+    if len(matches) > 1:
+        match_strs = [f"{a} @ {h}" for a, h in matches]
+        return {
+            "pick_row": pick,
+            "check_failed": "advance_pick_date",
+            "details": f"pick matches {len(matches)} games on D+1 ({d1_date}): {'; '.join(match_strs)}",
+            "suggested_fix": "",
+            "status": "needs_review",
+        }
+
+    # Exactly one match — compute corrected values
+    away_team, home_team = matches[0]
+    matched_game = f"{away_team} @ {home_team}"
+
+    if team_matches(pick_team, away_team):
+        matched_team = away_team
+    else:
+        matched_team = home_team
+
+    new_spread = "" if line.upper() == "ML" else f"{matched_team} {line}"
+
+    # Attempt result from D+1 scores (game may already be played).
+    # Use matched_team (the schedule name) for determine_result so that the
+    # team-name lookup inside it matches the game string exactly — the raw
+    # pick_team may differ (e.g. "Miami RedHawks" vs "Miami (OH) RedHawks").
+    new_result = None
+    score_str = find_score(matched_team, d1_date, sport, matched_game, scores)
+    if score_str:
+        new_result = determine_result(matched_team, line, matched_game, score_str)
+
+    original_date = pick.get("date", "")
+
+    if not dry_run:
+        updates = {
+            "date":   d1_date,
+            "game":   matched_game,
+            "side":   matched_team,
+            "spread": new_spread,
+        }
+        if new_result:
+            updates["result"] = new_result
+
+        for field, value in updates.items():
+            cell = gspread.utils.rowcol_to_a1(
+                ms_row_num, MASTER_HEADERS.index(field) + 1
+            )
+            sheets_call(ms_ws.update, cell, [[value]])
+
+        if ss is not None:
+            log_activity(
+                ss,
+                category="auto_fixed",
+                trace=(
+                    f"advance_pick_date: {pick['capper']} {pick['pick']} {pick['line']} "
+                    f"date {original_date} -> {d1_date}, game={matched_game}"
+                ),
+                metadata={
+                    "check": "advance_pick_date",
+                    "ms_row": ms_row_num,
+                    "original_date": original_date,
+                    "corrected_date": d1_date,
+                    "game": matched_game,
+                    "side": matched_team,
+                },
+            )
+
+    corrected_pick = {
+        **pick,
+        "date":   d1_date,
+        "game":   matched_game,
+        "side":   matched_team,
+        "spread": new_spread,
+    }
+    if new_result:
+        corrected_pick["result"] = new_result
+
+    fix_parts = [f"date={d1_date}", f"game={matched_game}", f"side={matched_team}"]
+    if new_spread:
+        fix_parts.append(f"spread={new_spread}")
+    if new_result:
+        fix_parts.append(f"result={new_result}")
+
+    return {
+        "pick_row": corrected_pick,
+        "check_failed": "advance_pick_date",
+        "details": f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}",
+        "suggested_fix": "; ".join(fix_parts),
+        "status": "auto_fixed",
     }
 
 
