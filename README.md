@@ -164,15 +164,16 @@ Remove the `side` column entirely from code, Google Sheets, and CSV. It is just 
 - Remove `side` from `populate_stage2.py`
 - Delete `side` column from Google Sheets and CSV
 
-### Phase 2: Move spread to Python schedule lookup
+### Phase 2: Move spread to Python schedule lookup ✅ Done
 
-Stop Claude from guessing `spread`. Instead, look it up from the schedule sheet via Python after Claude returns.
+Removed spread from Claude's Stage 2 prompt — it now only fills `game` and `side`. A Python post-pass looks up the consensus spread directly from the ESPN schedule sheets.
 
-- In `capper_analyzer.py` `run_stage2()`: after Claude returns rows, do a Python post-pass that looks up spread from schedule (same pattern as `populate_stage2.py`)
-- Update `build_stage2_prompt()`: remove spread instruction from Claude's output
-- In `daily_audit.py` `check_next_day_game()`: change `new_spread = f"{matched_team} {line}"` to schedule lookup
-- Update `spread_consistency` check spec: spread should match schedule, not `"{pick} {line}"`
-- Simplify `format_schedule_for_prompt()` — Claude no longer needs spread data at all
+- `capper_analyzer.py`: Added `lookup_spread_from_schedule()` helper; both `run_stage2()` and manual queue Stage 2 now fill spread via Python post-pass after Claude returns
+- `build_stage2_prompt()`: Removed spread instructions — Claude told to leave spread empty
+- `daily_audit.py`: `load_schedule_for_date()` now returns `(away, home, spread)` tuples; `check_next_day_game()` uses schedule spread instead of constructing `"{pick} {line}"`
+- `spread_consistency` check spec updated: spread should match schedule, not `"{pick} {line}"`
+- `format_schedule_for_prompt()` already omitted spread (no change needed)
+- Example rows updated to show empty spread column (filled by Python)
 
 ### Phase 3: Backfill existing data
 
