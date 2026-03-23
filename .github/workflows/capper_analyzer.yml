@@ -47,17 +47,32 @@ jobs:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # Record origin/main before running (script pushes via detached worktree)
+          BEFORE=$(git rev-parse origin/main)
+          
           python capper_analyzer.py
-          # Check if CSV was updated
-          if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q 'gh-pages/data/master_sheet.csv'; then
+          
+          # Check if script pushed a new commit
+          git fetch origin main
+          AFTER=$(git rev-parse origin/main)
+          
+          if [ "$BEFORE" != "$AFTER" ]; then
             echo "csv_updated=true" >> $GITHUB_OUTPUT
+            echo "New commit pushed: $BEFORE → $AFTER"
+            # Pull the new commit so we have fresh gh-pages content
+            git pull --ff-only origin main
           else
             echo "csv_updated=false" >> $GITHUB_OUTPUT
+            echo "No new commits"
           fi
 
       - name: Setup Pages
         if: steps.process.outputs.csv_updated == 'true'
         uses: actions/configure-pages@v4
+
+      - name: Inject trigger PAT
+        if: steps.process.outputs.csv_updated == 'true'
+        run: sed -i "s/__TRIGGER_PAT__/${{ secrets.TRIGGER_PAT }}/g" gh-pages/index.html
       
       - name: Upload artifact
         if: steps.process.outputs.csv_updated == 'true'
