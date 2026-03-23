@@ -311,47 +311,51 @@ def git_push_csv(csv_content: List[List[str]]) -> bool:
 
 # ── master_sheet sort + audit_results ms_row recalculation ───────────────────
 
-def resort_master_sheet(ms_ws: gspread.Worksheet) -> Tuple[List[List[str]], Dict[int, int]]:
+def resort_master_sheet(ms_ws: gspread.Worksheet) -> List[List[str]]:
     """Re-sort master_sheet rows by date (ascending) and write back in-place.
 
-    Returns (sorted_vals, row_map) where row_map is {old_1based_row: new_1based_row}.
-    The row_map is used to update ms_row references in audit_results.
+    Returns the sorted values (header + data) for use in subsequent steps.
     """
     all_vals = sheets_call(ms_ws.get_all_values)
     if len(all_vals) < 2:
-        return all_vals, {}
+        return all_vals
     header = all_vals[0]
     if "date" not in header:
         print("  Warning: 'date' column not found in master_sheet; skipping sort")
-        return all_vals, {}
+        return all_vals
     date_idx = header.index("date")
     data = all_vals[1:]
-
-    # Tag each row with its original 1-based sheet row number (row 1 = header)
-    tagged = [(i + 2, row) for i, row in enumerate(data)]
-    tagged.sort(key=lambda x: x[1][date_idx] if len(x[1]) > date_idx else "")
-
-    # Build old_row → new_row mapping
-    row_map: Dict[int, int] = {
-        old_row: new_idx + 2  # +2: row 1 = header, data starts at row 2
-        for new_idx, (old_row, _) in enumerate(tagged)
-    }
-
-    sorted_vals = [header] + [row for _, row in tagged]
+    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
+    sorted_vals = [header] + data
     sheets_call(ms_ws.update, "A1", sorted_vals)
     print(f"  Re-sorted master_sheet ({len(data)} rows by date)")
-    return sorted_vals, row_map
+    return sorted_vals
 
 
-def recalculate_ms_rows(ws_audit: gspread.Worksheet, row_map: Dict[int, int]) -> None:
-    """Update ms_row in all audit_results rows using the sort position mapping.
+def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]]) -> None:
+    """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
 
-    Uses old_row → new_row mapping from resort_master_sheet rather than a
-    composite key lookup, so rows with a stale date field are still handled
-    correctly.
+    Looks up each audit row's composite key (date, capper, sport, pick, line)
+    in the sorted master_sheet and writes ALL matching row numbers as a
+    comma-separated string. Multiple values make pre-cleanup collisions visible
+    and flag unexpected future collisions.
     """
-    if not row_map:
+    if len(sorted_ms_vals) < 2:
         return
+
+    ms_header = sorted_ms_vals[0]
+    composite_cols = ["date", "capper", "sport", "pick", "line"]
+    try:
+        col_idxs = [ms_header.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: master_sheet missing expected columns; skipping ms_row recalculation")
+        return
+
+    # Build composite key → all matching 1-based row numbers
+    key_to_ms_rows: Dict[Tuple, List[int]] = {}
+    for i, row in enumerate(sorted_ms_vals[1:], start=2):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in col_idxs)
+        key_to_ms_rows.setdefault(key, []).append(i)
 
     audit_vals = sheets_call(ws_audit.get_all_values)
     if len(audit_vals) <= 5:
@@ -364,18 +368,22 @@ def recalculate_ms_rows(ws_audit: gspread.Worksheet, row_map: Dict[int, int]) ->
     ms_row_col_idx = audit_hdr.index("ms_row")
     col_letter = chr(ord("A") + ms_row_col_idx)
 
-    updates = []  # [(cell_notation, [[new_value]])]
+    try:
+        audit_composite_idxs = [audit_hdr.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: audit_results missing expected columns; skipping ms_row recalculation")
+        return
+
+    updates = []
     for i, row in enumerate(audit_vals[5:], start=6):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in audit_composite_idxs)
+        matches = key_to_ms_rows.get(key)
+        if matches is None:
+            continue
+        new_val = ",".join(str(r) for r in matches)
         current = row[ms_row_col_idx].strip() if len(row) > ms_row_col_idx else ""
-        if not current:
-            continue
-        try:
-            old_ms_row = int(current)
-        except ValueError:
-            continue
-        new_ms_row = row_map.get(old_ms_row)
-        if new_ms_row is not None and str(new_ms_row) != current:
-            updates.append((f"{col_letter}{i}", [[str(new_ms_row)]]))
+        if new_val != current:
+            updates.append((f"{col_letter}{i}", [[new_val]]))
 
     if updates:
         print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
@@ -1097,8 +1105,8 @@ def run_audit(
     if auto_fixed:
         print(f"\nRe-sorting master_sheet ({len(auto_fixed)} fix(es) applied)...")
         ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
-        sorted_ms_vals, row_map = resort_master_sheet(ms_ws_fresh)
-        recalculate_ms_rows(ws_audit, row_map)
+        sorted_ms_vals = resort_master_sheet(ms_ws_fresh)
+        recalculate_ms_rows(ws_audit, sorted_ms_vals)
 
     # ── Sync CSV if any rows were auto-fixed ─────────────────────────────────
     if auto_fixed:
@@ -1125,8 +1133,8 @@ def main():
         ms_ws    = sheets_call(ss.worksheet, MASTER_SHEET)
         ws_audit = get_or_create_audit_sheet(ss)
         print("Re-sorting master_sheet...")
-        sorted_vals, row_map = resort_master_sheet(ms_ws)
-        recalculate_ms_rows(ws_audit, row_map)
+        sorted_vals = resort_master_sheet(ms_ws)
+        recalculate_ms_rows(ws_audit, sorted_vals)
         if args.dry_run:
             print("[dry-run] Skipping CSV push.")
         else:
