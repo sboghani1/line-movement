@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 2: Populate game, spread, and side columns in parsed_picks_new
+Stage 2: Populate game and spread columns in parsed_picks_new
 by matching each pick against the ESPN schedule sheets.
 
 Usage:
@@ -10,7 +10,7 @@ Usage:
 Sheet layout after run:
   rows 1-2:    top metadata
   row  3:      header
-  rows 4+:     matched rows (game/spread/side filled, sorted by date)
+  rows 4+:     matched rows (game/spread filled, sorted by date)
   [blank row]
   [wrong-sport rows: sport tag corrected, moved here for your review]
   [blank row]
@@ -26,7 +26,7 @@ load_dotenv()
 GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 PICKS_SHEET     = "parsed_picks_new"
 SPORT_TO_SCHED  = {"nba": "nba_schedule", "cbb": "cbb_schedule", "nhl": "nhl_schedule"}
-PICK_HEADERS    = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
+PICK_HEADERS    = ["date", "capper", "sport", "pick", "line", "game", "spread", "result", "ocr_text"]
 
 _NOISE = re.compile(
     r'\b(blue devils?|crimson tide|golden eagles?|golden bears?|golden gophers?|'
@@ -149,7 +149,6 @@ def main():
     line_col   = col.get("line", 4)
     game_col   = col.get("game", 5)
     spread_col = col.get("spread", 6)
-    side_col   = col.get("side", 7)
 
     matched_rows     = []
     wrong_sport_rows = []   # sport tag fixed, moved to bottom section 1
@@ -172,7 +171,6 @@ def main():
             away, home, sched_spread = result
             row[game_col]   = f"{away} @ {home}"
             row[spread_col] = sched_spread
-            row[side_col]   = pick
             matched_rows.append(row)
             continue
 
@@ -183,7 +181,6 @@ def main():
             row[sport_col]  = correct_sport.upper()   # fix the tag
             row[game_col]   = f"{away} @ {home}"
             row[spread_col] = sched_spread
-            row[side_col]   = pick
             wrong_sport_rows.append(row)
             continue
 
@@ -238,7 +235,7 @@ def main():
             time.sleep(1)
 
     print(f"\nDone.")
-    print(f"  {len(matched_rows)} matched rows (game/spread/side filled) sorted by date")
+    print(f"  {len(matched_rows)} matched rows (game/spread filled) sorted by date")
     if wrong_sport_rows:
         print(f"  {len(wrong_sport_rows)} wrong-sport rows (sport tag fixed) after first separator — review and move up")
     if unmatched_rows:

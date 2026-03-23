@@ -49,7 +49,7 @@ NHL_SCHEDULE_SHEET = "nhl_schedule"
 # Max rows per Sonnet call — keep small to prevent cross-row hallucination
 STAGE_BATCH_SIZE = 10
 
-OUTPUT_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
+OUTPUT_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "result", "ocr_text"]
 
 # Claude usage tracking (Sonnet 4.6: $3.00/M input, $15.00/M output)
 CLAUDE_USAGE = {"input_tokens": 0, "output_tokens": 0}
@@ -279,7 +279,6 @@ def parse_stage1_response(
             line_val,
             "",      # game (blank — Stage 2 fills)
             "",      # spread
-            "",      # side
             "",      # result
             ocr_text,
         ])

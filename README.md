@@ -27,7 +27,7 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 |------|-------------|
 | `backfill_stage1.py` | Batch OCR → parsed_picks_new (Stage 1 only) |
 | `backfill_orchestrate.py` | Orchestrate full Stage 1+2 backfill in batches of 20 |
-| `populate_stage2.py` | Fill game/spread/side by matching picks against schedule sheets |
+| `populate_stage2.py` | Fill game/spread by matching picks against schedule sheets |
 | `cleanup_invalid_rows.py` | Remove duplicates, props, parlays, totals, and wrong-sport rows |
 | `finalize_picks.py` | Copy parsed_picks_new → master_sheet_new (backfill final step) |
 | `reprocess_cbb_picks.py` | Re-parse CBB picks that were tagged with the wrong sport |
@@ -100,7 +100,7 @@ Sheet: `1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k`
 | `parsed_picks` | Stage 1: OCR → structured picks (cleared after Stage 2) |
 | `finalized_picks` | Stage 2: Validated picks (staging area) |
 | `master_sheet` | All finalized picks — permanent history, no `ocr_text` |
-| `parsed_picks_new` | Append-only mirror of master_sheet with `ocr_text` (col 10); source for daily audit |
+| `parsed_picks_new` | Append-only mirror of master_sheet with `ocr_text` (col 9); source for daily audit |
 | `audit_results` | Audit findings from nightly checks — status dropdown tracks review workflow |
 | `nba_schedule` | ESPN NBA schedules |
 | `cbb_schedule` | ESPN CBB schedules |
@@ -148,11 +148,11 @@ Claude's only truly irreplaceable job in Stage 2 is **abbreviation resolution** 
 
 - **Game matching**: Given a full team name + date + sport, Python already does this perfectly in `populate_stage2.py` via `team_matches()`
 - **Spread lookup**: Python reads it directly from the schedule sheet (already working in `populate_stage2.py` and `finalize_picks.py`)
-- **Side**: Being removed entirely — it's just a copy of `pick` and nothing depends on it
+- **Side**: Removed entirely — it was just a copy of `pick` and nothing depended on it
 
 The abbreviation space is finite (30 NBA + 32 NHL + ~362 CBB teams, each with a small set of common aliases). On any given day only ~15-30 teams are playing, so the search space is tiny. A maintained alias mapping in a Google Sheet can replace Claude for this task.
 
-### Phase 1: Remove `side` column
+### Phase 1: Remove `side` column ✅ Done
 
 Remove the `side` column entirely from code, Google Sheets, and CSV. It is just a copy of `pick` — the dashboard already falls back to `pick`, and `populate_results.py` doesn't use it.
 

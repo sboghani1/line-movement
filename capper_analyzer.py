@@ -68,10 +68,9 @@ PICKS_COLUMNS = [
     "line",
     "game",
     "spread",
-    "side",
     "result",
     "ocr_text",
-    "source",   # index 10 — "discord_all_in_one" or "telegram"
+    "source",   # index 9 — "discord_all_in_one" or "telegram"
 ]
 
 # Maximum number of messages to process per run
@@ -138,19 +137,19 @@ def log_claude_usage(message):
 
 # Example rows for prompts (spread and ML per sport - NO totals)
 # Includes examples for tricky formats: Porter Picks "O opponent" and Analytics Capper "v opponent"
-EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
-2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
-2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,LA Clippers,
-2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
-2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,Alabama Crimson Tide,
-2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,Brooklyn Nets,
-2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
+EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,
+2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,
+2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,
+2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
+2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,
+2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,
+2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,"""
 
-EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
-2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
-2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
-2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,Alabama Crimson Tide,
-2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
+EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,
+2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,
+2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
+2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,
+2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,"""
 
 
 # ── Google Sheets Setup ──────────────────────────────────────────────────────
@@ -526,7 +525,7 @@ def build_stage1_prompt(
     prompt = f"""Parse the following betting picks from OCR text into CSV rows.
 
 OUTPUT FORMAT (one row per pick, comma-separated):
-date,capper,sport,pick,line,game,spread,side,result
+date,capper,sport,pick,line,game,spread,result
 
 COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
@@ -536,7 +535,6 @@ COLUMN DEFINITIONS:
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
 - spread: Leave empty for now
-- side: Leave empty for now
 - result: Leave empty
 
 ROW ATTRIBUTION (CRITICAL):
@@ -626,9 +624,9 @@ CAPPER NORMALIZATION RULES:
 - If no match found, keep the original capper name (properly capitalized)
 """
 
-    prompt = f"""Finalize these parsed betting picks by filling in the 'game', 'spread', and 'side' columns based on the scheduled games.
+    prompt = f"""Finalize these parsed betting picks by filling in the 'game' and 'spread' columns based on the scheduled games.
 
-COLUMN ORDER: date,capper,sport,pick,line,game,spread,side,result
+COLUMN ORDER: date,capper,sport,pick,line,game,spread,result
 {cappers_section}
 
 CRITICAL RULES:
@@ -643,20 +641,16 @@ CRITICAL RULES:
 
 3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty.
 
-4. side: Copy the corrected pick value (FULL team name). For ML bets, side MUST match pick.
-
-5. For ML bets: pick=team name, side=team name (same as pick), spread=empty
+4. For ML bets: pick=team name, spread=empty
 
 ABBREVIATION RESOLUTION (MANDATORY):
-- pick and side columns MUST contain FULL official team names from the schedule
-- NEVER leave abbreviations like OKC, BKN, CHI, CBJ, EDM, NO, MEM, IND in pick or side
-- Resolve using the schedules below
+- pick column MUST contain FULL official team names from the schedule
+- NEVER leave abbreviations like OKC, BKN, CHI, CBJ, EDM, NO, MEM, IND in pick
 
 VALIDATION:
 - pick column must NEVER contain "@" or be an abbreviation
-- pick and side should BOTH have the FULL team name
+- pick should have the FULL team name
 - spread column should have format like "Team Name -3.5" or "Team Name +3.5"
-- side should match pick exactly
 
 NEVER INVERT PICKS (CRITICAL):
 - The pick MUST match the original team from Stage 1 - NEVER switch to the opponent
@@ -664,7 +658,6 @@ NEVER INVERT PICKS (CRITICAL):
 - Under a "Fades:" header, if Stage 1 says pick="Houston Cougars" line="+3", keep it as Houston Cougars +3. Do NOT flip to Arizona (the fade target).
 - Do NOT "correct" the pick based on who is favored in the schedule
 - Do NOT flip underdog/favorite - keep the exact team and line from input
-- The side column should match the pick column exactly
 
 NBA SCHEDULE:
 {schedule_data.get("nba", "No games")}
@@ -699,10 +692,10 @@ def parse_csv_response(response: str) -> List[List[str]]:
             reader = csv.reader(io.StringIO(line))
             for row in reader:
                 if len(row) >= 5:  # At least date, capper, sport, pick, line
-                    # Pad to 9 columns if needed
-                    while len(row) < 9:
+                    # Pad to 8 columns if needed
+                    while len(row) < 8:
                         row.append("")
-                    rows.append(row[:9])
+                    rows.append(row[:8])
         except Exception:
             continue
     return rows
@@ -713,16 +706,14 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
 
     The pick column should be a single team name, not a game format.
     If pick contains '@', we try to extract the correct team from the line column.
-    For ML bets, pick and side should both have the team name.
     """
     fixed_rows = []
     for row in rows:
-        # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), spread(6), side(7), result(8)
+        # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), spread(6), result(7)
         pick = row[3] if len(row) > 3 else ""
         line = row[4] if len(row) > 4 else ""
         game = row[5] if len(row) > 5 else ""
         spread = row[6] if len(row) > 6 else ""
-        side = row[7] if len(row) > 7 else ""
 
         line_upper = line.upper().strip()
 
@@ -730,12 +721,9 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
         if "@" in pick:
             fixed_team = None
 
-            # For ML bets, use side if it has a valid team name
+            # For ML bets, try to extract from spread
             if line_upper == "ML":
-                if side and "@" not in side:
-                    fixed_team = side
-                # Otherwise try to extract from spread
-                elif spread:
+                if spread:
                     # Spread might be like "Team Name -3.5" - extract team
                     spread_match = re.match(r"^(.+?)\s*[+-][\d.]+", spread)
                     if spread_match:
@@ -762,13 +750,6 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
             # Apply the fix
             if fixed_team:
                 row[3] = fixed_team  # Fix the pick column
-                if len(row) > 7:
-                    row[7] = fixed_team  # Fix side too
-
-        # For ML bets, ensure side matches pick (if pick is valid)
-        if line_upper == "ML" and len(row) > 7:
-            if row[3] and "@" not in row[3] and not row[7]:
-                row[7] = row[3]  # Copy pick to side
 
         fixed_rows.append(row)
 
@@ -1063,15 +1044,15 @@ def run_stage1(spreadsheet, image_pull_ws):
 
 
 def run_stage2(spreadsheet, image_pull_ws):
-    """Run Stage 2: Finalize parsed picks with game/spread/side data.
+    """Run Stage 2: Finalize parsed picks with game/spread data.
 
     Reads rows from parsed_picks, sends them to Sonnet in batches to fill
-    game, spread, and side columns by cross-referencing the schedule, then
+    game and spread columns by cross-referencing the schedule, then
     writes to three destinations:
 
-      finalized_picks  — staging sheet (all 10 cols incl. ocr_text); deduped
-      master_sheet     — permanent history (cols 0–8, no ocr_text)
-      parsed_picks_new — append-only audit sheet (all 10 cols incl. ocr_text)
+      finalized_picks  — staging sheet (all 9 cols incl. ocr_text); deduped
+      master_sheet     — permanent history (cols 0–7, no ocr_text)
+      parsed_picks_new — append-only audit sheet (all 9 cols incl. ocr_text)
 
     The dual-write design keeps master_sheet lean (no large OCR strings) while
     parsed_picks_new retains the full row for the nightly Opus hallucination
@@ -1145,9 +1126,9 @@ def run_stage2(spreadsheet, image_pull_ws):
         }
 
         valid_batch = [row for row in batch if row]
-        # Preserve ocr_text (col 9) from input rows — Stage 2 only fills
-        # game/spread/side and doesn't re-output ocr_text
-        ocr_texts = [row[9] if len(row) > 9 else "" for row in valid_batch]
+        # Preserve ocr_text (col 8) from input rows — Stage 2 only fills
+        # game/spread and doesn't re-output ocr_text
+        ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_batch]
 
         rows_as_csv = [",".join(row) for row in valid_batch]
 
@@ -1161,10 +1142,10 @@ def run_stage2(spreadsheet, image_pull_ws):
             # Re-attach ocr_text to each finalized row (positional match)
             for j, row in enumerate(finalized_batch):
                 ocr = ocr_texts[j] if j < len(ocr_texts) else ""
-                if len(row) < 10:
+                if len(row) < 9:
                     row.append(ocr)
                 else:
-                    row[9] = ocr
+                    row[8] = ocr
             print(f"Finalized {len(finalized_batch)} pick row(s)")
             all_finalized_rows.extend(finalized_batch)
         except Exception as e:
@@ -1202,20 +1183,20 @@ def run_stage2(spreadsheet, image_pull_ws):
             for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 10). Hardcoded "discord_all_in_one" until
+        # Tag all rows with source (index 9). Hardcoded "discord_all_in_one" until
         # Telegram wiring is added in Step 3 of the integration plan.
         for row in all_finalized_rows:
-            while len(row) < 10:
+            while len(row) < 9:
                 row.append("")
-            if len(row) < 11:
+            if len(row) < 10:
                 row.append("discord_all_in_one")
 
-        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text).
+        # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
         if all_finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             master_rows = [
-                row[:9] + [row[10]] for row in all_finalized_rows
+                row[:8] + [row[9]] for row in all_finalized_rows
                 if not _TOTAL_LINE_RE.match(str(row[4]))
             ]
             skipped_totals = len(all_finalized_rows) - len(master_rows)

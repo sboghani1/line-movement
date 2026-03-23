@@ -35,7 +35,7 @@ from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client
 load_dotenv()
 SHEET_NAME = "parsed_picks_new"
 
-HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
+HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "result", "ocr_text"]
 COL = {h: i for i, h in enumerate(HEADERS)}
 
 # Opus pricing: $15.00/M input, $75.00/M output

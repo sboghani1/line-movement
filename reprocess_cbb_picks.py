@@ -39,13 +39,12 @@ SKIP_ROWS = 300  # Skip first N input rows (already processed)
 # Output columns for parsed_picks_new
 OUTPUT_COLUMNS = [
     "date",
-    "capper", 
+    "capper",
     "sport",
     "pick",
     "line",
     "game",
     "spread",
-    "side",
     "result",
     "ocr_text",
 ]
@@ -379,7 +378,6 @@ def parse_csv_response(response: str, ocr_rows: List[Dict]) -> List[List[str]]:
                     line_val,
                     game,
                     "",  # spread (empty)
-                    "",  # side (empty)
                     "",  # result (empty)
                     ocr_text,
                 ])
