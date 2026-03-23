@@ -327,10 +327,10 @@ def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List
     date_idx = header.index("date")
     data = all_vals[1:]
 
-    original_order = [r[date_idx] if len(r) > date_idx else "" for r in data]
+    original_ids = [id(r) for r in data]
     data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
-    sorted_order = [r[date_idx] if len(r) > date_idx else "" for r in data]
-    moved = sum(1 for a, b in zip(original_order, sorted_order) if a != b)
+    sorted_ids = [id(r) for r in data]
+    moved = sum(1 for a, b in zip(original_ids, sorted_ids) if a != b)
 
     sorted_vals = [header] + data
     if dry_run:
@@ -1120,8 +1120,8 @@ def run_audit(
     if auto_fixed:
         print(f"\nRe-sorting master_sheet ({len(auto_fixed)} fix(es) applied)...")
         ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
-        sorted_ms_vals = resort_master_sheet(ms_ws_fresh)
-        recalculate_ms_rows(ws_audit, sorted_ms_vals)
+        sorted_ms_vals = resort_master_sheet(ms_ws_fresh, dry_run=dry_run)
+        recalculate_ms_rows(ws_audit, sorted_ms_vals, dry_run=dry_run)
 
     # ── Sync CSV if any rows were auto-fixed ─────────────────────────────────
     if auto_fixed:
