@@ -188,7 +188,6 @@ def load_scores(ss) -> dict:
             scores[sport] = by_date
             total = sum(len(v) for v in by_date.values())
             print(f"  {sheet_name}: {total} scored games loaded")
-            time.sleep(2)  # avoid 429 between schedule sheet reads
         except gspread.exceptions.WorksheetNotFound:
             print(f"  {sheet_name}: sheet not found, skipping")
             scores[sport] = {}
@@ -238,7 +237,6 @@ def process_sheet(
     """
     ws = sheets_call(ss.worksheet, sheet_name)
     all_values = sheets_call(ws.get_all_values)
-    time.sleep(2)  # avoid 429 after large read
 
     header = all_values[header_row_index]
     col = {h: i for i, h in enumerate(header)}
