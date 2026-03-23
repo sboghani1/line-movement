@@ -243,52 +243,116 @@ def load_ocr_index(ss, target_date: str) -> Dict[tuple, str]:
     return index
 
 
+# ── CSV git push ──────────────────────────────────────────────────────────────
+
+def git_push_csv(csv_content: List[List[str]]) -> bool:
+    """Commit and push only the master_sheet CSV to main.
+
+    Uses a temporary git worktree on origin/main so no other local changes
+    are staged or committed.  Returns True on success, False on failure
+    (the Google Sheet is already updated, so a push failure is recoverable).
+    """
+    import subprocess
+    import tempfile
+
+    worktree_path = None
+    try:
+        subprocess.run(
+            ["git", "fetch", "origin", "main"],
+            check=True, capture_output=True,
+        )
+
+        # mkdtemp creates the dir; git worktree add requires the path to not exist yet
+        import uuid
+        worktree_path = os.path.join(tempfile.gettempdir(), f"audit_csv_{uuid.uuid4().hex}")
+        subprocess.run(
+            ["git", "worktree", "add", "--detach", worktree_path, "origin/main"],
+            check=True, capture_output=True,
+        )
+
+        wt_csv = os.path.join(worktree_path, LOCAL_CSV_PATH)
+        os.makedirs(os.path.dirname(wt_csv), exist_ok=True)
+        with open(wt_csv, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerows(csv_content)
+
+        # Stage first; then diff --cached detects both new and modified files correctly
+        subprocess.run(["git", "add", LOCAL_CSV_PATH], check=True, cwd=worktree_path)
+        diff = subprocess.run(
+            ["git", "diff", "--cached", "--quiet", "--", LOCAL_CSV_PATH],
+            cwd=worktree_path, capture_output=True,
+        )
+        if diff.returncode == 0:
+            print("  CSV already up to date on main — nothing to push")
+            return True
+        subprocess.run(
+            ["git", "commit", "-m", "audit: sync master_sheet CSV after auto-fixes"],
+            check=True, cwd=worktree_path,
+        )
+        subprocess.run(
+            ["git", "push", "origin", "HEAD:main"],
+            check=True, cwd=worktree_path,
+        )
+        print(f"  Pushed CSV to main ({len(csv_content) - 1} rows)")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"  Warning: git push failed: {e}")
+        return False
+    except Exception as e:
+        print(f"  Warning: git push failed: {e}")
+        return False
+    finally:
+        if worktree_path:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", worktree_path],
+                capture_output=True,
+            )
+
+
 # ── master_sheet sort + audit_results ms_row recalculation ───────────────────
 
-def resort_master_sheet(ms_ws: gspread.Worksheet) -> List[List[str]]:
+def resort_master_sheet(ms_ws: gspread.Worksheet) -> Tuple[List[List[str]], Dict[int, int]]:
     """Re-sort master_sheet rows by date (ascending) and write back in-place.
 
-    Returns the sorted values (header + data) for use in subsequent steps.
+    Returns (sorted_vals, row_map) where row_map is {old_1based_row: new_1based_row}.
+    The row_map is used to update ms_row references in audit_results.
     """
     all_vals = sheets_call(ms_ws.get_all_values)
     if len(all_vals) < 2:
-        return all_vals
+        return all_vals, {}
     header = all_vals[0]
-    date_idx = header.index("date") if "date" in header else 0
+    if "date" not in header:
+        print("  Warning: 'date' column not found in master_sheet; skipping sort")
+        return all_vals, {}
+    date_idx = header.index("date")
     data = all_vals[1:]
-    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
-    sorted_vals = [header] + data
+
+    # Tag each row with its original 1-based sheet row number (row 1 = header)
+    tagged = [(i + 2, row) for i, row in enumerate(data)]
+    tagged.sort(key=lambda x: x[1][date_idx] if len(x[1]) > date_idx else "")
+
+    # Build old_row → new_row mapping
+    row_map: Dict[int, int] = {
+        old_row: new_idx + 2  # +2: row 1 = header, data starts at row 2
+        for new_idx, (old_row, _) in enumerate(tagged)
+    }
+
+    sorted_vals = [header] + [row for _, row in tagged]
     sheets_call(ms_ws.update, "A1", sorted_vals)
     print(f"  Re-sorted master_sheet ({len(data)} rows by date)")
-    return sorted_vals
+    return sorted_vals, row_map
 
 
-def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]]) -> None:
-    """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
+def recalculate_ms_rows(ws_audit: gspread.Worksheet, row_map: Dict[int, int]) -> None:
+    """Update ms_row in all audit_results rows using the sort position mapping.
 
-    Looks up each audit row's composite key (date, capper, sport, pick, line)
-    in the sorted master_sheet to find the new 1-based row number.
-    First match wins — master_sheet is assumed collision-free after cleanup.
+    Uses old_row → new_row mapping from resort_master_sheet rather than a
+    composite key lookup, so rows with a stale date field are still handled
+    correctly.
     """
-    if len(sorted_ms_vals) < 2:
+    if not row_map:
         return
 
-    ms_header = sorted_ms_vals[0]
-    composite_cols = ["date", "capper", "sport", "pick", "line"]
-    try:
-        col_idxs = [ms_header.index(c) for c in composite_cols]
-    except ValueError:
-        print("  Warning: master_sheet missing expected columns; skipping ms_row recalculation")
-        return
-
-    # Build composite key → 1-based sheet row number (row 1 = header, row 2 = first data row)
-    key_to_ms_row: Dict[Tuple, int] = {}
-    for i, row in enumerate(sorted_ms_vals[1:], start=2):
-        key = tuple(row[idx] if len(row) > idx else "" for idx in col_idxs)
-        if key not in key_to_ms_row:
-            key_to_ms_row[key] = i
-
-    # Read current audit_results
     audit_vals = sheets_call(ws_audit.get_all_values)
     if len(audit_vals) <= 5:
         return
@@ -300,20 +364,17 @@ def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[s
     ms_row_col_idx = audit_hdr.index("ms_row")
     col_letter = chr(ord("A") + ms_row_col_idx)
 
-    try:
-        audit_composite_idxs = [audit_hdr.index(c) for c in composite_cols]
-    except ValueError:
-        print("  Warning: audit_results missing expected columns; skipping ms_row recalculation")
-        return
-
     updates = []  # [(cell_notation, [[new_value]])]
     for i, row in enumerate(audit_vals[5:], start=6):
-        key = tuple(row[idx] if len(row) > idx else "" for idx in audit_composite_idxs)
-        new_ms_row = key_to_ms_row.get(key)
-        if new_ms_row is None:
-            continue
         current = row[ms_row_col_idx].strip() if len(row) > ms_row_col_idx else ""
-        if str(new_ms_row) != current:
+        if not current:
+            continue
+        try:
+            old_ms_row = int(current)
+        except ValueError:
+            continue
+        new_ms_row = row_map.get(old_ms_row)
+        if new_ms_row is not None and str(new_ms_row) != current:
             updates.append((f"{col_letter}{i}", [[str(new_ms_row)]]))
 
     if updates:
@@ -504,7 +565,7 @@ def check_next_day_game(
     away_team, home_team = matches[0]
     matched_game = f"{away_team} @ {home_team}"
 
-    if team_matches(pick_team, away_team):
+    if team_matches(pick_norm, _norm(away_team)):
         matched_team = away_team
     else:
         matched_team = home_team
@@ -1036,16 +1097,14 @@ def run_audit(
     if auto_fixed:
         print(f"\nRe-sorting master_sheet ({len(auto_fixed)} fix(es) applied)...")
         ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
-        sorted_ms_vals = resort_master_sheet(ms_ws_fresh)
-        recalculate_ms_rows(ws_audit, sorted_ms_vals)
+        sorted_ms_vals, row_map = resort_master_sheet(ms_ws_fresh)
+        recalculate_ms_rows(ws_audit, row_map)
 
     # ── Sync CSV if any rows were auto-fixed ─────────────────────────────────
     if auto_fixed:
         print(f"\nSyncing CSV ({len(auto_fixed)} auto-fix(es) applied)...")
         if sorted_ms_vals:
-            with open(LOCAL_CSV_PATH, "w", newline="", encoding="utf-8") as f:
-                csv.writer(f).writerows(sorted_ms_vals)
-            print(f"  Synced {len(sorted_ms_vals) - 1} rows -> {LOCAL_CSV_PATH}")
+            git_push_csv(sorted_ms_vals)
 
     print(f"\nDone. Review {AUDIT_SHEET} sheet for flagged rows.")
 
@@ -1055,11 +1114,24 @@ def main():
     parser.add_argument("--dry-run",    action="store_true", help="Preview without writing")
     parser.add_argument("--force-opus", action="store_true", help="Run Opus regardless of time gate")
     parser.add_argument("--date",       type=str,            help="Override target date (YYYY-MM-DD)")
+    parser.add_argument("--resort",     action="store_true", help="Re-sort master_sheet by date and recalculate ms_row in audit_results, then sync CSV. Skips the audit.")
     args = parser.parse_args()
 
     print("Connecting to Google Sheets...")
     gc = get_gspread_client()
     ss = gc.open_by_key(GOOGLE_SHEET_ID)
+
+    if args.resort:
+        ms_ws    = sheets_call(ss.worksheet, MASTER_SHEET)
+        ws_audit = get_or_create_audit_sheet(ss)
+        print("Re-sorting master_sheet...")
+        sorted_vals, row_map = resort_master_sheet(ms_ws)
+        recalculate_ms_rows(ws_audit, row_map)
+        if args.dry_run:
+            print("[dry-run] Skipping CSV push.")
+        else:
+            git_push_csv(sorted_vals)
+        return
 
     run_audit(ss, target_date=args.date, dry_run=args.dry_run, force_opus=args.force_opus)
 
