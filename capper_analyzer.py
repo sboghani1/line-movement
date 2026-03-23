@@ -27,6 +27,7 @@ import gspread
 from PIL import Image
 
 from activity_logger import log_activity
+from git_utils import git_push_csv
 from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call
 import daily_audit
 import populate_results
@@ -116,44 +117,6 @@ def sync_master_to_csv(ss) -> int:
     return len(data)
 
 
-def git_commit_and_push() -> bool:
-    """Commit and push changes to the local CSV file.
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    import subprocess
-    
-    try:
-        # Check if there are changes to commit
-        result = subprocess.run(
-            ["git", "diff", "--quiet", LOCAL_CSV_PATH],
-            capture_output=True
-        )
-        if result.returncode == 0:
-            print("No changes to commit")
-            return True
-        
-        # Stage the file
-        subprocess.run(["git", "add", LOCAL_CSV_PATH], check=True)
-        
-        # Commit
-        subprocess.run(
-            ["git", "commit", "-m", "Auto-append picks from Discord"],
-            check=True
-        )
-        
-        # Push
-        subprocess.run(["git", "push"], check=True)
-        
-        print(f"  Pushed changes to {LOCAL_CSV_PATH}")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"  Warning: Git operation failed: {e}")
-        return False
-    except Exception as e:
-        print(f"  Warning: Git commit/push failed: {e}")
-        return False
 
 
 def get_claude_cost():
@@ -2047,9 +2010,9 @@ def main():
         except Exception as e:
             print(f"  populate_results error (non-fatal): {e}")
 
-        # Push CSV — git_commit_and_push is a no-op if nothing changed
+        # Push CSV — no-op if nothing changed vs origin/main
         print("\n── Git Commit & Push ──")
-        git_commit_and_push()
+        git_push_csv(LOCAL_CSV_PATH, "Auto-append picks from Discord")
 
         # Brief pause to let Sheets read quota window reset before audit
         print("\n  [quota cooldown] sleeping 30s before audit...")

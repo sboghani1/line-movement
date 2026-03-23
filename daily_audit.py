@@ -40,6 +40,7 @@ Usage:
   .venv/bin/python3 daily_audit.py --date 2026-03-17
 """
 
+import csv
 import os
 import re
 import json
@@ -55,7 +56,8 @@ from dotenv import load_dotenv
 
 from audit_hallucinations import pick_in_ocr, ABBREV_MAP
 from activity_logger import log_activity
-from populate_results import determine_result, find_score, load_scores
+from git_utils import git_push_csv
+from populate_results import determine_result, find_score, load_scores, team_matches
 from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT_TO_SCHED
 
 load_dotenv()
@@ -64,6 +66,11 @@ load_dotenv()
 # ── Constants ─────────────────────────────────────────────────────────────────
 MASTER_SHEET    = "master_sheet"
 AUDIT_SHEET     = "audit_results"
+LOCAL_CSV_PATH  = "gh-pages/data/master_sheet.csv"
+
+# Audit statuses that a new auto-fix is allowed to overwrite.
+# Human-reviewed and Opus-reviewed statuses are never touched.
+AUTO_FIX_ELIGIBLE = {"needs_review"}
 PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
 MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
@@ -341,6 +348,140 @@ def check_missing_columns(
         "details": f"missing: {', '.join(missing)}",
         "suggested_fix": "",
         "status": "needs_review",
+    }
+
+
+# ── Check 2: Next day game ────────────────────────────────────────────────────
+
+# Cache so we only fetch the D+1 schedule once per audit run, regardless of
+# how many picks have an empty game column.
+_schedule_cache: Dict[str, Tuple[str, Dict]] = {}
+
+
+def check_next_day_game(
+    pick: dict,
+    scores: dict,
+    ms_ws: gspread.Worksheet,
+    ms_row_num: int,
+    dry_run: bool,
+    ss,
+    target_date: str,
+) -> Optional[dict]:
+    """
+    If game is empty, try to match the pick against the D+1 schedule.
+
+    Handles cappers who post picks the night before a game (advance picks) or
+    UTC boundary cases where the pick's stored date is one day before the game.
+
+    - 0 matches on D+1 → return None
+    - 1 match on D+1  → auto-fix: patch date/game/side/spread/result in master_sheet
+    - 2+ matches      → needs_review with match details
+    """
+    # Fast-path: game already matched, nothing to do
+    if pick.get("game", "").strip():
+        return None
+
+    # Lazy-load D+1 schedule (cached across picks in the same audit run)
+    if target_date not in _schedule_cache:
+        from datetime import date as _date
+        d1_date = str(_date.fromisoformat(target_date) + timedelta(days=1))
+        print(f"\nLoading D+1 schedule for {d1_date}...")
+        schedule_d1 = sheets_call(load_schedule_for_date, ss, d1_date)
+        _schedule_cache[target_date] = (d1_date, schedule_d1)
+    d1_date, schedule_d1 = _schedule_cache[target_date]
+
+    sport = pick.get("sport", "").strip().lower()
+    pick_team = pick.get("pick", "").strip()
+    line = pick.get("line", "").strip()
+
+    # Normalize: strip parentheticals like "(OH)" before fuzzy-matching so that
+    # "Miami RedHawks" matches "Miami (OH) RedHawks".
+    def _norm(name: str) -> str:
+        return re.sub(r'\s*\([^)]*\)', '', name).strip()
+
+    pick_norm = _norm(pick_team)
+    d1_games = schedule_d1.get(sport, [])
+    matches = []
+    for away, home in d1_games:
+        if team_matches(pick_norm, _norm(away)) or team_matches(pick_norm, _norm(home)):
+            matches.append((away, home))
+
+    if not matches:
+        return None  # no D+1 game found
+
+    if len(matches) > 1:
+        match_strs = [f"{a} @ {h}" for a, h in matches]
+        return {
+            "pick_row": pick,
+            "check_failed": "next_day_game",
+            "details": f"pick matches {len(matches)} games on D+1 ({d1_date}): {'; '.join(match_strs)}",
+            "suggested_fix": "",
+            "status": "needs_review",
+        }
+
+    # Exactly one match — compute corrected values
+    away_team, home_team = matches[0]
+    matched_game = f"{away_team} @ {home_team}"
+
+    if team_matches(pick_norm, _norm(away_team)):
+        matched_team = away_team
+    else:
+        matched_team = home_team
+
+    new_spread = "" if line.upper() == "ML" else f"{matched_team} {line}"
+
+    # Attempt result from D+1 scores (game may already be played).
+    # Use matched_team (the schedule name) for determine_result so that the
+    # team-name lookup inside it matches the game string exactly — the raw
+    # pick_team may differ (e.g. "Miami RedHawks" vs "Miami (OH) RedHawks").
+    new_result = None
+    score_str = find_score(matched_team, d1_date, sport, matched_game, scores)
+    if score_str:
+        new_result = determine_result(matched_team, line, matched_game, score_str)
+
+    original_date = pick.get("date", "")
+
+    updates = {
+        "date":   d1_date,
+        "game":   matched_game,
+        "side":   matched_team,
+        "spread": new_spread,
+    }
+    if new_result:
+        updates["result"] = new_result
+
+    if not dry_run:
+        batch = [
+            {
+                "range":  gspread.utils.rowcol_to_a1(ms_row_num, MASTER_HEADERS.index(field) + 1),
+                "values": [[value]],
+            }
+            for field, value in updates.items()
+        ]
+        sheets_call(ms_ws.batch_update, batch)
+
+    corrected_pick = {**pick, **updates}
+
+    fix_parts = [f"date={d1_date}", f"game={matched_game}", f"side={matched_team}"]
+    if new_spread:
+        fix_parts.append(f"spread={new_spread}")
+    if new_result:
+        fix_parts.append(f"result={new_result}")
+
+    # The date/game/side/spread fix is complete — always auto_fixed.
+    # If result couldn't be computed (score not yet available), check_missing_columns
+    # will catch and fill it on the next nightly run once the score is available.
+    status = "auto_fixed"
+    details = f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}"
+    if not new_result:
+        details += "; result pending — check_missing_columns will fill on next run"
+
+    return {
+        "pick_row": corrected_pick,
+        "check_failed": "next_day_game",
+        "details": details,
+        "suggested_fix": "; ".join(fix_parts),
+        "status": status,
     }
 
 
@@ -647,6 +788,14 @@ def run_audit(
         if result:
             findings.append(result)
 
+        # Check 2: advance pick date (only relevant when game is empty)
+        result = check_next_day_game(
+            pick_dict, scores, ms_ws, row_num, dry_run,
+            ss=ss, target_date=target_date,
+        )
+        if result:
+            findings.append(result)
+
         # Future checks would be added here:
         # result = check_result_correctness(pick_dict, scores, ms_ws, row_num, dry_run)
         # if result: findings.append(result)
@@ -654,6 +803,18 @@ def run_audit(
         # result = check_game_match(pick_dict, schedule, ...)
         # if result: findings.append(result)
         # ... etc.
+
+        # Per-pick deduplication:
+        # - auto_fixed supersedes needs_review (fully fixed row)
+        # - multiple needs_review: keep only the last one (later checks are
+        #   more specific and have more context than earlier ones)
+        has_auto_fix = any(f["status"] == "auto_fixed" for f in findings)
+        if has_auto_fix:
+            findings = [f for f in findings if f["status"] != "needs_review"]
+        else:
+            review = [f for f in findings if f["status"] == "needs_review"]
+            if len(review) > 1:
+                findings = [f for f in findings if f["status"] != "needs_review"] + [review[-1]]
 
         if not findings:
             clean_count += 1
@@ -688,56 +849,87 @@ def run_audit(
         return
 
     if dry_run:
-        print(f"\n[dry-run] Would write {len(audit_results)} rows to {AUDIT_SHEET}.")
+        print(f"\n[dry-run] Would write/upgrade {len(audit_results)} row(s) to {AUDIT_SHEET}.")
+        if auto_fixed:
+            print(f"[dry-run] Would sync CSV ({len(auto_fixed)} auto-fix(es)).")
         return
 
     # ── Write to audit_results ──────────────────────────────────────────────────
     # Order: needs_review first, then auto_fixed at the bottom
     ordered = needs_review + auto_fixed
 
-    # Load existing audit rows to avoid duplicates (keyed by ms_row)
     ws_audit = get_or_create_audit_sheet(ss)
     time.sleep(1)
-    existing_audit = sheets_call(ws_audit.get_all_values)
-    existing_ms_rows = set()
-    if len(existing_audit) > 5:
-        audit_hdr = existing_audit[4]  # header is row 5
-        ms_row_idx = audit_hdr.index("ms_row") if "ms_row" in audit_hdr else None
-        if ms_row_idx is not None:
-            for row in existing_audit[5:]:
-                if len(row) > ms_row_idx and row[ms_row_idx].strip():
-                    existing_ms_rows.add(row[ms_row_idx].strip())
 
-    rows_to_write = []
-    skipped_existing = 0
-    for r in ordered:
-        # Skip if this master_sheet row already has an audit entry
-        if str(r["ms_row"]) in existing_ms_rows:
-            skipped_existing += 1
-            continue
+    # Build index of existing audit rows: ms_row_str → [(audit_row_1based, status)]
+    existing_audit_index: Dict[str, List[Tuple[int, str]]] = {}
+    existing_audit = sheets_call(ws_audit.get_all_values)
+    if len(existing_audit) > 5:
+        audit_hdr  = existing_audit[4]  # header is row 5 (0-indexed: 4)
+        ms_row_idx = audit_hdr.index("ms_row") if "ms_row" in audit_hdr else None
+        status_idx = audit_hdr.index("status") if "status" in audit_hdr else 1
+        if ms_row_idx is not None:
+            for i, row in enumerate(existing_audit[5:], start=6):
+                while len(row) <= max(ms_row_idx, status_idx):
+                    row.append("")
+                ms_row_val = row[ms_row_idx].strip()
+                if ms_row_val:
+                    existing_audit_index.setdefault(ms_row_val, []).append(
+                        (i, row[status_idx].strip())
+                    )
+
+    def _audit_row(r: dict) -> list:
         p = r["pick_row"]
-        ocr_key = (p["date"], p["capper"], p["sport"], p["pick"], p["line"])
-        ocr_text = ocr_index.get(ocr_key, "")
-        rows_to_write.append(make_audit_row(
+        return make_audit_row(
             pick_row=p,
             check_failed=r["check_failed"],
             details=r["details"],
             suggested_fix=r["suggested_fix"],
             status=r["status"],
             ms_row=r["ms_row"],
-            ocr_text=ocr_text,
-        ))
+            ocr_text=ocr_index.get((p["date"], p["capper"], p["sport"], p["pick"], p["line"]), ""),
+        )
+
+    # ── Pass 1: upgrade existing needs_review rows that were auto-fixed ───────
+    rows_to_update = []  # [(audit_row_1based, new_row_values)]
+    upgraded_ms_rows: set = set()
+    for r in auto_fixed:
+        ms_row_str = str(r["ms_row"])
+        if ms_row_str not in existing_audit_index:
+            continue
+        new_row = _audit_row(r)
+        for audit_row_num, current_status in existing_audit_index[ms_row_str]:
+            if current_status in AUTO_FIX_ELIGIBLE:
+                rows_to_update.append((audit_row_num, new_row))
+        upgraded_ms_rows.add(ms_row_str)
+
+    if rows_to_update:
+        print(f"\nUpgrading {len(rows_to_update)} existing audit rows (needs_review -> auto_fixed)...")
+        for audit_row_num, new_row_vals in rows_to_update:
+            sheets_call(ws_audit.update, f"A{audit_row_num}", [new_row_vals])
+        print(f"  Upgraded {len(rows_to_update)} rows in {AUDIT_SHEET}")
+
+    # ── Pass 2: append findings that have no existing audit row ───────────────
+    rows_to_write = []
+    skipped_existing = 0
+    for r in ordered:
+        ms_row_str = str(r["ms_row"])
+        if ms_row_str in existing_audit_index:
+            if ms_row_str not in upgraded_ms_rows:
+                skipped_existing += 1
+            continue
+        rows_to_write.append(_audit_row(r))
 
     if skipped_existing:
         print(f"  Skipped {skipped_existing} rows already in {AUDIT_SHEET}")
 
-    if not rows_to_write:
-        print(f"\nNo new rows to write to {AUDIT_SHEET}.")
-        return
+    if rows_to_write:
+        print(f"\nWriting {len(rows_to_write)} rows to {AUDIT_SHEET}...")
+        sheets_call(ws_audit.append_rows, rows_to_write, value_input_option="USER_ENTERED")
+        print(f"  Appended {len(rows_to_write)} rows to {AUDIT_SHEET}")
 
-    print(f"\nWriting {len(rows_to_write)} rows to {AUDIT_SHEET}...")
-    sheets_call(ws_audit.append_rows, rows_to_write, value_input_option="USER_ENTERED")
-    print(f"  Appended {len(rows_to_write)} rows to {AUDIT_SHEET}")
+    if not rows_to_update and not rows_to_write:
+        print(f"\nNo new rows to write to {AUDIT_SHEET}.")
 
     # ── Log to activity_log ──────────────────────────────────────────────────
     log_activity(
@@ -757,7 +949,122 @@ def run_audit(
         },
     )
 
+    # ── Re-sort master_sheet and recalculate ms_rows if any fixes were applied ──
+    # Any auto-fix may change date or other sort-relevant fields.
+    sorted_ms_vals: List[List[str]] = []
+    if auto_fixed:
+        print(f"\nRe-sorting master_sheet ({len(auto_fixed)} fix(es) applied)...")
+        ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
+        sorted_ms_vals = resort_master_sheet(ms_ws_fresh, dry_run=dry_run)
+        recalculate_ms_rows(ws_audit, sorted_ms_vals, dry_run=dry_run)
+
+    # ── Sync CSV if any rows were auto-fixed ─────────────────────────────────
+    if auto_fixed:
+        print(f"\nSyncing CSV ({len(auto_fixed)} auto-fix(es) applied)...")
+        if sorted_ms_vals:
+            git_push_csv(LOCAL_CSV_PATH, "audit: sync master_sheet CSV after auto-fixes", csv_content=sorted_ms_vals)
+
     print(f"\nDone. Review {AUDIT_SHEET} sheet for flagged rows.")
+
+
+# ── master_sheet sort + audit_results ms_row recalculation ───────────────────
+
+def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List[List[str]]:
+    """Re-sort master_sheet rows by date (ascending) and write back in-place.
+
+    Returns the sorted values (header + data) for use in subsequent steps.
+    In dry-run mode, computes and prints the changes without writing.
+    """
+    all_vals = sheets_call(ms_ws.get_all_values)
+    if len(all_vals) < 2:
+        return all_vals
+    header = all_vals[0]
+    if "date" not in header:
+        print("  Warning: 'date' column not found in master_sheet; skipping sort")
+        return all_vals
+    date_idx = header.index("date")
+    data = all_vals[1:]
+
+    original_ids = [id(r) for r in data]
+    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
+    sorted_ids = [id(r) for r in data]
+    moved = sum(1 for a, b in zip(original_ids, sorted_ids) if a != b)
+
+    sorted_vals = [header] + data
+    if dry_run:
+        print(f"  [dry-run] Would re-sort master_sheet ({len(data)} rows by date, {moved} row(s) would move)")
+    else:
+        sheets_call(ms_ws.update, "A1", sorted_vals)
+        print(f"  Re-sorted master_sheet ({len(data)} rows by date, {moved} row(s) moved)")
+    return sorted_vals
+
+
+def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]], dry_run: bool = False) -> None:
+    """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
+
+    Looks up each audit row's composite key (date, capper, sport, pick, line)
+    in the sorted master_sheet and writes ALL matching row numbers as a
+    comma-separated string. Multiple values make pre-cleanup collisions visible
+    and flag unexpected future collisions.
+    In dry-run mode, prints what would change without writing.
+    """
+    if len(sorted_ms_vals) < 2:
+        return
+
+    ms_header = sorted_ms_vals[0]
+    composite_cols = ["date", "capper", "sport", "pick", "line"]
+    try:
+        col_idxs = [ms_header.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: master_sheet missing expected columns; skipping ms_row recalculation")
+        return
+
+    # Build composite key → all matching 1-based row numbers
+    key_to_ms_rows: Dict[Tuple, List[int]] = {}
+    for i, row in enumerate(sorted_ms_vals[1:], start=2):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in col_idxs)
+        key_to_ms_rows.setdefault(key, []).append(i)
+
+    audit_vals = sheets_call(ws_audit.get_all_values)
+    if len(audit_vals) <= 5:
+        return
+
+    audit_hdr = audit_vals[4]  # header is row 5 (0-indexed: 4)
+    if "ms_row" not in audit_hdr:
+        return
+
+    ms_row_col_idx = audit_hdr.index("ms_row")
+    col_letter = chr(ord("A") + ms_row_col_idx)
+
+    try:
+        audit_composite_idxs = [audit_hdr.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: audit_results missing expected columns; skipping ms_row recalculation")
+        return
+
+    updates = []
+    for i, row in enumerate(audit_vals[5:], start=6):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in audit_composite_idxs)
+        matches = key_to_ms_rows.get(key)
+        if matches is None:
+            continue
+        new_val = ",".join(str(r) for r in matches)
+        current = row[ms_row_col_idx].strip() if len(row) > ms_row_col_idx else ""
+        if new_val != current:
+            updates.append((f"{col_letter}{i}", [[new_val]]))
+
+    if updates:
+        if dry_run:
+            print(f"  [dry-run] Would update ms_row for {len(updates)} audit_results row(s):")
+            for cell, val in updates:
+                print(f"    {cell} → {val[0][0]}")
+        else:
+            print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
+            for cell, val in updates:
+                sheets_call(ws_audit.update, cell, val)
+            print(f"  Updated {len(updates)} ms_row value(s) in {AUDIT_SHEET}")
+    else:
+        print(f"  ms_row values already up to date")
 
 
 def main():
@@ -765,11 +1072,24 @@ def main():
     parser.add_argument("--dry-run",    action="store_true", help="Preview without writing")
     parser.add_argument("--force-opus", action="store_true", help="Run Opus regardless of time gate")
     parser.add_argument("--date",       type=str,            help="Override target date (YYYY-MM-DD)")
+    parser.add_argument("--resort",     action="store_true", help="Re-sort master_sheet by date and recalculate ms_row in audit_results, then sync CSV. Skips the audit.")
     args = parser.parse_args()
 
     print("Connecting to Google Sheets...")
     gc = get_gspread_client()
     ss = gc.open_by_key(GOOGLE_SHEET_ID)
+
+    if args.resort:
+        ms_ws    = sheets_call(ss.worksheet, MASTER_SHEET)
+        ws_audit = get_or_create_audit_sheet(ss)
+        print("Re-sorting master_sheet...")
+        sorted_vals = resort_master_sheet(ms_ws, dry_run=args.dry_run)
+        recalculate_ms_rows(ws_audit, sorted_vals, dry_run=args.dry_run)
+        if args.dry_run:
+            print("[dry-run] Skipping CSV push.")
+        else:
+            git_push_csv(LOCAL_CSV_PATH, "audit: sync master_sheet CSV after re-sort", csv_content=sorted_vals)
+        return
 
     run_audit(ss, target_date=args.date, dry_run=args.dry_run, force_opus=args.force_opus)
 
