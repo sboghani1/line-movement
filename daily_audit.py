@@ -1030,12 +1030,11 @@ def run_audit(
         },
     )
 
-    # ── Re-sort master_sheet and recalculate ms_rows if any date was changed ────
-    # check_next_day_game moves a pick to D+1, which unsorts master_sheet.
-    next_day_fixes = [r for r in auto_fixed if r["check_failed"] == "next_day_game"]
+    # ── Re-sort master_sheet and recalculate ms_rows if any fixes were applied ──
+    # Any auto-fix may change date or other sort-relevant fields.
     sorted_ms_vals: List[List[str]] = []
-    if next_day_fixes:
-        print(f"\nRe-sorting master_sheet ({len(next_day_fixes)} date change(s))...")
+    if auto_fixed:
+        print(f"\nRe-sorting master_sheet ({len(auto_fixed)} fix(es) applied)...")
         ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
         sorted_ms_vals = resort_master_sheet(ms_ws_fresh)
         recalculate_ms_rows(ws_audit, sorted_ms_vals)
@@ -1044,14 +1043,9 @@ def run_audit(
     if auto_fixed:
         print(f"\nSyncing CSV ({len(auto_fixed)} auto-fix(es) applied)...")
         if sorted_ms_vals:
-            all_values = sorted_ms_vals  # reuse already-fetched sorted data
-        else:
-            ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
-            all_values  = sheets_call(ms_ws_fresh.get_all_values)
-        if all_values:
             with open(LOCAL_CSV_PATH, "w", newline="", encoding="utf-8") as f:
-                csv.writer(f).writerows(all_values)
-            print(f"  Synced {len(all_values) - 1} rows -> {LOCAL_CSV_PATH}")
+                csv.writer(f).writerows(sorted_ms_vals)
+            print(f"  Synced {len(sorted_ms_vals) - 1} rows -> {LOCAL_CSV_PATH}")
 
     print(f"\nDone. Review {AUDIT_SHEET} sheet for flagged rows.")
 
