@@ -311,10 +311,11 @@ def git_push_csv(csv_content: List[List[str]]) -> bool:
 
 # ── master_sheet sort + audit_results ms_row recalculation ───────────────────
 
-def resort_master_sheet(ms_ws: gspread.Worksheet) -> List[List[str]]:
+def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List[List[str]]:
     """Re-sort master_sheet rows by date (ascending) and write back in-place.
 
     Returns the sorted values (header + data) for use in subsequent steps.
+    In dry-run mode, computes and prints the changes without writing.
     """
     all_vals = sheets_call(ms_ws.get_all_values)
     if len(all_vals) < 2:
@@ -325,20 +326,29 @@ def resort_master_sheet(ms_ws: gspread.Worksheet) -> List[List[str]]:
         return all_vals
     date_idx = header.index("date")
     data = all_vals[1:]
+
+    original_order = [r[date_idx] if len(r) > date_idx else "" for r in data]
     data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
+    sorted_order = [r[date_idx] if len(r) > date_idx else "" for r in data]
+    moved = sum(1 for a, b in zip(original_order, sorted_order) if a != b)
+
     sorted_vals = [header] + data
-    sheets_call(ms_ws.update, "A1", sorted_vals)
-    print(f"  Re-sorted master_sheet ({len(data)} rows by date)")
+    if dry_run:
+        print(f"  [dry-run] Would re-sort master_sheet ({len(data)} rows by date, {moved} row(s) would move)")
+    else:
+        sheets_call(ms_ws.update, "A1", sorted_vals)
+        print(f"  Re-sorted master_sheet ({len(data)} rows by date, {moved} row(s) moved)")
     return sorted_vals
 
 
-def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]]) -> None:
+def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]], dry_run: bool = False) -> None:
     """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
 
     Looks up each audit row's composite key (date, capper, sport, pick, line)
     in the sorted master_sheet and writes ALL matching row numbers as a
     comma-separated string. Multiple values make pre-cleanup collisions visible
     and flag unexpected future collisions.
+    In dry-run mode, prints what would change without writing.
     """
     if len(sorted_ms_vals) < 2:
         return
@@ -386,10 +396,15 @@ def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[s
             updates.append((f"{col_letter}{i}", [[new_val]]))
 
     if updates:
-        print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
-        for cell, val in updates:
-            sheets_call(ws_audit.update, cell, val)
-        print(f"  Updated {len(updates)} ms_row value(s) in {AUDIT_SHEET}")
+        if dry_run:
+            print(f"  [dry-run] Would update ms_row for {len(updates)} audit_results row(s):")
+            for cell, val in updates:
+                print(f"    {cell} → {val[0][0]}")
+        else:
+            print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
+            for cell, val in updates:
+                sheets_call(ws_audit.update, cell, val)
+            print(f"  Updated {len(updates)} ms_row value(s) in {AUDIT_SHEET}")
     else:
         print(f"  ms_row values already up to date")
 
@@ -1133,8 +1148,8 @@ def main():
         ms_ws    = sheets_call(ss.worksheet, MASTER_SHEET)
         ws_audit = get_or_create_audit_sheet(ss)
         print("Re-sorting master_sheet...")
-        sorted_vals = resort_master_sheet(ms_ws)
-        recalculate_ms_rows(ws_audit, sorted_vals)
+        sorted_vals = resort_master_sheet(ms_ws, dry_run=args.dry_run)
+        recalculate_ms_rows(ws_audit, sorted_vals, dry_run=args.dry_run)
         if args.dry_run:
             print("[dry-run] Skipping CSV push.")
         else:
