@@ -59,7 +59,8 @@ jobs:
           if [ "$BEFORE" != "$AFTER" ]; then
             echo "csv_updated=true" >> $GITHUB_OUTPUT
             echo "New commit pushed: $BEFORE → $AFTER"
-            # Pull the new commit so we have fresh gh-pages content
+            # Reset local changes and pull fresh content for deploy
+            git checkout -- .
             git pull --ff-only origin main
           else
             echo "csv_updated=false" >> $GITHUB_OUTPUT
