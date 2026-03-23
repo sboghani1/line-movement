@@ -56,6 +56,7 @@ from dotenv import load_dotenv
 
 from audit_hallucinations import pick_in_ocr, ABBREV_MAP
 from activity_logger import log_activity
+from git_utils import git_push_csv
 from populate_results import determine_result, find_score, load_scores, team_matches
 from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT_TO_SCHED
 
@@ -241,172 +242,6 @@ def load_ocr_index(ss, target_date: str) -> Dict[tuple, str]:
         )
         index[key] = row[ocr_col].strip()
     return index
-
-
-# ── CSV git push ──────────────────────────────────────────────────────────────
-
-def git_push_csv(csv_content: List[List[str]]) -> bool:
-    """Commit and push only the master_sheet CSV to main.
-
-    Uses a temporary git worktree on origin/main so no other local changes
-    are staged or committed.  Returns True on success, False on failure
-    (the Google Sheet is already updated, so a push failure is recoverable).
-    """
-    import subprocess
-    import tempfile
-
-    worktree_path = None
-    try:
-        subprocess.run(
-            ["git", "fetch", "origin", "main"],
-            check=True, capture_output=True,
-        )
-
-        # mkdtemp creates the dir; git worktree add requires the path to not exist yet
-        import uuid
-        worktree_path = os.path.join(tempfile.gettempdir(), f"audit_csv_{uuid.uuid4().hex}")
-        subprocess.run(
-            ["git", "worktree", "add", "--detach", worktree_path, "origin/main"],
-            check=True, capture_output=True,
-        )
-
-        wt_csv = os.path.join(worktree_path, LOCAL_CSV_PATH)
-        os.makedirs(os.path.dirname(wt_csv), exist_ok=True)
-        with open(wt_csv, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerows(csv_content)
-
-        # Stage first; then diff --cached detects both new and modified files correctly
-        subprocess.run(["git", "add", LOCAL_CSV_PATH], check=True, cwd=worktree_path)
-        diff = subprocess.run(
-            ["git", "diff", "--cached", "--quiet", "--", LOCAL_CSV_PATH],
-            cwd=worktree_path, capture_output=True,
-        )
-        if diff.returncode == 0:
-            print("  CSV already up to date on main — nothing to push")
-            return True
-        subprocess.run(
-            ["git", "commit", "-m", "audit: sync master_sheet CSV after auto-fixes"],
-            check=True, cwd=worktree_path,
-        )
-        subprocess.run(
-            ["git", "push", "origin", "HEAD:main"],
-            check=True, cwd=worktree_path,
-        )
-        print(f"  Pushed CSV to main ({len(csv_content) - 1} rows)")
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print(f"  Warning: git push failed: {e}")
-        return False
-    except Exception as e:
-        print(f"  Warning: git push failed: {e}")
-        return False
-    finally:
-        if worktree_path:
-            subprocess.run(
-                ["git", "worktree", "remove", "--force", worktree_path],
-                capture_output=True,
-            )
-
-
-# ── master_sheet sort + audit_results ms_row recalculation ───────────────────
-
-def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List[List[str]]:
-    """Re-sort master_sheet rows by date (ascending) and write back in-place.
-
-    Returns the sorted values (header + data) for use in subsequent steps.
-    In dry-run mode, computes and prints the changes without writing.
-    """
-    all_vals = sheets_call(ms_ws.get_all_values)
-    if len(all_vals) < 2:
-        return all_vals
-    header = all_vals[0]
-    if "date" not in header:
-        print("  Warning: 'date' column not found in master_sheet; skipping sort")
-        return all_vals
-    date_idx = header.index("date")
-    data = all_vals[1:]
-
-    original_ids = [id(r) for r in data]
-    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
-    sorted_ids = [id(r) for r in data]
-    moved = sum(1 for a, b in zip(original_ids, sorted_ids) if a != b)
-
-    sorted_vals = [header] + data
-    if dry_run:
-        print(f"  [dry-run] Would re-sort master_sheet ({len(data)} rows by date, {moved} row(s) would move)")
-    else:
-        sheets_call(ms_ws.update, "A1", sorted_vals)
-        print(f"  Re-sorted master_sheet ({len(data)} rows by date, {moved} row(s) moved)")
-    return sorted_vals
-
-
-def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]], dry_run: bool = False) -> None:
-    """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
-
-    Looks up each audit row's composite key (date, capper, sport, pick, line)
-    in the sorted master_sheet and writes ALL matching row numbers as a
-    comma-separated string. Multiple values make pre-cleanup collisions visible
-    and flag unexpected future collisions.
-    In dry-run mode, prints what would change without writing.
-    """
-    if len(sorted_ms_vals) < 2:
-        return
-
-    ms_header = sorted_ms_vals[0]
-    composite_cols = ["date", "capper", "sport", "pick", "line"]
-    try:
-        col_idxs = [ms_header.index(c) for c in composite_cols]
-    except ValueError:
-        print("  Warning: master_sheet missing expected columns; skipping ms_row recalculation")
-        return
-
-    # Build composite key → all matching 1-based row numbers
-    key_to_ms_rows: Dict[Tuple, List[int]] = {}
-    for i, row in enumerate(sorted_ms_vals[1:], start=2):
-        key = tuple(row[idx] if len(row) > idx else "" for idx in col_idxs)
-        key_to_ms_rows.setdefault(key, []).append(i)
-
-    audit_vals = sheets_call(ws_audit.get_all_values)
-    if len(audit_vals) <= 5:
-        return
-
-    audit_hdr = audit_vals[4]  # header is row 5 (0-indexed: 4)
-    if "ms_row" not in audit_hdr:
-        return
-
-    ms_row_col_idx = audit_hdr.index("ms_row")
-    col_letter = chr(ord("A") + ms_row_col_idx)
-
-    try:
-        audit_composite_idxs = [audit_hdr.index(c) for c in composite_cols]
-    except ValueError:
-        print("  Warning: audit_results missing expected columns; skipping ms_row recalculation")
-        return
-
-    updates = []
-    for i, row in enumerate(audit_vals[5:], start=6):
-        key = tuple(row[idx] if len(row) > idx else "" for idx in audit_composite_idxs)
-        matches = key_to_ms_rows.get(key)
-        if matches is None:
-            continue
-        new_val = ",".join(str(r) for r in matches)
-        current = row[ms_row_col_idx].strip() if len(row) > ms_row_col_idx else ""
-        if new_val != current:
-            updates.append((f"{col_letter}{i}", [[new_val]]))
-
-    if updates:
-        if dry_run:
-            print(f"  [dry-run] Would update ms_row for {len(updates)} audit_results row(s):")
-            for cell, val in updates:
-                print(f"    {cell} → {val[0][0]}")
-        else:
-            print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
-            for cell, val in updates:
-                sheets_call(ws_audit.update, cell, val)
-            print(f"  Updated {len(updates)} ms_row value(s) in {AUDIT_SHEET}")
-    else:
-        print(f"  ms_row values already up to date")
 
 
 # ── Audit row builder ─────────────────────────────────────────────────────────
@@ -1127,9 +962,109 @@ def run_audit(
     if auto_fixed:
         print(f"\nSyncing CSV ({len(auto_fixed)} auto-fix(es) applied)...")
         if sorted_ms_vals:
-            git_push_csv(sorted_ms_vals)
+            git_push_csv(LOCAL_CSV_PATH, "audit: sync master_sheet CSV after auto-fixes", csv_content=sorted_ms_vals)
 
     print(f"\nDone. Review {AUDIT_SHEET} sheet for flagged rows.")
+
+
+# ── master_sheet sort + audit_results ms_row recalculation ───────────────────
+
+def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List[List[str]]:
+    """Re-sort master_sheet rows by date (ascending) and write back in-place.
+
+    Returns the sorted values (header + data) for use in subsequent steps.
+    In dry-run mode, computes and prints the changes without writing.
+    """
+    all_vals = sheets_call(ms_ws.get_all_values)
+    if len(all_vals) < 2:
+        return all_vals
+    header = all_vals[0]
+    if "date" not in header:
+        print("  Warning: 'date' column not found in master_sheet; skipping sort")
+        return all_vals
+    date_idx = header.index("date")
+    data = all_vals[1:]
+
+    original_ids = [id(r) for r in data]
+    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
+    sorted_ids = [id(r) for r in data]
+    moved = sum(1 for a, b in zip(original_ids, sorted_ids) if a != b)
+
+    sorted_vals = [header] + data
+    if dry_run:
+        print(f"  [dry-run] Would re-sort master_sheet ({len(data)} rows by date, {moved} row(s) would move)")
+    else:
+        sheets_call(ms_ws.update, "A1", sorted_vals)
+        print(f"  Re-sorted master_sheet ({len(data)} rows by date, {moved} row(s) moved)")
+    return sorted_vals
+
+
+def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]], dry_run: bool = False) -> None:
+    """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
+
+    Looks up each audit row's composite key (date, capper, sport, pick, line)
+    in the sorted master_sheet and writes ALL matching row numbers as a
+    comma-separated string. Multiple values make pre-cleanup collisions visible
+    and flag unexpected future collisions.
+    In dry-run mode, prints what would change without writing.
+    """
+    if len(sorted_ms_vals) < 2:
+        return
+
+    ms_header = sorted_ms_vals[0]
+    composite_cols = ["date", "capper", "sport", "pick", "line"]
+    try:
+        col_idxs = [ms_header.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: master_sheet missing expected columns; skipping ms_row recalculation")
+        return
+
+    # Build composite key → all matching 1-based row numbers
+    key_to_ms_rows: Dict[Tuple, List[int]] = {}
+    for i, row in enumerate(sorted_ms_vals[1:], start=2):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in col_idxs)
+        key_to_ms_rows.setdefault(key, []).append(i)
+
+    audit_vals = sheets_call(ws_audit.get_all_values)
+    if len(audit_vals) <= 5:
+        return
+
+    audit_hdr = audit_vals[4]  # header is row 5 (0-indexed: 4)
+    if "ms_row" not in audit_hdr:
+        return
+
+    ms_row_col_idx = audit_hdr.index("ms_row")
+    col_letter = chr(ord("A") + ms_row_col_idx)
+
+    try:
+        audit_composite_idxs = [audit_hdr.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: audit_results missing expected columns; skipping ms_row recalculation")
+        return
+
+    updates = []
+    for i, row in enumerate(audit_vals[5:], start=6):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in audit_composite_idxs)
+        matches = key_to_ms_rows.get(key)
+        if matches is None:
+            continue
+        new_val = ",".join(str(r) for r in matches)
+        current = row[ms_row_col_idx].strip() if len(row) > ms_row_col_idx else ""
+        if new_val != current:
+            updates.append((f"{col_letter}{i}", [[new_val]]))
+
+    if updates:
+        if dry_run:
+            print(f"  [dry-run] Would update ms_row for {len(updates)} audit_results row(s):")
+            for cell, val in updates:
+                print(f"    {cell} → {val[0][0]}")
+        else:
+            print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
+            for cell, val in updates:
+                sheets_call(ws_audit.update, cell, val)
+            print(f"  Updated {len(updates)} ms_row value(s) in {AUDIT_SHEET}")
+    else:
+        print(f"  ms_row values already up to date")
 
 
 def main():
@@ -1153,7 +1088,7 @@ def main():
         if args.dry_run:
             print("[dry-run] Skipping CSV push.")
         else:
-            git_push_csv(sorted_vals)
+            git_push_csv(LOCAL_CSV_PATH, "audit: sync master_sheet CSV after re-sort", csv_content=sorted_vals)
         return
 
     run_audit(ss, target_date=args.date, dry_run=args.dry_run, force_opus=args.force_opus)
