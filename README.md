@@ -137,3 +137,61 @@ python daily_audit.py --date YYYY-MM-DD              # apply — fixes master_sh
   - Full details for warns and failures: date, capper, pick, line, OCR snippet, Opus verdict
 
 - [ ] **Opus predictor**: Before picks come in each day, use Opus to analyze the day's schedule (NBA/CBB/NHL games) and identify high-value spots to watch — e.g. public fade candidates, line value based on historical capper tendencies, noteworthy matchups. Output posted somewhere visible (Discord, `predictions` sheet, or GitHub Pages) so you have context before reviewing the day's picks.
+
+---
+
+## 🔬 Refactoring Plan: Fix Spread & Shorten Prompts
+
+### The Big Idea
+
+Claude's only truly irreplaceable job in Stage 2 is **abbreviation resolution** — mapping OCR shorthand like "OKC", "BKN", "CBJ" to full team names. Everything else can be pure Python:
+
+- **Game matching**: Given a full team name + date + sport, Python already does this perfectly in `populate_stage2.py` via `team_matches()`
+- **Spread lookup**: Python reads it directly from the schedule sheet (already working in `populate_stage2.py` and `finalize_picks.py`)
+- **Side**: Being removed entirely — it's just a copy of `pick` and nothing depends on it
+
+The abbreviation space is finite (30 NBA + 32 NHL + ~362 CBB teams, each with a small set of common aliases). On any given day only ~15-30 teams are playing, so the search space is tiny. A maintained alias mapping in a Google Sheet can replace Claude for this task.
+
+### Phase 1: Remove `side` column
+
+Remove the `side` column entirely from code, Google Sheets, and CSV. It is just a copy of `pick` — the dashboard already falls back to `pick`, and `populate_results.py` doesn't use it.
+
+- Remove `side` from all column headers/constants across every file
+- Shift column indices (result moves from index 8 → 7, etc.)
+- Update dashboard (`index.html`) to use `pick` directly instead of `side` with fallback
+- Remove `side` from `daily_audit.py`: `check_next_day_game` updates, `side_consistency` check spec, `REQUIRED_COLUMNS`
+- Remove `side` from `validate_and_fix_pick_column()`
+- Remove `side` from `populate_stage2.py`
+- Delete `side` column from Google Sheets and CSV
+
+### Phase 2: Move spread to Python schedule lookup
+
+Stop Claude from guessing `spread`. Instead, look it up from the schedule sheet via Python after Claude returns.
+
+- In `capper_analyzer.py` `run_stage2()`: after Claude returns rows, do a Python post-pass that looks up spread from schedule (same pattern as `populate_stage2.py`)
+- Update `build_stage2_prompt()`: remove spread instruction from Claude's output
+- In `daily_audit.py` `check_next_day_game()`: change `new_spread = f"{matched_team} {line}"` to schedule lookup
+- Update `spread_consistency` check spec: spread should match schedule, not `"{pick} {line}"`
+- Simplify `format_schedule_for_prompt()` — Claude no longer needs spread data at all
+
+### Phase 3: Backfill existing data
+
+- Fix spread values in `master_sheet` for all non-ML rows where spread ≠ schedule spread
+- Deduplicate the 18 known duplicate composite key pairs
+- Validate match rate of Python resolver against all historical `parsed_picks_new` data before going live
+
+### Phase 4: Eliminate Claude from Stage 2
+
+Replace Claude Stage 2 entirely with Python regex + abbreviation mapping.
+
+- Create `team_aliases` Google Sheet with columns: `abbreviation`, `full_name`, `sport`
+- Pre-populate with known abbreviations from existing prompts + `_NOISE` regex in `populate_stage2.py`
+- Build `resolve_team_name(pick_text, sport, date, schedules, aliases)`:
+  - Try exact match against scheduled teams for that date/sport
+  - Try substring match (existing `team_matches()` logic)
+  - Try alias lookup from Google Sheet
+  - If still no match, try other sports (existing wrong-sport detection)
+  - Return `None` only if truly unresolvable
+- Replace `build_stage2_prompt()` + Claude API call with this Python function
+- Keep Claude Stage 1 as-is (OCR parsing genuinely needs LLM intelligence)
+- For unresolvable picks: leave for manual review or fall back to lightweight Claude call
