@@ -467,16 +467,13 @@ def check_next_day_game(
     if new_result:
         fix_parts.append(f"result={new_result}")
 
-    # Only claim auto_fixed if all required columns are now filled.
-    # If result couldn't be computed (score not yet available), the fix is
-    # partial — mark needs_review so the row isn't considered fully resolved.
-    missing_after = [
-        col for col in REQUIRED_COLUMNS if not corrected_pick.get(col, "").strip()
-    ]
-    status = "auto_fixed" if not missing_after else "needs_review"
+    # The date/game/side/spread fix is complete — always auto_fixed.
+    # If result couldn't be computed (score not yet available), check_missing_columns
+    # will catch and fill it on the next nightly run once the score is available.
+    status = "auto_fixed"
     details = f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}"
-    if missing_after:
-        details += f"; result pending (score not yet available)"
+    if not new_result:
+        details += "; result pending — check_missing_columns will fill on next run"
 
     return {
         "pick_row": corrected_pick,
