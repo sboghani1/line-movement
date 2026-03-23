@@ -243,6 +243,88 @@ def load_ocr_index(ss, target_date: str) -> Dict[tuple, str]:
     return index
 
 
+# ── master_sheet sort + audit_results ms_row recalculation ───────────────────
+
+def resort_master_sheet(ms_ws: gspread.Worksheet) -> List[List[str]]:
+    """Re-sort master_sheet rows by date (ascending) and write back in-place.
+
+    Returns the sorted values (header + data) for use in subsequent steps.
+    """
+    all_vals = sheets_call(ms_ws.get_all_values)
+    if len(all_vals) < 2:
+        return all_vals
+    header = all_vals[0]
+    date_idx = header.index("date") if "date" in header else 0
+    data = all_vals[1:]
+    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
+    sorted_vals = [header] + data
+    sheets_call(ms_ws.update, "A1", sorted_vals)
+    print(f"  Re-sorted master_sheet ({len(data)} rows by date)")
+    return sorted_vals
+
+
+def recalculate_ms_rows(ws_audit: gspread.Worksheet, sorted_ms_vals: List[List[str]]) -> None:
+    """Update ms_row in all audit_results rows after master_sheet has been re-sorted.
+
+    Looks up each audit row's composite key (date, capper, sport, pick, line)
+    in the sorted master_sheet to find the new 1-based row number.
+    First match wins — master_sheet is assumed collision-free after cleanup.
+    """
+    if len(sorted_ms_vals) < 2:
+        return
+
+    ms_header = sorted_ms_vals[0]
+    composite_cols = ["date", "capper", "sport", "pick", "line"]
+    try:
+        col_idxs = [ms_header.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: master_sheet missing expected columns; skipping ms_row recalculation")
+        return
+
+    # Build composite key → 1-based sheet row number (row 1 = header, row 2 = first data row)
+    key_to_ms_row: Dict[Tuple, int] = {}
+    for i, row in enumerate(sorted_ms_vals[1:], start=2):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in col_idxs)
+        if key not in key_to_ms_row:
+            key_to_ms_row[key] = i
+
+    # Read current audit_results
+    audit_vals = sheets_call(ws_audit.get_all_values)
+    if len(audit_vals) <= 5:
+        return
+
+    audit_hdr = audit_vals[4]  # header is row 5 (0-indexed: 4)
+    if "ms_row" not in audit_hdr:
+        return
+
+    ms_row_col_idx = audit_hdr.index("ms_row")
+    col_letter = chr(ord("A") + ms_row_col_idx)
+
+    try:
+        audit_composite_idxs = [audit_hdr.index(c) for c in composite_cols]
+    except ValueError:
+        print("  Warning: audit_results missing expected columns; skipping ms_row recalculation")
+        return
+
+    updates = []  # [(cell_notation, [[new_value]])]
+    for i, row in enumerate(audit_vals[5:], start=6):
+        key = tuple(row[idx] if len(row) > idx else "" for idx in audit_composite_idxs)
+        new_ms_row = key_to_ms_row.get(key)
+        if new_ms_row is None:
+            continue
+        current = row[ms_row_col_idx].strip() if len(row) > ms_row_col_idx else ""
+        if str(new_ms_row) != current:
+            updates.append((f"{col_letter}{i}", [[str(new_ms_row)]]))
+
+    if updates:
+        print(f"  Recalculating ms_row for {len(updates)} audit_results row(s)...")
+        for cell, val in updates:
+            sheets_call(ws_audit.update, cell, val)
+        print(f"  Updated {len(updates)} ms_row value(s) in {AUDIT_SHEET}")
+    else:
+        print(f"  ms_row values already up to date")
+
+
 # ── Audit row builder ─────────────────────────────────────────────────────────
 def make_audit_row(
     pick_row: dict,
@@ -948,11 +1030,24 @@ def run_audit(
         },
     )
 
+    # ── Re-sort master_sheet and recalculate ms_rows if any date was changed ────
+    # check_next_day_game moves a pick to D+1, which unsorts master_sheet.
+    next_day_fixes = [r for r in auto_fixed if r["check_failed"] == "next_day_game"]
+    sorted_ms_vals: List[List[str]] = []
+    if next_day_fixes:
+        print(f"\nRe-sorting master_sheet ({len(next_day_fixes)} date change(s))...")
+        ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
+        sorted_ms_vals = resort_master_sheet(ms_ws_fresh)
+        recalculate_ms_rows(ws_audit, sorted_ms_vals)
+
     # ── Sync CSV if any rows were auto-fixed ─────────────────────────────────
     if auto_fixed:
         print(f"\nSyncing CSV ({len(auto_fixed)} auto-fix(es) applied)...")
-        ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
-        all_values  = sheets_call(ms_ws_fresh.get_all_values)
+        if sorted_ms_vals:
+            all_values = sorted_ms_vals  # reuse already-fetched sorted data
+        else:
+            ms_ws_fresh = sheets_call(ss.worksheet, MASTER_SHEET)
+            all_values  = sheets_call(ms_ws_fresh.get_all_values)
         if all_values:
             with open(LOCAL_CSV_PATH, "w", newline="", encoding="utf-8") as f:
                 csv.writer(f).writerows(all_values)
