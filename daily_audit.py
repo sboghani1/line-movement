@@ -28,7 +28,7 @@ Checks documented but not yet implemented:
   3. game_match            (pick team must appear in schedule for that sport/date)
   4. ambiguous_team        (pick team substring-matches multiple schedule games)
   5. wrong_game            (pick team in schedule but game column points elsewhere)
-  6. spread_consistency    (spread field should equal "pick line")
+  6. spread_consistency    (spread must match ESPN schedule spread for the game)
   7. ocr_grounding         (pick team must appear in raw ocr_text)
   8. duplicate_detection   (same date+capper+pick+line appears more than once)
 
@@ -94,7 +94,7 @@ VALID_STATUSES = [
 ]
 
 # Required columns that must be non-empty for a pick to be considered complete.
-# "spread" is intentionally excluded — ML picks have an empty spread.
+# "spread" is excluded — backfill script handles spread separately via schedule lookup.
 REQUIRED_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "result"]
 
 # PST = UTC-8 (standard time); PDT = UTC-7; we use UTC-8 conservatively.
@@ -286,7 +286,7 @@ def check_missing_columns(
     Check 1: Every required column must have a value.
 
     Required columns: date, capper, sport, pick, line, game, result.
-    (spread is excluded — ML picks legitimately have empty spread.)
+    (spread is excluded — handled separately by spread_consistency check.)
 
     If only `result` is missing and a score exists, auto-fill it and return
     an audit row with status="auto_fixed".
@@ -428,8 +428,8 @@ def check_next_day_game(
     else:
         matched_team = home_team
 
-    # Use schedule spread directly instead of constructing from pick+line
-    new_spread = sched_spread if line.upper() != "ML" else ""
+    # Use schedule spread for all rows (spread is a game property, not bet-type)
+    new_spread = sched_spread
 
     # Attempt result from D+1 scores (game may already be played).
     # Use matched_team (the schedule name) for determine_result so that the
@@ -607,25 +607,25 @@ def check_next_day_game(
 #
 # What gets corrected on auto-fix:
 #   - game = "Away @ Home" from schedule
-#   - spread = "PickTeam LINE" (or "" for ML)
+#   - spread = schedule spread (for all rows including ML)
 #   - result = recomputed from correct game's score (if available)
 #
 # ── Check 6: spread_consistency ──────────────────────────────────────────────
 # The `spread` column should match the consensus spread from the ESPN schedule
-# sheet for the game on this date. For ML bets, spread must be empty.
+# sheet for the game on this date. Spread is a property of the game, not the
+# bet type, so it applies to ALL rows including ML bets.
 #
 # Logic:
-#   1. If line is "ML" → spread must be empty.  If not → auto_fixed.
-#   2. If line is numeric → spread must match the schedule spread for this game.
-#      If not → auto_fixed with the schedule value.
+#   1. Look up the schedule spread for this game (by date + sport + team).
+#   2. If spread ≠ schedule spread → auto_fixed with the schedule value.
 #   3. (Soft check) If line sign seems wrong for the side, flag needs_review
 #      rather than auto-fix (line sign is set by the capper, not derivable).
 #
 # Examples:
 #   pick="Duke", line="-3.5", schedule_spread="Duke Blue Devils -3.5", spread="Duke Blue Devils -3.5" → pass
 #   pick="Duke", line="-3.5", schedule_spread="Duke Blue Devils -3.5", spread="UNC +3.5"  → auto_fixed
-#   pick="Duke", line="ML",   spread="Duke ML"   → auto_fixed, suggested_fix="spread=" (blank)
-#   pick="Duke", line="ML",   spread=""           → pass
+#   pick="Duke", line="ML",   schedule_spread="Duke Blue Devils -3.5", spread=""          → auto_fixed
+#   pick="Duke", line="ML",   schedule_spread="Duke Blue Devils -3.5", spread="Duke Blue Devils -3.5" → pass
 #
 # ── Check 7: ocr_grounding ──────────────────────────────────────────────────
 # The pick team name (or abbreviation/nickname) must appear somewhere in the
