@@ -96,7 +96,7 @@ def finalize_picks_python(
         finalized.append([
             date,
             resolved_capper,
-            resolved_sport,
+            resolved_sport.upper(),
             resolved_pick,
             line,
             resolved_game,

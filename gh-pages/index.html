@@ -754,6 +754,7 @@ function CapperConsensusTracker() {
       if (values.length >= 4) {
         const row = {};
         headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+        if (row.sport) row.sport = row.sport.toUpperCase();
         if (row.capper && row.game) data.push(row);
       }
     }
