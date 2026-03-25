@@ -24,7 +24,7 @@ function classifyPick(pick, gameSpread) {
   if (/^O\s?\d/.test(line)) return 'Over';
   if (/^U\s?\d/.test(line)) return 'Under';
   const spread = (gameSpread || pick.spread || '').trim();
-  const side = (pick.side || pick.pick || '').trim();
+  const side = (pick.pick || '').trim();
   if (spread && /[a-zA-Z]/.test(spread) && /\d/.test(spread)) {
     const spreadLower = spread.toLowerCase();
     const sideLower = side.toLowerCase();
@@ -735,7 +735,7 @@ function CapperConsensusTracker() {
 
     // Detect if first row is a header or data
     const firstRow = parseLine(lines[0]);
-    const KNOWN_HEADERS = ['date','capper','sport','pick','line','game','spread','side','result'];
+    const KNOWN_HEADERS = ['date','capper','sport','pick','line','game','spread','result'];
     const looksLikeHeader = firstRow.some(v => KNOWN_HEADERS.includes(v.toLowerCase().trim()));
 
     let headers, dataStartIdx;
@@ -817,7 +817,7 @@ function CapperConsensusTracker() {
     setFakeCappers(prev => {
       const game = prev[gameName] || {};
       const sideFakes = game[side] || [];
-      return { ...prev, [gameName]: { ...game, [side]: [...sideFakes, {id, capper:capperName, sport, side, game:gameName}] } };
+      return { ...prev, [gameName]: { ...game, [side]: [...sideFakes, {id, capper:capperName, sport, pick:side, game:gameName}] } };
     });
   }, []);
 
@@ -856,7 +856,7 @@ function CapperConsensusTracker() {
     Object.values(fakeCappers).forEach(gameObj => {
       Object.values(gameObj).forEach(sideFakes => {
         sideFakes.forEach(f => {
-          result.push({...f, result:'', line:'', spread:'', pick:f.side, date: selectedDate || ''});
+          result.push({...f, result:'', line:'', spread:'', pick:f.pick, date: selectedDate || ''});
         });
       });
     });
@@ -914,7 +914,7 @@ function CapperConsensusTracker() {
     const real = filteredPicks.filter(p => {
       const gameDeleted = deletedPicks[p.game];
       if (!gameDeleted) return true;
-      return !gameDeleted.has(p.pickKey || `${p.capper}-${p.side||p.pick}-${p.game}`);
+      return !gameDeleted.has(p.pickKey || `${p.capper}-${p.pick}-${p.game}`);
     });
     return [...real, ...fakes];
   }, [filteredPicks, fakePicks, selectedSport, deletedPicks]);
@@ -929,7 +929,7 @@ function CapperConsensusTracker() {
       const gameKey = pick.game||`${pick.pick} game`;
       if (!games[gameKey]) games[gameKey]={game:gameKey,sport:pick.sport,sides:{},picks:[],spread:pick.spread||'',cappers:new Set(),date:pick.date};
       if (pick.spread&&!games[gameKey].spread) games[gameKey].spread=pick.spread;
-      const side=pick.side||pick.pick;
+      const side=pick.pick;
       const pickKey = `${pick.capper}-${side}-${gameKey}-${idx}`;
       if (!games[gameKey].sides[side]) games[gameKey].sides[side]={cappers:[],allCappers:[],wins:0,losses:0,winningCappers:[],losingCappers:[]};
       const bt=classifyPick(pick, games[gameKey].spread), capRec=getCapperRecords[pick.capper];
@@ -985,7 +985,7 @@ function CapperConsensusTracker() {
         if (game.consensusLine) {
           bt = game.consensusLine.startsWith('-') ? 'Fav' : 'Dog';
         } else {
-          bt = classifyPick({side:maj.side, line:'', spread:''}, game.spread);
+          bt = classifyPick({pick:maj.side, line:'', spread:''}, game.spread);
         }
         if (bt) {
           ratios[bt] = {verboseLabel: getVerboseRatioLabel(maj.count, total, minPicks), count:maj.count, total};

@@ -36,7 +36,7 @@ NBA_SCHEDULE_SHEET = "nba_schedule"
 CBB_SCHEDULE_SHEET = "cbb_schedule"
 NHL_SCHEDULE_SHEET = "nhl_schedule"
 
-OUTPUT_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
+OUTPUT_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "result", "ocr_text"]
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ def parse_csv(response: str, batch: List[Dict], offset: int) -> List[List[str]]:
             except ValueError:
                 pass
 
-        result.append([date, capper, sport.upper(), pick, line_val, "", "", "", "", ocr_text])
+        result.append([date, capper, sport.upper(), pick, line_val, "", "", "", ocr_text])
     return result
 
 

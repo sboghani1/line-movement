@@ -38,7 +38,7 @@ from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT
 load_dotenv()
 
 # master_sheet columns (0-indexed, header is row 1)
-MASTER_HEADERS  = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
+MASTER_HEADERS  = ["date", "capper", "sport", "pick", "line", "game", "spread", "result"]
 # parsed_picks_new header is on row 3 (index 2), data starts row 4
 PICKS_NEW_SHEET    = "parsed_picks_new"
 MASTER_SHEET       = "master_sheet"
