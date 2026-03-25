@@ -24,7 +24,7 @@ load_dotenv()
 
 GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
 SHEET_NAME = "parsed_picks_new"
-HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result", "ocr_text"]
+HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "result", "ocr_text"]
 VALID_SPORTS = {"nba", "cbb", "nhl"}
 
 # Use word-boundary aware matching for props
