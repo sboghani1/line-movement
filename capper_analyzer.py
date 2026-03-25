@@ -35,6 +35,9 @@ from sheets_utils import (
 import daily_audit
 import populate_results
 from discord_fetcher import get_messages_with_images_since
+from stage2_python import finalize_picks_python, TEAM_NOT_FOUND, CAPPER_NOT_FOUND
+from team_resolver import TeamResolver
+from capper_resolver import CapperResolver
 
 # ── Config ──────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -479,7 +482,12 @@ For each image, output in this exact format:
 
     image_contents.append({"type": "text", "text": prompt_text})
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    # Use direct Anthropic API for vision calls — the LiteLLM proxy
+    # (ANTHROPIC_BASE_URL=localhost:4000) strips image content from requests.
+    client = anthropic.Anthropic(
+        api_key=ANTHROPIC_API_KEY,
+        base_url="https://api.anthropic.com",
+    )
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -1136,22 +1144,22 @@ def run_stage1(spreadsheet, image_pull_ws):
     print(f"✅ Stage 1 complete: {len(all_parsed_rows)} picks parsed")
 
 
-def run_stage2(spreadsheet, image_pull_ws):
-    """Run Stage 2: Finalize parsed picks with game data + Python spread lookup.
+def run_stage2(spreadsheet, image_pull_ws,
+               team_resolver: TeamResolver = None,
+               capper_resolver: CapperResolver = None):
+    """Run Stage 2: Finalize parsed picks with Python resolvers (no Claude API).
 
-    Reads rows from parsed_picks, sends them to Sonnet in batches to fill
-    the game column by cross-referencing the schedule, then fills spread
-    via a Python post-pass that looks up the consensus spread from the ESPN
-    schedule sheets. Writes to three destinations:
+    Reads rows from parsed_picks, resolves capper names and team names using
+    deterministic Python (TeamResolver + CapperResolver), and fills game/spread
+    columns from schedule data. Writes to three destinations:
 
       finalized_picks  — staging sheet (all 9 cols incl. ocr_text); deduped
       master_sheet     — permanent history (cols 0–7, no ocr_text)
       parsed_picks_new — append-only audit sheet (all 9 cols incl. ocr_text)
 
-    The dual-write design keeps master_sheet lean (no large OCR strings) while
-    parsed_picks_new retains the full row for the nightly Opus hallucination
-    audit.  parsed_picks_new is never truncated or rewritten — rows only ever
-    accumulate so audit history is preserved across sessions.
+    Sentinel values when resolution fails:
+      - capper = "capper_not_found" → caught by nightly audit
+      - game   = "team_not_found"   → caught by nightly audit
 
     ML/spread deduplication: cappers sometimes post a pick twice — once as ML
     and once as a spread.  deduplicate_ml_vs_spread() drops the ML copy when
@@ -1182,84 +1190,40 @@ def run_stage2(spreadsheet, image_pull_ws):
         print("No rows in parsed_picks to finalize")
         return
 
-    print(f"\n── Stage 2: Finalizing {len(data_rows)} parsed pick(s) ──")
+    print(f"\n── Stage 2: Finalizing {len(data_rows)} parsed pick(s) (Python) ──")
 
-    all_finalized_rows = []
+    # Initialize resolvers if not provided (lazy init for reuse across calls)
+    if team_resolver is None:
+        team_resolver = TeamResolver(spreadsheet)
+    if capper_resolver is None:
+        capper_resolver = CapperResolver(spreadsheet)
 
-    for batch_start in range(0, len(data_rows), STAGE_BATCH_SIZE):
-        batch = data_rows[batch_start : batch_start + STAGE_BATCH_SIZE]
-        print(f"\nBatch {batch_start // STAGE_BATCH_SIZE + 1}: {len(batch)} row(s)")
+    valid_rows = [row for row in data_rows if row]
+    # Preserve ocr_text (col 8) from input rows
+    ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_rows]
 
-        # Get unique dates in this batch to fetch only relevant schedules
-        pick_dates = set()
-        for row in batch:
-            if row and row[0]:
-                pick_dates.add(row[0])
+    # Run Python Stage 2 — no Claude API call needed
+    all_finalized_rows = finalize_picks_python(
+        team_resolver, capper_resolver, valid_rows
+    )
+    all_finalized_rows = validate_and_fix_pick_column(all_finalized_rows)
 
-        print(f"Fetching schedules for dates: {sorted(pick_dates)}")
+    # Re-attach ocr_text to each finalized row (positional match)
+    for j, row in enumerate(all_finalized_rows):
+        ocr = ocr_texts[j] if j < len(ocr_texts) else ""
+        if len(row) < 9:
+            row.append(ocr)
+        else:
+            row[8] = ocr
 
-        all_nba_games = []
-        all_cbb_games = []
-        all_nhl_games = []
-
-        for pick_date in sorted(pick_dates):
-            all_nba_games.extend(
-                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, pick_date)
-            )
-            all_cbb_games.extend(
-                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, pick_date)
-            )
-            all_nhl_games.extend(
-                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, pick_date)
-            )
-
-        schedule_data = {
-            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-        }
-
-        # Keep raw game dicts for Python spread lookup post-pass
-        schedule_games_by_sport = {
-            "nba": all_nba_games,
-            "cbb": all_cbb_games,
-            "nhl": all_nhl_games,
-        }
-
-        valid_batch = [row for row in batch if row]
-        # Preserve ocr_text (col 8) from input rows — Stage 2 doesn't see it
-        ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_batch]
-
-        # Send only the columns Claude needs: capper,sport,pick,line
-        stage2_input = [
-            ",".join([row[1], row[2], row[3], row[4]]) if len(row) > 4
-            else ",".join(row[1:5])
-            for row in valid_batch
-        ]
-
-        prompt = build_stage2_prompt(stage2_input, schedule_data)
-        print(f"Calling Sonnet to finalize {len(stage2_input)} picks...")
-
-        try:
-            response = call_sonnet_text(prompt)
-            stage2_output = parse_stage2_response(response)
-            # Assemble full rows: passthrough cols from input + Claude's output + spread lookup
-            finalized_batch = assemble_finalized_rows(
-                valid_batch, stage2_output, schedule_games_by_sport
-            )
-            finalized_batch = validate_and_fix_pick_column(finalized_batch)
-            # Re-attach ocr_text to each finalized row (positional match)
-            for j, row in enumerate(finalized_batch):
-                ocr = ocr_texts[j] if j < len(ocr_texts) else ""
-                if len(row) < 9:
-                    row.append(ocr)
-                else:
-                    row[8] = ocr
-            print(f"Finalized {len(finalized_batch)} pick row(s)")
-            all_finalized_rows.extend(finalized_batch)
-        except Exception as e:
-            print(f"Stage 2 batch failed: {e}")
-            continue
+    # Report resolution stats
+    not_found_teams = sum(1 for r in all_finalized_rows if len(r) > 5 and r[5] == TEAM_NOT_FOUND)
+    not_found_cappers = sum(1 for r in all_finalized_rows if len(r) > 1 and r[1] == CAPPER_NOT_FOUND)
+    print(f"Finalized {len(all_finalized_rows)} pick row(s)")
+    if not_found_teams:
+        print(f"  ⚠ {not_found_teams} pick(s) with unresolved team (game=team_not_found)")
+    if not_found_cappers:
+        print(f"  ⚠ {not_found_cappers} pick(s) with unresolved capper (capper=capper_not_found)")
 
     if all_finalized_rows:
         # Get or create finalized_picks worksheet
@@ -1633,8 +1597,8 @@ def process_manual_picks_queue(spreadsheet):
         f"Parsed {len(picks_to_parse)} rows into {len(parsed_rows)} picks",
     )
 
-    # Step 5: Run Stage 2 - Finalize with known cappers
-    print("\n── Manual Queue Stage 2: Finalizing picks ──")
+    # Step 5: Run Stage 2 - Finalize with Python resolvers (no Claude API)
+    print("\n── Manual Queue Stage 2: Finalizing picks (Python) ──")
 
     try:
         parsed_picks_ws = sheets_read(spreadsheet.worksheet, PARSED_PICKS_SHEET)
@@ -1652,80 +1616,36 @@ def process_manual_picks_queue(spreadsheet):
         print("No rows in parsed_picks to finalize")
         return
 
-    # Get unique dates for schedules
-    pick_dates = set(row[0] for row in parsed_data_rows if row and row[0])
-    print(f"Fetching schedules for dates: {sorted(pick_dates)}")
+    # Initialize resolvers
+    team_res = TeamResolver(spreadsheet)
+    capper_res = CapperResolver(spreadsheet)
 
-    all_nba_games = []
-    all_cbb_games = []
-    all_nhl_games = []
-
-    for pick_date in sorted(pick_dates):
-        all_nba_games.extend(
-            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, pick_date)
-        )
-        all_cbb_games.extend(
-            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, pick_date)
-        )
-        all_nhl_games.extend(
-            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, pick_date)
-        )
-
-    schedule_data = {
-        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-    }
-
-    # Keep raw game dicts for Python spread lookup post-pass
-    schedule_games_by_sport = {
-        "nba": all_nba_games,
-        "cbb": all_cbb_games,
-        "nhl": all_nhl_games,
-    }
-
-    # Get known cappers for normalization
-    known_cappers = get_known_cappers(spreadsheet)
-    if known_cappers:
-        print(f"Using {len(known_cappers)} known cappers for normalization")
-
-    # Call Sonnet with known cappers, batched to prevent hallucination
-    all_manual_finalized = []
     valid_parsed_rows = [row for row in parsed_data_rows if row]
-    for batch_start in range(0, len(valid_parsed_rows), STAGE_BATCH_SIZE):
-        batch = valid_parsed_rows[batch_start : batch_start + STAGE_BATCH_SIZE]
-        # Preserve ocr_text (col 8) — Stage 2 doesn't see it
-        ocr_texts = [row[8] if len(row) > 8 else "" for row in batch]
+    # Preserve ocr_text (col 8)
+    ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_parsed_rows]
 
-        # Send only the columns Claude needs: capper,sport,pick,line
-        stage2_input = [
-            ",".join([row[1], row[2], row[3], row[4]]) if len(row) > 4
-            else ",".join(row[1:5])
-            for row in batch
-        ]
+    # Run Python Stage 2 — no Claude API call needed
+    all_manual_finalized = finalize_picks_python(
+        team_res, capper_res, valid_parsed_rows
+    )
+    all_manual_finalized = validate_and_fix_pick_column(all_manual_finalized)
 
-        prompt = build_stage2_prompt(stage2_input, schedule_data, known_cappers)
-        print(f"Calling Sonnet to finalize batch of {len(stage2_input)} picks...")
-        try:
-            response = call_sonnet_text(prompt)
-            stage2_output = parse_stage2_response(response)
-            # Assemble full rows: passthrough cols from input + Claude's output + spread lookup
-            batch_finalized = assemble_finalized_rows(
-                batch, stage2_output, schedule_games_by_sport
-            )
-            batch_finalized = validate_and_fix_pick_column(batch_finalized)
-            # Re-attach ocr_text positionally
-            for j, row in enumerate(batch_finalized):
-                ocr = ocr_texts[j] if j < len(ocr_texts) else ""
-                if len(row) < 9:
-                    row.append(ocr)
-                else:
-                    row[8] = ocr
-            print(f"Finalized {len(batch_finalized)} pick row(s)")
-            all_manual_finalized.extend(batch_finalized)
-        except Exception as e:
-            print(f"Manual queue Stage 2 batch failed: {e}")
-            continue
+    # Re-attach ocr_text positionally
+    for j, row in enumerate(all_manual_finalized):
+        ocr = ocr_texts[j] if j < len(ocr_texts) else ""
+        if len(row) < 9:
+            row.append(ocr)
+        else:
+            row[8] = ocr
+
+    # Report resolution stats
+    not_found_teams = sum(1 for r in all_manual_finalized if len(r) > 5 and r[5] == TEAM_NOT_FOUND)
+    not_found_cappers = sum(1 for r in all_manual_finalized if len(r) > 1 and r[1] == CAPPER_NOT_FOUND)
+    print(f"Finalized {len(all_manual_finalized)} pick row(s)")
+    if not_found_teams:
+        print(f"  ⚠ {not_found_teams} pick(s) with unresolved team (game=team_not_found)")
+    if not_found_cappers:
+        print(f"  ⚠ {not_found_cappers} pick(s) with unresolved capper (capper=capper_not_found)")
 
     finalized_rows = all_manual_finalized
     stats["stage2_finalized"] = len(finalized_rows)

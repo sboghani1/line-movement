@@ -150,8 +150,13 @@ def parse_picks_with_claude(image_url: str, capper_name: str) -> list[dict]:
     if not ANTHROPIC_API_KEY:
         raise ValueError("ANTHROPIC_API_KEY must be set")
     
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    
+    # Use direct Anthropic API for vision calls — the LiteLLM proxy
+    # (ANTHROPIC_BASE_URL=localhost:4000) strips image content from requests.
+    client = anthropic.Anthropic(
+        api_key=ANTHROPIC_API_KEY,
+        base_url="https://api.anthropic.com",
+    )
+
     # Download image and encode as base64
     image_data, media_type = download_image_as_base64(image_url)
     

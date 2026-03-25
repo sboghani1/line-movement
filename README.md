@@ -178,8 +178,7 @@ Spread is now filled by Python from ESPN schedule sheets, not Claude. Stage 2 pr
 ### Phase 3: Backfill existing data
 
 - [x] Fix spread values in `master_sheet` for all rows where spread ≠ schedule spread (3,472 fixed, 9,798 already correct, 30 no schedule match)
-- [ ] Deduplicate the 18 known duplicate composite key pairs
-- [ ] Validate match rate of Python resolver against all historical `parsed_picks_new` data before going live
+- [x] Deduplicate the 18 known duplicate composite key pairs (was actually 63 groups / 55 extra rows after recent data — all removed)
 
 ### Phase 4: Eliminate Claude from Stage 2
 
@@ -219,4 +218,5 @@ Claude Stage 2 currently does 3 things — all replaceable with Python:
   - No API call, no token cost, no latency, no hallucination risk
 - Keep Claude Stage 1 as-is (OCR parsing genuinely needs LLM intelligence)
 - Picks that fail resolution go to a `needs_review` queue instead of a Claude fallback
+- Validate match rate of Python resolver against all historical `parsed_picks_new` data before going live
 - Update both Stage 2 call sites (main flow + manual queue) and `daily_audit.py`

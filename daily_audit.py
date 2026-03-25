@@ -22,15 +22,18 @@ everything to the `audit_results` sheet with a status column that progresses:
 Checks implemented:
   1. missing_columns — every required column must have a value; result is
      auto-filled from scores when possible.
+  2. next_day_game   — if game is empty, try matching pick against D+1 schedule.
+  3. unresolved_team — game column is "team_not_found" sentinel from Python resolver.
+  4. unresolved_capper — capper column is "capper_not_found" sentinel from Python resolver.
 
 Checks documented but not yet implemented:
-  2. result_correctness    (recompute result from score + line, compare to stored)
-  3. game_match            (pick team must appear in schedule for that sport/date)
-  4. ambiguous_team        (pick team substring-matches multiple schedule games)
-  5. wrong_game            (pick team in schedule but game column points elsewhere)
-  6. spread_consistency    (spread must match ESPN schedule spread for the game)
-  7. ocr_grounding         (pick team must appear in raw ocr_text)
-  8. duplicate_detection   (same date+capper+pick+line appears more than once)
+  5. result_correctness    (recompute result from score + line, compare to stored)
+  6. game_match            (pick team must appear in schedule for that sport/date)
+  7. ambiguous_team        (pick team substring-matches multiple schedule games)
+  8. wrong_game            (pick team in schedule but game column points elsewhere)
+  9. spread_consistency    (spread must match ESPN schedule spread for the game)
+  10. ocr_grounding        (pick team must appear in raw ocr_text)
+  11. duplicate_detection  (same date+capper+pick+line appears more than once)
 
 Usage:
   .venv/bin/python3 daily_audit.py              # normal run
@@ -58,6 +61,7 @@ from activity_logger import log_activity
 from git_utils import git_push_csv
 from populate_results import determine_result, find_score, load_scores, team_matches
 from sheets_utils import GOOGLE_SHEET_ID, get_gspread_client, sheets_call, SPORT_TO_SCHED
+from stage2_python import TEAM_NOT_FOUND, CAPPER_NOT_FOUND
 
 load_dotenv()
 
@@ -91,6 +95,7 @@ VALID_STATUSES = [
     "needs_human",
     "human_approved",
     "human_rejected",
+    "remediated",
 ]
 
 # Required columns that must be non-empty for a pick to be considered complete.
@@ -485,6 +490,95 @@ def check_next_day_game(
     }
 
 
+# ── Check 3: Unresolved team ──────────────────────────────────────────────────
+def check_unresolved_team(
+    pick: dict,
+    scores: dict,
+    ms_ws: gspread.Worksheet,
+    ms_row_num: int,
+    dry_run: bool,
+    **ctx,
+) -> Optional[dict]:
+    """
+    Check 3: Flag rows where the game column is the sentinel "team_not_found".
+
+    This means the Python TeamResolver could not resolve the raw pick name
+    to a canonical ESPN team name. The row needs a human to:
+      1. Identify the correct ESPN team name and game.
+      2. Fix the master_sheet row (game, spread, possibly pick).
+      3. Add the raw name as an alias to team_name_resolution so the
+         resolver handles it automatically next time.
+
+    Returns None if game is NOT the sentinel (row is fine).
+    """
+    game = pick.get("game", "").strip()
+    if game != TEAM_NOT_FOUND:
+        return None
+
+    raw_pick = pick.get("pick", "").strip()
+    sport = pick.get("sport", "").strip()
+    date = pick.get("date", "").strip()
+
+    return {
+        "pick_row": pick,
+        "check_failed": "unresolved_team",
+        "details": (
+            f"team resolver could not match pick '{raw_pick}' "
+            f"(sport={sport}, date={date}) to any ESPN team; "
+            f"game/spread are blank"
+        ),
+        "suggested_fix": (
+            f"set game and spread to correct values; "
+            f"add '{raw_pick}' as alias to team_name_resolution"
+        ),
+        "status": "needs_review",
+    }
+
+
+# ── Check 4: Unresolved capper ───────────────────────────────────────────────
+def check_unresolved_capper(
+    pick: dict,
+    scores: dict,
+    ms_ws: gspread.Worksheet,
+    ms_row_num: int,
+    dry_run: bool,
+    **ctx,
+) -> Optional[dict]:
+    """
+    Check 4: Flag rows where the capper column is the sentinel "capper_not_found".
+
+    This means the CapperResolver could not match the raw capper name to any
+    canonical unique_capper_name. The row needs a human to:
+      1. Identify the correct capper.
+      2. Fix the master_sheet row (capper column).
+      3. Add the raw name as an alias to capper_name_resolution so the
+         resolver handles it automatically next time.
+
+    Returns None if capper is NOT the sentinel (row is fine).
+    """
+    capper = pick.get("capper", "").strip()
+    if capper != CAPPER_NOT_FOUND:
+        return None
+
+    raw_pick = pick.get("pick", "").strip()
+    date = pick.get("date", "").strip()
+
+    return {
+        "pick_row": pick,
+        "check_failed": "unresolved_capper",
+        "details": (
+            f"capper resolver could not match raw capper name "
+            f"(date={date}, pick={raw_pick}); "
+            f"capper is set to sentinel '{CAPPER_NOT_FOUND}'"
+        ),
+        "suggested_fix": (
+            f"set capper to correct unique_capper_name; "
+            f"add raw name as alias to capper_name_resolution"
+        ),
+        "status": "needs_review",
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FUTURE CHECKS — detailed specifications
 #
@@ -766,6 +860,16 @@ def run_audit(
             pick_dict, scores, ms_ws, row_num, dry_run,
             ss=ss, target_date=target_date,
         )
+        if result:
+            findings.append(result)
+
+        # Check 3: unresolved team (game = "team_not_found" sentinel)
+        result = check_unresolved_team(pick_dict, scores, ms_ws, row_num, dry_run)
+        if result:
+            findings.append(result)
+
+        # Check 4: unresolved capper (capper = "capper_not_found" sentinel)
+        result = check_unresolved_capper(pick_dict, scores, ms_ws, row_num, dry_run)
         if result:
             findings.append(result)
 
