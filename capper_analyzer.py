@@ -727,8 +727,35 @@ OUTPUT (one row per input, capper,pick,game — no headers, no explanation):"""
     return prompt
 
 
+def _is_valid_date(s: str) -> bool:
+    """Check if a string looks like a YYYY-MM-DD date."""
+    import re
+    return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", s.strip()))
+
+
+def _is_valid_sport(s: str) -> bool:
+    """Check if a string is a valid sport code."""
+    return s.strip().upper() in {"NBA", "CBB", "NHL", "NCAAB"}
+
+
+def _is_valid_line(s: str) -> bool:
+    """Check if a string looks like a valid betting line (ML, spread, etc.)."""
+    import re
+    val = s.strip().upper()
+    if val == "ML":
+        return True
+    # Spread: optional +/- followed by a number (e.g., "-3.5", "+7", "3")
+    if re.match(r"^[+-]?\d+(\.\d+)?$", val):
+        return True
+    return False
+
+
 def parse_csv_response(response: str) -> List[List[str]]:
-    """Parse CSV response from Haiku into list of row lists (Stage 1: 8 columns)."""
+    """Parse CSV response from Haiku into list of row lists (Stage 1: 8 columns).
+
+    Validates that each row has a valid date, sport, and line to filter out
+    Claude's chain-of-thought reasoning that sometimes leaks into the output.
+    """
     rows = []
     for line in response.strip().split("\n"):
         line = line.strip()
@@ -740,6 +767,14 @@ def parse_csv_response(response: str) -> List[List[str]]:
             reader = csv.reader(io.StringIO(line))
             for row in reader:
                 if len(row) >= 5:  # At least date, capper, sport, pick, line
+                    # Validate key fields to reject Claude reasoning text
+                    # that happens to contain enough commas
+                    if not _is_valid_date(row[0]):
+                        continue
+                    if not _is_valid_sport(row[2]):
+                        continue
+                    if not _is_valid_line(row[4]):
+                        continue
                     # Pad to 8 columns if needed
                     while len(row) < 8:
                         row.append("")

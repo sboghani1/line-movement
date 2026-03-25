@@ -1047,7 +1047,12 @@ def run_audit(
 # ── master_sheet sort + audit_results ms_row recalculation ───────────────────
 
 def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List[List[str]]:
-    """Re-sort master_sheet rows by date (ascending) and write back in-place.
+    """Re-sort master_sheet rows by (date, capper, game) ascending and write back.
+
+    Sort order:
+      1. date (YYYY-MM-DD ascending)
+      2. capper (A-Z ascending)
+      3. game  (A-Z ascending)
 
     Returns the sorted values (header + data) for use in subsequent steps.
     In dry-run mode, computes and prints the changes without writing.
@@ -1060,19 +1065,27 @@ def resort_master_sheet(ms_ws: gspread.Worksheet, dry_run: bool = False) -> List
         print("  Warning: 'date' column not found in master_sheet; skipping sort")
         return all_vals
     date_idx = header.index("date")
+    capper_idx = header.index("capper") if "capper" in header else None
+    game_idx = header.index("game") if "game" in header else None
     data = all_vals[1:]
 
+    def sort_key(r):
+        d = r[date_idx] if len(r) > date_idx else ""
+        c = r[capper_idx].lower() if capper_idx is not None and len(r) > capper_idx else ""
+        g = r[game_idx].lower() if game_idx is not None and len(r) > game_idx else ""
+        return (d, c, g)
+
     original_ids = [id(r) for r in data]
-    data.sort(key=lambda r: r[date_idx] if len(r) > date_idx else "")
+    data.sort(key=sort_key)
     sorted_ids = [id(r) for r in data]
     moved = sum(1 for a, b in zip(original_ids, sorted_ids) if a != b)
 
     sorted_vals = [header] + data
     if dry_run:
-        print(f"  [dry-run] Would re-sort master_sheet ({len(data)} rows by date, {moved} row(s) would move)")
+        print(f"  [dry-run] Would re-sort master_sheet ({len(data)} rows by date/capper/game, {moved} row(s) would move)")
     else:
         sheets_call(ms_ws.update, "A1", sorted_vals)
-        print(f"  Re-sorted master_sheet ({len(data)} rows by date, {moved} row(s) moved)")
+        print(f"  Re-sorted master_sheet ({len(data)} rows by date/capper/game, {moved} row(s) moved)")
     return sorted_vals
 
 
