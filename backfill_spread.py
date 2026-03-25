@@ -140,10 +140,41 @@ def load_schedules(ss) -> dict:
     return schedules
 
 
-def find_game(
+def find_game_by_game_col(
+    game: str, date: str, sport: str, schedules: dict
+) -> Optional[Tuple[str, str, str]]:
+    """Return (away, home, spread) using the game column (exact key match).
+
+    The game column is formatted as 'Away Team @ Home Team'. We parse it and
+    look for an exact match in the schedule, falling back to fuzzy matching
+    against the parsed away/home names.
+    """
+    game_parts = game.split(" @ ", 1)
+    if len(game_parts) != 2:
+        return None
+
+    game_away, game_home = game_parts[0].strip(), game_parts[1].strip()
+
+    for away, home, spread in schedules.get(sport, {}).get(date, []):
+        # Exact match on both teams (most reliable)
+        if away == game_away and home == game_home:
+            return away, home, spread
+
+    # Fallback: fuzzy match on the game column teams
+    for away, home, spread in schedules.get(sport, {}).get(date, []):
+        if team_matches(game_away, away) and team_matches(game_home, home):
+            return away, home, spread
+
+    return None
+
+
+def find_game_by_pick(
     pick: str, date: str, sport: str, schedules: dict
 ) -> Optional[Tuple[str, str, str]]:
-    """Return (away, home, spread) from sport schedule, or None."""
+    """Return (away, home, spread) by fuzzy-matching the pick team name.
+
+    Only used as a fallback when the game column is empty.
+    """
     for away, home, spread in schedules.get(sport, {}).get(date, []):
         if team_matches(pick, away) or team_matches(pick, home):
             return away, home, spread
@@ -228,8 +259,11 @@ def process_sheet(
                     batch_updates.append({"range": result_cell, "values": [[""]]})
             continue
 
-        # Look up game from schedule
-        result = find_game(pick, date, sport, schedules)
+        # Look up game from schedule — prefer game column (exact), fall back to pick (fuzzy)
+        if game:
+            result = find_game_by_game_col(game, date, sport, schedules)
+        else:
+            result = find_game_by_pick(pick, date, sport, schedules)
         if result is None:
             no_match += 1
             continue
