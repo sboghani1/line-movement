@@ -177,7 +177,7 @@ Spread is now filled by Python from ESPN schedule sheets, not Claude. Stage 2 pr
 
 ### Phase 3: Backfill existing data
 
-- Fix spread values in `master_sheet` for all non-ML rows where spread ≠ schedule spread
+- Fix spread values in `master_sheet` for all rows where spread ≠ schedule spread
 - Deduplicate the 18 known duplicate composite key pairs
 - Validate match rate of Python resolver against all historical `parsed_picks_new` data before going live
 

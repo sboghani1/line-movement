@@ -3,10 +3,11 @@
 backfill_spread.py — Fix the `spread` column in master_sheet (and optionally
 parsed_picks_new) by looking up the correct spread from the ESPN schedule sheets.
 
-Composite key: (date, sport, pick_team) → find the matching game in the
-schedule sheet → use the schedule's `spread` value.
+Spread is a property of the game (ESPN consensus line), not the bet type.
+All rows get the schedule spread, including ML bets.
 
-ML bets (line == "ML") get an empty spread.
+Composite key: game column ("Away @ Home") → exact match in schedule.
+Fallback: fuzzy match on pick team (only for rows with empty game column).
 
 Usage:
   .venv/bin/python3 backfill_spread.py --dry-run          # preview mismatches
@@ -199,7 +200,7 @@ def process_sheet(
 
     if len(all_values) <= header_row_index:
         print(f"  {sheet_name}: no data rows")
-        return {"already_correct": 0, "fixed": 0, "cleared_ml": 0,
+        return {"already_correct": 0, "fixed": 0,
                 "no_match": 0, "skipped_empty": 0}
 
     header = all_values[header_row_index]
@@ -216,7 +217,6 @@ def process_sheet(
 
     already_correct = 0
     fixed = 0
-    cleared_ml = 0
     no_match = 0
     skipped_empty = 0
     batch_updates = []
@@ -241,22 +241,6 @@ def process_sheet(
 
         if not date or not sport or not pick:
             skipped_empty += 1
-            continue
-
-        # ML bets should have empty spread
-        if line.upper() == "ML":
-            if current_spread == "":
-                already_correct += 1
-            else:
-                cleared_ml += 1
-                sheet_row = data_start + offset + 1  # 1-based
-                result_cell = gspread.utils.rowcol_to_a1(sheet_row, spread_col + 1)
-                if dry_run:
-                    mismatches.append(
-                        f"  [{date}] {pick} ML | spread: {repr(current_spread)} → '' (ML clear)"
-                    )
-                else:
-                    batch_updates.append({"range": result_cell, "values": [[""]]})
             continue
 
         # Look up game from schedule — prefer game column (exact), fall back to pick (fuzzy)
@@ -303,7 +287,6 @@ def process_sheet(
     return {
         "already_correct": already_correct,
         "fixed": fixed,
-        "cleared_ml": cleared_ml,
         "no_match": no_match,
         "skipped_empty": skipped_empty,
     }
@@ -348,7 +331,6 @@ def main():
         print(f"\n  Summary for {sheet_name}:")
         print(f"    Already correct:  {stats['already_correct']}")
         print(f"    Fixed (updated):  {stats['fixed']}")
-        print(f"    Cleared (ML):     {stats['cleared_ml']}")
         print(f"    No schedule match:{stats['no_match']}")
         print(f"    Skipped (empty):  {stats['skipped_empty']}")
 
