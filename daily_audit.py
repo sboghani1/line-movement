@@ -157,9 +157,9 @@ def _apply_status_validation(ws: gspread.Worksheet):
 
 
 # ── Schedule loader ───────────────────────────────────────────────────────────
-def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, str]]]:
+def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, str, str]]]:
     """
-    Returns {sport: [(away_team, home_team), ...]} for games on target_date.
+    Returns {sport: [(away_team, home_team, spread), ...]} for games on target_date.
     """
     schedule = {}
     for sport, sheet_name in SPORT_TO_SCHED.items():
@@ -174,15 +174,17 @@ def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, st
             date_idx = hcol.get("game_date", 1)
             away_idx = hcol.get("away_team", 2)
             home_idx = hcol.get("home_team", 3)
+            spread_idx = hcol.get("spread", 5)
             games = []
             for row in rows[1:]:
-                while len(row) <= max(date_idx, away_idx, home_idx):
+                while len(row) <= max(date_idx, away_idx, home_idx, spread_idx):
                     row.append("")
                 if row[date_idx].strip() == target_date:
                     away = row[away_idx].strip()
                     home = row[home_idx].strip()
+                    spread = row[spread_idx].strip()
                     if away and home:
-                        games.append((away, home))
+                        games.append((away, home, spread))
             schedule[sport] = games
             print(f"  {sheet_name}: {len(games)} games on {target_date}")
         except gspread.exceptions.WorksheetNotFound:
@@ -190,12 +192,12 @@ def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, st
     return schedule
 
 
-def format_schedule_context(schedule: Dict[str, List[Tuple[str, str]]]) -> str:
+def format_schedule_context(schedule: Dict[str, List[Tuple[str, str, str]]]) -> str:
     """Format a schedule dict as a compact string for Opus prompts."""
     lines = []
     for sport, games in schedule.items():
         if games:
-            game_strs = [f"{a} @ {h}" for a, h in games]
+            game_strs = [f"{a} @ {h}" for a, h, _s in games]
             lines.append(f"{sport.upper()}: {', '.join(game_strs)}")
     return "\n".join(lines) if lines else "(no games found)"
 
@@ -400,15 +402,15 @@ def check_next_day_game(
     pick_norm = _norm(pick_team)
     d1_games = schedule_d1.get(sport, [])
     matches = []
-    for away, home in d1_games:
+    for away, home, sched_spread in d1_games:
         if team_matches(pick_norm, _norm(away)) or team_matches(pick_norm, _norm(home)):
-            matches.append((away, home))
+            matches.append((away, home, sched_spread))
 
     if not matches:
         return None  # no D+1 game found
 
     if len(matches) > 1:
-        match_strs = [f"{a} @ {h}" for a, h in matches]
+        match_strs = [f"{a} @ {h}" for a, h, _ in matches]
         return {
             "pick_row": pick,
             "check_failed": "next_day_game",
@@ -418,7 +420,7 @@ def check_next_day_game(
         }
 
     # Exactly one match — compute corrected values
-    away_team, home_team = matches[0]
+    away_team, home_team, sched_spread = matches[0]
     matched_game = f"{away_team} @ {home_team}"
 
     if team_matches(pick_norm, _norm(away_team)):
@@ -426,7 +428,8 @@ def check_next_day_game(
     else:
         matched_team = home_team
 
-    new_spread = "" if line.upper() == "ML" else f"{matched_team} {line}"
+    # Use schedule spread directly instead of constructing from pick+line
+    new_spread = sched_spread if line.upper() != "ML" else ""
 
     # Attempt result from D+1 scores (game may already be played).
     # Use matched_team (the schedule name) for determine_result so that the
@@ -608,16 +611,19 @@ def check_next_day_game(
 #   - result = recomputed from correct game's score (if available)
 #
 # ── Check 6: spread_consistency ──────────────────────────────────────────────
-# The `spread` column should equal "{pick} {line}" for spread bets, or be
-# empty for ML bets.
+# The `spread` column should match the consensus spread from the ESPN schedule
+# sheet for the game on this date. For ML bets, spread must be empty.
 #
 # Logic:
 #   1. If line is "ML" → spread must be empty.  If not → auto_fixed.
-#   2. If line is numeric → spread must be "{pick} {line}".  If not → auto_fixed.
+#   2. If line is numeric → spread must match the schedule spread for this game.
+#      If not → auto_fixed with the schedule value.
+#   3. (Soft check) If line sign seems wrong for the side, flag needs_review
+#      rather than auto-fix (line sign is set by the capper, not derivable).
 #
 # Examples:
-#   pick="Duke", line="-3.5", spread="Duke -3.5" → pass
-#   pick="Duke", line="-3.5", spread="UNC +3.5"  → auto_fixed, suggested_fix="spread=Duke -3.5"
+#   pick="Duke", line="-3.5", schedule_spread="Duke Blue Devils -3.5", spread="Duke Blue Devils -3.5" → pass
+#   pick="Duke", line="-3.5", schedule_spread="Duke Blue Devils -3.5", spread="UNC +3.5"  → auto_fixed
 #   pick="Duke", line="ML",   spread="Duke ML"   → auto_fixed, suggested_fix="spread=" (blank)
 #   pick="Duke", line="ML",   spread=""           → pass
 #
