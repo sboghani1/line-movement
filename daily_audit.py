@@ -28,10 +28,9 @@ Checks documented but not yet implemented:
   3. game_match            (pick team must appear in schedule for that sport/date)
   4. ambiguous_team        (pick team substring-matches multiple schedule games)
   5. wrong_game            (pick team in schedule but game column points elsewhere)
-  6. side_consistency      (side home/away must match team position in game column)
-  7. spread_consistency    (spread field should equal "pick line", sign matches side)
-  8. ocr_grounding         (pick team must appear in raw ocr_text)
-  9. duplicate_detection   (same date+capper+pick+line appears more than once)
+  6. spread_consistency    (spread field should equal "pick line")
+  7. ocr_grounding         (pick team must appear in raw ocr_text)
+  8. duplicate_detection   (same date+capper+pick+line appears more than once)
 
 Usage:
   .venv/bin/python3 daily_audit.py              # normal run
@@ -73,13 +72,13 @@ LOCAL_CSV_PATH  = "gh-pages/data/master_sheet.csv"
 AUTO_FIX_ELIGIBLE = {"needs_review"}
 PICKS_NEW_SHEET = "parsed_picks_new"   # read-only; used to look up ocr_text
 
-MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
+MASTER_HEADERS = ["date", "capper", "sport", "pick", "line", "game", "spread", "result"]
 
 # audit_results schema: status is col B for easy scanning; ms_row links back to master_sheet
 AUDIT_HEADERS = [
     "date", "status", "ms_row",
     "capper", "sport", "pick", "line",
-    "game", "spread", "side", "result",
+    "game", "spread", "result",
     "check_failed", "details", "suggested_fix",
     "ocr_text",
 ]
@@ -96,7 +95,7 @@ VALID_STATUSES = [
 
 # Required columns that must be non-empty for a pick to be considered complete.
 # "spread" is intentionally excluded — ML picks have an empty spread.
-REQUIRED_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "side", "result"]
+REQUIRED_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "result"]
 
 # PST = UTC-8 (standard time); PDT = UTC-7; we use UTC-8 conservatively.
 PST_OFFSET = timezone(timedelta(hours=-8))
@@ -158,9 +157,9 @@ def _apply_status_validation(ws: gspread.Worksheet):
 
 
 # ── Schedule loader ───────────────────────────────────────────────────────────
-def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, str]]]:
+def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, str, str]]]:
     """
-    Returns {sport: [(away_team, home_team), ...]} for games on target_date.
+    Returns {sport: [(away_team, home_team, spread), ...]} for games on target_date.
     """
     schedule = {}
     for sport, sheet_name in SPORT_TO_SCHED.items():
@@ -175,15 +174,17 @@ def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, st
             date_idx = hcol.get("game_date", 1)
             away_idx = hcol.get("away_team", 2)
             home_idx = hcol.get("home_team", 3)
+            spread_idx = hcol.get("spread", 5)
             games = []
             for row in rows[1:]:
-                while len(row) <= max(date_idx, away_idx, home_idx):
+                while len(row) <= max(date_idx, away_idx, home_idx, spread_idx):
                     row.append("")
                 if row[date_idx].strip() == target_date:
                     away = row[away_idx].strip()
                     home = row[home_idx].strip()
+                    spread = row[spread_idx].strip()
                     if away and home:
-                        games.append((away, home))
+                        games.append((away, home, spread))
             schedule[sport] = games
             print(f"  {sheet_name}: {len(games)} games on {target_date}")
         except gspread.exceptions.WorksheetNotFound:
@@ -191,12 +192,12 @@ def load_schedule_for_date(ss, target_date: str) -> Dict[str, List[Tuple[str, st
     return schedule
 
 
-def format_schedule_context(schedule: Dict[str, List[Tuple[str, str]]]) -> str:
+def format_schedule_context(schedule: Dict[str, List[Tuple[str, str, str]]]) -> str:
     """Format a schedule dict as a compact string for Opus prompts."""
     lines = []
     for sport, games in schedule.items():
         if games:
-            game_strs = [f"{a} @ {h}" for a, h in games]
+            game_strs = [f"{a} @ {h}" for a, h, _s in games]
             lines.append(f"{sport.upper()}: {', '.join(game_strs)}")
     return "\n".join(lines) if lines else "(no games found)"
 
@@ -265,7 +266,6 @@ def make_audit_row(
         pick_row.get("line", ""),
         pick_row.get("game", ""),
         pick_row.get("spread", ""),
-        pick_row.get("side", ""),
         pick_row.get("result", ""),
         check_failed,
         details,
@@ -285,7 +285,7 @@ def check_missing_columns(
     """
     Check 1: Every required column must have a value.
 
-    Required columns: date, capper, sport, pick, line, game, side, result.
+    Required columns: date, capper, sport, pick, line, game, result.
     (spread is excluded — ML picks legitimately have empty spread.)
 
     If only `result` is missing and a score exists, auto-fill it and return
@@ -374,7 +374,7 @@ def check_next_day_game(
     UTC boundary cases where the pick's stored date is one day before the game.
 
     - 0 matches on D+1 → return None
-    - 1 match on D+1  → auto-fix: patch date/game/side/spread/result in master_sheet
+    - 1 match on D+1  → auto-fix: patch date/game/spread/result in master_sheet
     - 2+ matches      → needs_review with match details
     """
     # Fast-path: game already matched, nothing to do
@@ -402,15 +402,15 @@ def check_next_day_game(
     pick_norm = _norm(pick_team)
     d1_games = schedule_d1.get(sport, [])
     matches = []
-    for away, home in d1_games:
+    for away, home, sched_spread in d1_games:
         if team_matches(pick_norm, _norm(away)) or team_matches(pick_norm, _norm(home)):
-            matches.append((away, home))
+            matches.append((away, home, sched_spread))
 
     if not matches:
         return None  # no D+1 game found
 
     if len(matches) > 1:
-        match_strs = [f"{a} @ {h}" for a, h in matches]
+        match_strs = [f"{a} @ {h}" for a, h, _ in matches]
         return {
             "pick_row": pick,
             "check_failed": "next_day_game",
@@ -420,7 +420,7 @@ def check_next_day_game(
         }
 
     # Exactly one match — compute corrected values
-    away_team, home_team = matches[0]
+    away_team, home_team, sched_spread = matches[0]
     matched_game = f"{away_team} @ {home_team}"
 
     if team_matches(pick_norm, _norm(away_team)):
@@ -428,7 +428,8 @@ def check_next_day_game(
     else:
         matched_team = home_team
 
-    new_spread = "" if line.upper() == "ML" else f"{matched_team} {line}"
+    # Use schedule spread directly instead of constructing from pick+line
+    new_spread = sched_spread if line.upper() != "ML" else ""
 
     # Attempt result from D+1 scores (game may already be played).
     # Use matched_team (the schedule name) for determine_result so that the
@@ -444,7 +445,6 @@ def check_next_day_game(
     updates = {
         "date":   d1_date,
         "game":   matched_game,
-        "side":   matched_team,
         "spread": new_spread,
     }
     if new_result:
@@ -462,13 +462,13 @@ def check_next_day_game(
 
     corrected_pick = {**pick, **updates}
 
-    fix_parts = [f"date={d1_date}", f"game={matched_game}", f"side={matched_team}"]
+    fix_parts = [f"date={d1_date}", f"game={matched_game}"]
     if new_spread:
         fix_parts.append(f"spread={new_spread}")
     if new_result:
         fix_parts.append(f"result={new_result}")
 
-    # The date/game/side/spread fix is complete — always auto_fixed.
+    # The date/game/spread fix is complete — always auto_fixed.
     # If result couldn't be computed (score not yet available), check_missing_columns
     # will catch and fill it on the next nightly run once the score is available.
     status = "auto_fixed"
@@ -499,7 +499,7 @@ def check_next_day_game(
 # result with the recomputed one).
 #
 # Why it matters:
-#   populate_results.py fills results, but if the game/spread/side were wrong at
+#   populate_results.py fills results, but if the game/spread were wrong at
 #   the time it ran, the result could be wrong too.  This check catches stale or
 #   incorrect results after game-column corrections.
 #
@@ -584,7 +584,7 @@ def check_next_day_game(
 # Why it matters:
 #   Stage 2 (finalization) uses Claude to match picks to games.  If the schedule
 #   has similar team names or Claude makes a mistake, the game column can be wrong.
-#   A wrong game means the spread, side, and result are all derived from the wrong
+#   A wrong game means the spread and result are all derived from the wrong
 #   matchup.
 #
 # Logic:
@@ -592,14 +592,14 @@ def check_next_day_game(
 #   2. Compare stored game column to "Away @ Home" from the schedule.
 #   3. If they match → pass.
 #   4. If they differ and the correct game is unambiguous (check 4 passed) →
-#      auto_fixed: overwrite game, recompute spread/side/result.
+#      auto_fixed: overwrite game, recompute spread/result.
 #   5. If they differ and ambiguous (check 4 flagged) → needs_review.
 #
 # Examples:
 #   pick="Michigan Wolverines", game="Indiana Hoosiers @ Michigan State Spartans"
 #     Schedule shows Michigan Wolverines @ Ohio State Buckeyes
 #     → auto_fixed (if unambiguous)
-#     suggested_fix="game=Michigan Wolverines @ Ohio State Buckeyes, side=away"
+#     suggested_fix="game=Michigan Wolverines @ Ohio State Buckeyes"
 #
 #   pick="Michigan", game="Indiana @ Michigan State"
 #     Schedule has both Michigan and Michigan State games
@@ -607,54 +607,27 @@ def check_next_day_game(
 #
 # What gets corrected on auto-fix:
 #   - game = "Away @ Home" from schedule
-#   - side = "away" or "home" based on pick team position
 #   - spread = "PickTeam LINE" (or "" for ML)
 #   - result = recomputed from correct game's score (if available)
 #
-# ── Check 6: side_consistency ────────────────────────────────────────────────
-# The `side` column (home/away) must match the pick team's position in the
-# `game` column.  If game="Duke @ UNC" and pick="Duke", side must be "away".
-#
-# Logic:
-#   1. Parse game column: "Away @ Home" → away_team, home_team.
-#   2. Fuzzy-match pick against away_team → expected side = "away".
-#   3. Fuzzy-match pick against home_team → expected side = "home".
-#   4. Compare stored side to expected.
-#   5. If match → pass.  If mismatch → auto_fixed.
-#
-# Examples:
-#   game="Duke Blue Devils @ North Carolina Tar Heels", pick="Duke", side="home"
-#     → auto_fixed, suggested_fix="side=away"
-#
-#   game="Duke Blue Devils @ North Carolina Tar Heels", pick="Duke", side="away"
-#     → pass
-#
-#   game="Duke Blue Devils @ North Carolina Tar Heels", pick="Syracuse"
-#     → pick not found in game string — this is a check 5 problem, skip here.
-#
-# Edge cases:
-#   - If game column is blank, skip (check 1 already flags missing game).
-#   - If pick doesn't match either team in the game string, skip (check 5 handles).
-#
-# ── Check 7: spread_consistency ──────────────────────────────────────────────
-# The `spread` column should equal "{pick} {line}" for spread bets, or be
-# empty for ML bets.  The spread's sign should also be consistent with the
-# side (home favorites typically have negative lines, etc., though this is
-# not a hard rule — just a soft sanity check).
+# ── Check 6: spread_consistency ──────────────────────────────────────────────
+# The `spread` column should match the consensus spread from the ESPN schedule
+# sheet for the game on this date. For ML bets, spread must be empty.
 #
 # Logic:
 #   1. If line is "ML" → spread must be empty.  If not → auto_fixed.
-#   2. If line is numeric → spread must be "{pick} {line}".  If not → auto_fixed.
+#   2. If line is numeric → spread must match the schedule spread for this game.
+#      If not → auto_fixed with the schedule value.
 #   3. (Soft check) If line sign seems wrong for the side, flag needs_review
 #      rather than auto-fix (line sign is set by the capper, not derivable).
 #
 # Examples:
-#   pick="Duke", line="-3.5", spread="Duke -3.5" → pass
-#   pick="Duke", line="-3.5", spread="UNC +3.5"  → auto_fixed, suggested_fix="spread=Duke -3.5"
+#   pick="Duke", line="-3.5", schedule_spread="Duke Blue Devils -3.5", spread="Duke Blue Devils -3.5" → pass
+#   pick="Duke", line="-3.5", schedule_spread="Duke Blue Devils -3.5", spread="UNC +3.5"  → auto_fixed
 #   pick="Duke", line="ML",   spread="Duke ML"   → auto_fixed, suggested_fix="spread=" (blank)
 #   pick="Duke", line="ML",   spread=""           → pass
 #
-# ── Check 8: ocr_grounding ──────────────────────────────────────────────────
+# ── Check 7: ocr_grounding ──────────────────────────────────────────────────
 # The pick team name (or abbreviation/nickname) must appear somewhere in the
 # raw OCR text from the original image.  If it doesn't, the pick may have been
 # hallucinated by Claude during the OCR/parsing step.
@@ -681,7 +654,7 @@ def check_next_day_game(
 #   - VALID → status updated to "opus_approved" (false positive cleared)
 #   - HALLUCINATION → status stays "needs_human" (confirmed by AI, needs human)
 #
-# ── Check 9: duplicate_detection ─────────────────────────────────────────────
+# ── Check 8: duplicate_detection ─────────────────────────────────────────────
 # The same (date, capper, pick, line) appears more than once in master_sheet
 # for the target date.  Exact duplicates are likely double-inserts from retries
 # or overlapping batches.

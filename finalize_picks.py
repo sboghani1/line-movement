@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Finalize picks from parsed_picks_new to master_sheet_new.
-Simple copy with spread lookup from schedule and side = pick.
+Simple copy with spread lookup from schedule.
 """
 
 import os
@@ -16,7 +16,7 @@ INPUT_SHEET = "parsed_picks_new"
 OUTPUT_SHEET = "master_sheet_new"
 SCHEDULE_SHEET = "cbb_schedule"
 
-OUTPUT_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "side", "result"]
+OUTPUT_COLUMNS = ["date", "capper", "sport", "pick", "line", "game", "spread", "result"]
 
 
 def get_gspread_client():
@@ -123,14 +123,11 @@ def main():
         
         # Look up spread from schedule
         spread = spreads.get((date, pick), "")
-        
-        # side = pick
-        side = pick
-        
+
         # result = empty
         result = ""
-        
-        output_rows.append([date, capper, sport, pick, line, game, spread, side, result])
+
+        output_rows.append([date, capper, sport, pick, line, game, spread, result])
     
     print(f"\nProcessed {len(output_rows)} rows")
     
@@ -144,7 +141,7 @@ def main():
     
     # Write data starting row 2
     if output_rows:
-        cell_range = f"A2:I{1 + len(output_rows)}"
+        cell_range = f"A2:H{1 + len(output_rows)}"
         output_ws.update(cell_range, output_rows)
         print(f"  Wrote {len(output_rows)} rows")
     

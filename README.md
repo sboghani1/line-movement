@@ -27,7 +27,7 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 |------|-------------|
 | `backfill_stage1.py` | Batch OCR → parsed_picks_new (Stage 1 only) |
 | `backfill_orchestrate.py` | Orchestrate full Stage 1+2 backfill in batches of 20 |
-| `populate_stage2.py` | Fill game/spread/side by matching picks against schedule sheets |
+| `populate_stage2.py` | Fill game/spread by matching picks against schedule sheets |
 | `cleanup_invalid_rows.py` | Remove duplicates, props, parlays, totals, and wrong-sport rows |
 | `finalize_picks.py` | Copy parsed_picks_new → master_sheet_new (backfill final step) |
 | `reprocess_cbb_picks.py` | Re-parse CBB picks that were tagged with the wrong sport |
@@ -100,7 +100,7 @@ Sheet: `1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k`
 | `parsed_picks` | Stage 1: OCR → structured picks (cleared after Stage 2) |
 | `finalized_picks` | Stage 2: Validated picks (staging area) |
 | `master_sheet` | All finalized picks — permanent history, no `ocr_text` |
-| `parsed_picks_new` | Append-only mirror of master_sheet with `ocr_text` (col 10); source for daily audit |
+| `parsed_picks_new` | Append-only mirror of master_sheet with `ocr_text` (col 9); source for daily audit |
 | `audit_results` | Audit findings from nightly checks — status dropdown tracks review workflow |
 | `nba_schedule` | ESPN NBA schedules |
 | `cbb_schedule` | ESPN CBB schedules |
@@ -144,15 +144,17 @@ python daily_audit.py --date YYYY-MM-DD              # apply — fixes master_sh
 
 ### The Big Idea
 
-Claude's only truly irreplaceable job in Stage 2 is **abbreviation resolution** — mapping OCR shorthand like "OKC", "BKN", "CBJ" to full team names. Everything else can be pure Python:
+Claude Stage 1 (OCR parsing) genuinely needs LLM intelligence — it reads messy screenshot text. But Stage 2 does nothing that requires an LLM:
 
-- **Game matching**: Given a full team name + date + sport, Python already does this perfectly in `populate_stage2.py` via `team_matches()`
-- **Spread lookup**: Python reads it directly from the schedule sheet (already working in `populate_stage2.py` and `finalize_picks.py`)
-- **Side**: Being removed entirely — it's just a copy of `pick` and nothing depends on it
+- **Abbreviation resolution**: Finite set of team aliases → static lookup table
+- **Capper normalization**: String matching against a known list
+- **Game matching**: Schedule lookup by team name + date (already working in `populate_stage2.py`)
+- **Spread lookup**: Python reads it directly from the schedule sheet
+- **Side**: Removed entirely — it was just a copy of `pick`
 
-The abbreviation space is finite (30 NBA + 32 NHL + ~362 CBB teams, each with a small set of common aliases). On any given day only ~15-30 teams are playing, so the search space is tiny. A maintained alias mapping in a Google Sheet can replace Claude for this task.
+The plan: keep Claude for Stage 1 OCR, replace Stage 2 entirely with Python.
 
-### Phase 1: Remove `side` column
+### Phase 1: Remove `side` column ✅ Done
 
 Remove the `side` column entirely from code, Google Sheets, and CSV. It is just a copy of `pick` — the dashboard already falls back to `pick`, and `populate_results.py` doesn't use it.
 
@@ -164,15 +166,14 @@ Remove the `side` column entirely from code, Google Sheets, and CSV. It is just 
 - Remove `side` from `populate_stage2.py`
 - Delete `side` column from Google Sheets and CSV
 
-### Phase 2: Move spread to Python schedule lookup
+### Phase 2: Move spread to Python schedule lookup ✅ Done
 
-Stop Claude from guessing `spread`. Instead, look it up from the schedule sheet via Python after Claude returns.
+Spread is now filled by Python from ESPN schedule sheets, not Claude. Stage 2 prompt reduced to only send `capper,sport,pick,line` (4 cols) and receive `capper,pick,game` (3 cols) — Python handles all passthrough columns and spread lookup.
 
-- In `capper_analyzer.py` `run_stage2()`: after Claude returns rows, do a Python post-pass that looks up spread from schedule (same pattern as `populate_stage2.py`)
-- Update `build_stage2_prompt()`: remove spread instruction from Claude's output
-- In `daily_audit.py` `check_next_day_game()`: change `new_spread = f"{matched_team} {line}"` to schedule lookup
-- Update `spread_consistency` check spec: spread should match schedule, not `"{pick} {line}"`
-- Simplify `format_schedule_for_prompt()` — Claude no longer needs spread data at all
+- `capper_analyzer.py`: Added `lookup_spread_from_schedule()`, `parse_stage2_response()`, `assemble_finalized_rows()`
+- Both Stage 2 call sites (main flow + manual queue) use the reduced-format pattern
+- `daily_audit.py`: `spread_consistency` check uses schedule spread instead of `"{pick} {line}"`
+- Example constants split into `STAGE2_EXAMPLE_INPUT` / `STAGE2_EXAMPLE_OUTPUT`
 
 ### Phase 3: Backfill existing data
 
@@ -182,16 +183,40 @@ Stop Claude from guessing `spread`. Instead, look it up from the schedule sheet 
 
 ### Phase 4: Eliminate Claude from Stage 2
 
-Replace Claude Stage 2 entirely with Python regex + abbreviation mapping.
+Claude Stage 2 currently does 3 things — all replaceable with Python:
 
-- Create `team_aliases` Google Sheet with columns: `abbreviation`, `full_name`, `sport`
-- Pre-populate with known abbreviations from existing prompts + `_NOISE` regex in `populate_stage2.py`
-- Build `resolve_team_name(pick_text, sport, date, schedules, aliases)`:
-  - Try exact match against scheduled teams for that date/sport
-  - Try substring match (existing `team_matches()` logic)
-  - Try alias lookup from Google Sheet
-  - If still no match, try other sports (existing wrong-sport detection)
-  - Return `None` only if truly unresolvable
-- Replace `build_stage2_prompt()` + Claude API call with this Python function
+1. **Abbreviation resolution** (e.g. "BKN" → "Brooklyn Nets") — Same Sonnet model already ran in Stage 1 with the same schedule data. If it didn't resolve there, running it again won't help. A static alias map is more reliable.
+2. **Capper normalization** (e.g. "beezo wins" → "BEEZO WINS") — Pure string matching against a known list. No AI needed.
+3. **Game column** (e.g. "Brooklyn Nets" + date → "Los Angeles Lakers @ Brooklyn Nets") — Schedule lookup by team name + date. Already proven in `populate_stage2.py` via `find_game()`.
+
+#### Implementation plan
+
+**A. Team alias resolution (replaces Claude abbreviation handling)**
+- Create `team_aliases` Google Sheet tab with columns: `abbreviation`, `full_name`, `sport`
+- Pre-populate from existing prompt examples + `ABBREV_MAP` in `audit_hallucinations.py`
+- Build `resolve_team_name(pick, sport, date, schedule, aliases)`:
+  1. Exact match against scheduled teams for that date/sport
+  2. Substring match (existing `team_matches()` logic from `populate_stage2.py`)
+  3. Alias lookup from sheet
+  4. Try other sports (existing wrong-sport detection)
+  5. `None` if truly unresolvable (flag for manual review)
+
+**B. Capper normalization (replaces Claude capper matching)**
+- Use existing `known_cappers` sheet/list already loaded by `get_known_cappers()`
+- Build `normalize_capper(raw_name, known_cappers)`:
+  - Case-insensitive exact match
+  - Fuzzy match (Levenshtein or substring)
+  - If no match, keep original (properly capitalized) and log for review
+
+**C. Game column lookup (replaces Claude schedule matching)**
+- Reuse `find_game()` logic from `populate_stage2.py`
+- Given resolved team name + date + sport → look up `away @ home` from schedule sheet
+- Already handles wrong-sport fallback via `find_game_any_sport()`
+
+**D. Wire it together**
+- New `run_stage2_python()` function replacing `build_stage2_prompt()` + Claude API call:
+  - For each parsed pick row: resolve abbreviation → normalize capper → find game → lookup spread
+  - No API call, no token cost, no latency, no hallucination risk
 - Keep Claude Stage 1 as-is (OCR parsing genuinely needs LLM intelligence)
-- For unresolvable picks: leave for manual review or fall back to lightweight Claude call
+- Picks that fail resolution go to a `needs_review` queue instead of a Claude fallback
+- Update both Stage 2 call sites (main flow + manual queue) and `daily_audit.py`

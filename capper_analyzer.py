@@ -68,10 +68,9 @@ PICKS_COLUMNS = [
     "line",
     "game",
     "spread",
-    "side",
     "result",
     "ocr_text",
-    "source",   # index 10 — "discord_all_in_one" or "telegram"
+    "source",   # index 9 — "discord_all_in_one" or "telegram"
 ]
 
 # Maximum number of messages to process per run
@@ -138,19 +137,31 @@ def log_claude_usage(message):
 
 # Example rows for prompts (spread and ML per sport - NO totals)
 # Includes examples for tricky formats: Porter Picks "O opponent" and Analytics Capper "v opponent"
-EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
-2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
-2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,LA Clippers,
-2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
-2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,Alabama Crimson Tide,
-2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,Los Angeles Lakers -8.5,Brooklyn Nets,
-2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
+EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,,
+2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,,
+2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,
+2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
+2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,,
+2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,,
+2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,"""
 
-EXAMPLE_FINALIZED_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,Iowa State Cyclones -12,Iowa State Cyclones,
-2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,Phoenix Suns -2,LA Clippers,
-2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,Philadelphia Flyers,
-2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,Alabama Crimson Tide -8,Alabama Crimson Tide,
-2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,Florida Gators -8.5,Florida Gators,"""
+# Stage 2 examples: input (capper,sport,pick,line) → output (capper,pick,game)
+# Claude only resolves abbreviations, normalizes capper names, and fills game column.
+STAGE2_EXAMPLE_INPUT = """BEEZO WINS,CBB,Iowa State,-11.5
+DARTH FADER,NBA,LAC,+2
+A11 BETS,NBA,LAC,ML
+ANALYTICS CAPPER,NHL,PHI,ML
+PORTER PICKS,CBB,Alabama,-8
+HAMMERING HANK,NBA,BKN,+8.5
+HAMMERING HANK,CBB,Florida,-8.5"""
+
+STAGE2_EXAMPLE_OUTPUT = """BEEZO WINS,Iowa State Cyclones,Iowa State Cyclones vs Kansas State Wildcats
+DARTH FADER,LA Clippers,LA Clippers @ Phoenix Suns
+A11 BETS,LA Clippers,LA Clippers @ Phoenix Suns
+ANALYTICS CAPPER,Philadelphia Flyers,Washington Capitals @ Philadelphia Flyers
+PORTER PICKS,Alabama Crimson Tide,Alabama Crimson Tide vs Texas A&M Aggies
+HAMMERING HANK,Brooklyn Nets,Los Angeles Lakers @ Brooklyn Nets
+HAMMERING HANK,Florida Gators,Florida Gators vs Alabama Crimson Tide"""
 
 
 # ── Google Sheets Setup ──────────────────────────────────────────────────────
@@ -251,6 +262,32 @@ def format_schedule_for_prompt(games: List[dict], sport: str) -> str:
 
     lines = [f"{g['away_team']} @ {g['home_team']}" for g in games]
     return "\n".join(lines)
+
+
+def lookup_spread_from_schedule(
+    pick_team: str, date: str, sport: str, schedule_games: List[dict]
+) -> str:
+    """Look up the consensus spread from the schedule for a pick.
+
+    Args:
+        pick_team: The team name from the pick column
+        date: Game date (unused here but kept for clarity — games already filtered)
+        sport: Sport code (unused here — games already filtered by sport)
+        schedule_games: List of game dicts from get_schedule_for_date()
+
+    Returns:
+        The spread string from the schedule (e.g. "Duke Blue Devils -8"), or ""
+        if no matching game found.
+    """
+    pt = pick_team.lower().strip()
+    for game in schedule_games:
+        away = game.get("away_team", "")
+        home = game.get("home_team", "")
+        if (pt and away and home and
+            (pt in away.lower() or away.lower() in pt or
+             pt in home.lower() or home.lower() in pt)):
+            return game.get("spread", "")
+    return ""
 
 
 def get_last_run_timestamp(worksheet) -> Optional[datetime]:
@@ -526,7 +563,7 @@ def build_stage1_prompt(
     prompt = f"""Parse the following betting picks from OCR text into CSV rows.
 
 OUTPUT FORMAT (one row per pick, comma-separated):
-date,capper,sport,pick,line,game,spread,side,result
+date,capper,sport,pick,line,game,spread,result
 
 COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
@@ -536,7 +573,6 @@ COLUMN DEFINITIONS:
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
 - spread: Leave empty for now
-- side: Leave empty for now
 - result: Leave empty
 
 ROW ATTRIBUTION (CRITICAL):
@@ -603,8 +639,13 @@ def build_stage2_prompt(
 ) -> str:
     """Build the Stage 2 finalization prompt.
 
+    Claude receives only the columns it needs to act on (capper,sport,pick,line)
+    and returns only the columns it changes (capper,pick,game). Python handles
+    the rest: date, sport, line, result pass through from input; spread is
+    looked up from the schedule.
+
     Args:
-        rows_to_finalize: List of CSV row strings to finalize
+        rows_to_finalize: List of "capper,sport,pick,line" CSV strings
         schedule_data: Dict with 'nba', 'cbb', 'nhl' schedule strings
         known_cappers: Optional list of known capper names for normalization
 
@@ -626,45 +667,34 @@ CAPPER NORMALIZATION RULES:
 - If no match found, keep the original capper name (properly capitalized)
 """
 
-    prompt = f"""Finalize these parsed betting picks by filling in the 'game', 'spread', and 'side' columns based on the scheduled games.
+    prompt = f"""Resolve team abbreviations and fill the game column for these betting picks.
 
-COLUMN ORDER: date,capper,sport,pick,line,game,spread,side,result
+INPUT FORMAT: capper,sport,pick,line
+OUTPUT FORMAT: capper,pick,game
+
+You must output EXACTLY one row per input row, in the same order.
 {cappers_section}
 
 CRITICAL RULES:
-1. FIX pick column: If pick contains "@" (game format) OR is an abbreviation, it's WRONG. Use FULL team name:
-   - Line "TROY -6.5" → pick should be "Troy Trojans" (find in schedule)
-   - Line "OKC -5" → pick should be "Oklahoma City Thunder"
-   - pick "BKN" → should be "Brooklyn Nets"
-   - pick "CBJ" → should be "Columbus Blue Jackets"
-   - Line "ML" → use the game column to identify which team, use FULL name
+1. FIX pick column: If pick is an abbreviation, resolve to FULL official team name from the schedule:
+   - "OKC" → "Oklahoma City Thunder"
+   - "BKN" → "Brooklyn Nets"
+   - "CBJ" → "Columbus Blue Jackets"
+   - "TROY" → "Troy Trojans" (find in schedule)
 
-2. game: "away_team @ home_team" using EXACT team names from schedule columns C and D
+2. game: "away_team @ home_team" using EXACT team names from the schedule
 
-3. spread: The line from schedule (e.g., "Team -3.5"). For ML bets, leave empty.
-
-4. side: Copy the corrected pick value (FULL team name). For ML bets, side MUST match pick.
-
-5. For ML bets: pick=team name, side=team name (same as pick), spread=empty
+3. For ML bets: pick = full team name, game = matchup from schedule
 
 ABBREVIATION RESOLUTION (MANDATORY):
-- pick and side columns MUST contain FULL official team names from the schedule
-- NEVER leave abbreviations like OKC, BKN, CHI, CBJ, EDM, NO, MEM, IND in pick or side
-- Resolve using the schedules below
-
-VALIDATION:
-- pick column must NEVER contain "@" or be an abbreviation
-- pick and side should BOTH have the FULL team name
-- spread column should have format like "Team Name -3.5" or "Team Name +3.5"
-- side should match pick exactly
+- pick column MUST contain FULL official team names from the schedule
+- NEVER leave abbreviations like OKC, BKN, CHI, CBJ, EDM, NO, MEM, IND in pick
 
 NEVER INVERT PICKS (CRITICAL):
 - The pick MUST match the original team from Stage 1 - NEVER switch to the opponent
 - Under a "Fades:" header, if Stage 1 says pick="Virginia Cavaliers" line="+8", keep it as Virginia Cavaliers +8. Do NOT flip to Duke (the fade target).
-- Under a "Fades:" header, if Stage 1 says pick="Houston Cougars" line="+3", keep it as Houston Cougars +3. Do NOT flip to Arizona (the fade target).
 - Do NOT "correct" the pick based on who is favored in the schedule
 - Do NOT flip underdog/favorite - keep the exact team and line from input
-- The side column should match the pick column exactly
 
 NBA SCHEDULE:
 {schedule_data.get("nba", "No games")}
@@ -675,19 +705,22 @@ NHL SCHEDULE:
 CBB SCHEDULE:
 {schedule_data.get("cbb", "No games")}
 
-EXAMPLE CORRECTLY FINALIZED ROWS:
-{EXAMPLE_FINALIZED_ROWS}
+EXAMPLE INPUT:
+{STAGE2_EXAMPLE_INPUT}
+
+EXAMPLE OUTPUT:
+{STAGE2_EXAMPLE_OUTPUT}
 
 ROWS TO FINALIZE:
 {rows_section}
 
-OUTPUT (finalized CSV rows only, one per line, no headers, no explanation):"""
+OUTPUT (one row per input, capper,pick,game — no headers, no explanation):"""
 
     return prompt
 
 
 def parse_csv_response(response: str) -> List[List[str]]:
-    """Parse CSV response from Haiku into list of row lists."""
+    """Parse CSV response from Haiku into list of row lists (Stage 1: 8 columns)."""
     rows = []
     for line in response.strip().split("\n"):
         line = line.strip()
@@ -699,30 +732,88 @@ def parse_csv_response(response: str) -> List[List[str]]:
             reader = csv.reader(io.StringIO(line))
             for row in reader:
                 if len(row) >= 5:  # At least date, capper, sport, pick, line
-                    # Pad to 9 columns if needed
-                    while len(row) < 9:
+                    # Pad to 8 columns if needed
+                    while len(row) < 8:
                         row.append("")
-                    rows.append(row[:9])
+                    rows.append(row[:8])
         except Exception:
             continue
     return rows
+
+
+def parse_stage2_response(response: str) -> List[List[str]]:
+    """Parse Stage 2 response: each line is capper,pick,game (3 columns)."""
+    rows = []
+    for line in response.strip().split("\n"):
+        line = line.strip()
+        if not line or line.lower().startswith("capper,"):
+            continue
+        try:
+            reader = csv.reader(io.StringIO(line))
+            for row in reader:
+                if len(row) >= 3:
+                    rows.append(row[:3])
+        except Exception:
+            continue
+    return rows
+
+
+def assemble_finalized_rows(
+    input_rows: List[List[str]],
+    stage2_rows: List[List[str]],
+    schedule_games_by_sport: dict,
+) -> List[List[str]]:
+    """Stitch Stage 2 output back with original input rows.
+
+    Takes passthrough columns (date, sport, line, result) from input,
+    Claude's output (capper, pick, game) from stage2_rows, and looks up
+    spread from the schedule.
+
+    Args:
+        input_rows: Original 8-column rows sent to Stage 2
+        stage2_rows: Claude's 3-column output (capper, pick, game)
+        schedule_games_by_sport: {sport: [game_dicts]} for spread lookup
+
+    Returns:
+        List of assembled 8-column rows: [date, capper, sport, pick, line, game, spread, result]
+    """
+    assembled = []
+    for i, s2_row in enumerate(stage2_rows):
+        if i >= len(input_rows):
+            break
+
+        orig = input_rows[i]
+        capper = s2_row[0]
+        pick = s2_row[1]
+        game = s2_row[2] if len(s2_row) > 2 else ""
+
+        # Passthrough from original input
+        date = orig[0] if len(orig) > 0 else ""
+        sport = orig[2] if len(orig) > 2 else ""
+        line = orig[4] if len(orig) > 4 else ""
+        result = orig[7] if len(orig) > 7 else ""
+
+        # Python spread lookup
+        games = schedule_games_by_sport.get(sport.lower().strip(), [])
+        spread = lookup_spread_from_schedule(pick, "", sport, games)
+
+        assembled.append([date, capper, sport, pick, line, game, spread, result])
+
+    return assembled
 
 
 def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
     """Fix any rows where pick column incorrectly contains game format (Team A @ Team B).
 
     The pick column should be a single team name, not a game format.
-    If pick contains '@', we try to extract the correct team from the line column.
-    For ML bets, pick and side should both have the team name.
+    If pick contains '@', we try to extract the correct team from the game or line column.
     """
     fixed_rows = []
     for row in rows:
-        # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), spread(6), side(7), result(8)
+        # Columns: date(0), capper(1), sport(2), pick(3), line(4), game(5), spread(6), result(7)
         pick = row[3] if len(row) > 3 else ""
         line = row[4] if len(row) > 4 else ""
         game = row[5] if len(row) > 5 else ""
-        spread = row[6] if len(row) > 6 else ""
-        side = row[7] if len(row) > 7 else ""
 
         line_upper = line.upper().strip()
 
@@ -730,17 +821,7 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
         if "@" in pick:
             fixed_team = None
 
-            # For ML bets, use side if it has a valid team name
-            if line_upper == "ML":
-                if side and "@" not in side:
-                    fixed_team = side
-                # Otherwise try to extract from spread
-                elif spread:
-                    # Spread might be like "Team Name -3.5" - extract team
-                    spread_match = re.match(r"^(.+?)\s*[+-][\d.]+", spread)
-                    if spread_match:
-                        fixed_team = spread_match.group(1).strip()
-            else:
+            if line_upper != "ML":
                 # Try to extract team name from line column
                 # Line formats: "TROY -6.5", "OKC -5", "PHI -135"
                 abbrev_match = re.match(r"^([A-Z]{2,5})\s*[+-]", line_upper)
@@ -762,13 +843,6 @@ def validate_and_fix_pick_column(rows: List[List[str]]) -> List[List[str]]:
             # Apply the fix
             if fixed_team:
                 row[3] = fixed_team  # Fix the pick column
-                if len(row) > 7:
-                    row[7] = fixed_team  # Fix side too
-
-        # For ML bets, ensure side matches pick (if pick is valid)
-        if line_upper == "ML" and len(row) > 7:
-            if row[3] and "@" not in row[3] and not row[7]:
-                row[7] = row[3]  # Copy pick to side
 
         fixed_rows.append(row)
 
@@ -916,7 +990,7 @@ def run_stage1(spreadsheet, image_pull_ws):
     hallucinate picks that "bleed" across cappers, or invent picks not present
     in the OCR.  Small batches keep each prompt focused.
 
-    Each parsed row gets ocr_text attached as col 10 via an ocr_lookup dict
+    Each parsed row gets ocr_text attached as col 9 via an ocr_lookup dict
     keyed by (capper, date).  This is the only opportunity to link OCR source
     text to the parsed output — once rows move to finalized_picks the raw OCR
     is no longer available from that sheet, so it must travel with the row.
@@ -990,13 +1064,13 @@ def run_stage1(spreadsheet, image_pull_ws):
             response = call_sonnet_text(prompt)
             parsed_rows = parse_csv_response(response)
             print(f"Parsed {len(parsed_rows)} pick row(s)")
-            # Attach ocr_text as col 10 keyed by (capper, date).
+            # Attach ocr_text as col 9 keyed by (capper, date).
             # One image can produce multiple pick rows (one per bet in the image),
             # so all picks from the same image share the same ocr_text.
             # The lookup by (capper, date) is reliable because each image comes
             # from a single capper and carries a single message date.
             for row in parsed_rows:
-                while len(row) < 9:
+                while len(row) < 8:
                     row.append("")
                 capper_key = row[1].strip() if len(row) > 1 else ""
                 date_key   = row[0].strip() if len(row) > 0 else ""
@@ -1063,15 +1137,16 @@ def run_stage1(spreadsheet, image_pull_ws):
 
 
 def run_stage2(spreadsheet, image_pull_ws):
-    """Run Stage 2: Finalize parsed picks with game/spread/side data.
+    """Run Stage 2: Finalize parsed picks with game data + Python spread lookup.
 
     Reads rows from parsed_picks, sends them to Sonnet in batches to fill
-    game, spread, and side columns by cross-referencing the schedule, then
-    writes to three destinations:
+    the game column by cross-referencing the schedule, then fills spread
+    via a Python post-pass that looks up the consensus spread from the ESPN
+    schedule sheets. Writes to three destinations:
 
-      finalized_picks  — staging sheet (all 10 cols incl. ocr_text); deduped
-      master_sheet     — permanent history (cols 0–8, no ocr_text)
-      parsed_picks_new — append-only audit sheet (all 10 cols incl. ocr_text)
+      finalized_picks  — staging sheet (all 9 cols incl. ocr_text); deduped
+      master_sheet     — permanent history (cols 0–7, no ocr_text)
+      parsed_picks_new — append-only audit sheet (all 9 cols incl. ocr_text)
 
     The dual-write design keeps master_sheet lean (no large OCR strings) while
     parsed_picks_new retains the full row for the nightly Opus hallucination
@@ -1144,27 +1219,42 @@ def run_stage2(spreadsheet, image_pull_ws):
             "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
         }
 
+        # Keep raw game dicts for Python spread lookup post-pass
+        schedule_games_by_sport = {
+            "nba": all_nba_games,
+            "cbb": all_cbb_games,
+            "nhl": all_nhl_games,
+        }
+
         valid_batch = [row for row in batch if row]
-        # Preserve ocr_text (col 9) from input rows — Stage 2 only fills
-        # game/spread/side and doesn't re-output ocr_text
-        ocr_texts = [row[9] if len(row) > 9 else "" for row in valid_batch]
+        # Preserve ocr_text (col 8) from input rows — Stage 2 doesn't see it
+        ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_batch]
 
-        rows_as_csv = [",".join(row) for row in valid_batch]
+        # Send only the columns Claude needs: capper,sport,pick,line
+        stage2_input = [
+            ",".join([row[1], row[2], row[3], row[4]]) if len(row) > 4
+            else ",".join(row[1:5])
+            for row in valid_batch
+        ]
 
-        prompt = build_stage2_prompt(rows_as_csv, schedule_data)
-        print(f"Calling Sonnet to finalize {len(rows_as_csv)} picks...")
+        prompt = build_stage2_prompt(stage2_input, schedule_data)
+        print(f"Calling Sonnet to finalize {len(stage2_input)} picks...")
 
         try:
             response = call_sonnet_text(prompt)
-            finalized_batch = parse_csv_response(response)
+            stage2_output = parse_stage2_response(response)
+            # Assemble full rows: passthrough cols from input + Claude's output + spread lookup
+            finalized_batch = assemble_finalized_rows(
+                valid_batch, stage2_output, schedule_games_by_sport
+            )
             finalized_batch = validate_and_fix_pick_column(finalized_batch)
             # Re-attach ocr_text to each finalized row (positional match)
             for j, row in enumerate(finalized_batch):
                 ocr = ocr_texts[j] if j < len(ocr_texts) else ""
-                if len(row) < 10:
+                if len(row) < 9:
                     row.append(ocr)
                 else:
-                    row[9] = ocr
+                    row[8] = ocr
             print(f"Finalized {len(finalized_batch)} pick row(s)")
             all_finalized_rows.extend(finalized_batch)
         except Exception as e:
@@ -1202,20 +1292,20 @@ def run_stage2(spreadsheet, image_pull_ws):
             for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 10). Hardcoded "discord_all_in_one" until
+        # Tag all rows with source (index 9). Hardcoded "discord_all_in_one" until
         # Telegram wiring is added in Step 3 of the integration plan.
         for row in all_finalized_rows:
-            while len(row) < 10:
+            while len(row) < 9:
                 row.append("")
-            if len(row) < 11:
+            if len(row) < 10:
                 row.append("discord_all_in_one")
 
-        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text).
+        # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
         if all_finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             master_rows = [
-                row[:9] + [row[10]] for row in all_finalized_rows
+                row[:8] + [row[9]] for row in all_finalized_rows
                 if not _TOTAL_LINE_RE.match(str(row[4]))
             ]
             skipped_totals = len(all_finalized_rows) - len(master_rows)
@@ -1587,6 +1677,13 @@ def process_manual_picks_queue(spreadsheet):
         "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
     }
 
+    # Keep raw game dicts for Python spread lookup post-pass
+    schedule_games_by_sport = {
+        "nba": all_nba_games,
+        "cbb": all_cbb_games,
+        "nhl": all_nhl_games,
+    }
+
     # Get known cappers for normalization
     known_cappers = get_known_cappers(spreadsheet)
     if known_cappers:
@@ -1597,22 +1694,33 @@ def process_manual_picks_queue(spreadsheet):
     valid_parsed_rows = [row for row in parsed_data_rows if row]
     for batch_start in range(0, len(valid_parsed_rows), STAGE_BATCH_SIZE):
         batch = valid_parsed_rows[batch_start : batch_start + STAGE_BATCH_SIZE]
-        # Preserve ocr_text (col 9) — Stage 2 doesn't re-output it
-        ocr_texts = [row[9] if len(row) > 9 else "" for row in batch]
-        batch_csv = [",".join(row) for row in batch]
-        prompt = build_stage2_prompt(batch_csv, schedule_data, known_cappers)
-        print(f"Calling Sonnet to finalize batch of {len(batch_csv)} picks...")
+        # Preserve ocr_text (col 8) — Stage 2 doesn't see it
+        ocr_texts = [row[8] if len(row) > 8 else "" for row in batch]
+
+        # Send only the columns Claude needs: capper,sport,pick,line
+        stage2_input = [
+            ",".join([row[1], row[2], row[3], row[4]]) if len(row) > 4
+            else ",".join(row[1:5])
+            for row in batch
+        ]
+
+        prompt = build_stage2_prompt(stage2_input, schedule_data, known_cappers)
+        print(f"Calling Sonnet to finalize batch of {len(stage2_input)} picks...")
         try:
             response = call_sonnet_text(prompt)
-            batch_finalized = parse_csv_response(response)
+            stage2_output = parse_stage2_response(response)
+            # Assemble full rows: passthrough cols from input + Claude's output + spread lookup
+            batch_finalized = assemble_finalized_rows(
+                batch, stage2_output, schedule_games_by_sport
+            )
             batch_finalized = validate_and_fix_pick_column(batch_finalized)
             # Re-attach ocr_text positionally
             for j, row in enumerate(batch_finalized):
                 ocr = ocr_texts[j] if j < len(ocr_texts) else ""
-                if len(row) < 10:
+                if len(row) < 9:
                     row.append(ocr)
                 else:
-                    row[9] = ocr
+                    row[8] = ocr
             print(f"Finalized {len(batch_finalized)} pick row(s)")
             all_manual_finalized.extend(batch_finalized)
         except Exception as e:
@@ -1651,20 +1759,20 @@ def process_manual_picks_queue(spreadsheet):
             for row in finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 10). Manual picks queue is always "discord_all_in_one"
+        # Tag all rows with source (index 9). Manual picks queue is always "discord_all_in_one"
         # until multi-source wiring is added in Step 3 of the integration plan.
         for row in finalized_rows:
-            while len(row) < 10:
+            while len(row) < 9:
                 row.append("")
-            if len(row) < 11:
+            if len(row) < 10:
                 row.append("discord_all_in_one")
 
-        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text).
+        # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
         if finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             master_rows = [
-                row[:9] + [row[10]] for row in finalized_rows
+                row[:8] + [row[9]] for row in finalized_rows
                 if not _TOTAL_LINE_RE.match(str(row[4]))
             ]
             skipped_totals = len(finalized_rows) - len(master_rows)
