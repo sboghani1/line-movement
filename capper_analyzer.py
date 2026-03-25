@@ -897,7 +897,7 @@ def run_stage1(spreadsheet, image_pull_ws):
     hallucinate picks that "bleed" across cappers, or invent picks not present
     in the OCR.  Small batches keep each prompt focused.
 
-    Each parsed row gets ocr_text attached as col 10 via an ocr_lookup dict
+    Each parsed row gets ocr_text attached as col 9 via an ocr_lookup dict
     keyed by (capper, date).  This is the only opportunity to link OCR source
     text to the parsed output — once rows move to finalized_picks the raw OCR
     is no longer available from that sheet, so it must travel with the row.
@@ -971,13 +971,13 @@ def run_stage1(spreadsheet, image_pull_ws):
             response = call_sonnet_text(prompt)
             parsed_rows = parse_csv_response(response)
             print(f"Parsed {len(parsed_rows)} pick row(s)")
-            # Attach ocr_text as col 10 keyed by (capper, date).
+            # Attach ocr_text as col 9 keyed by (capper, date).
             # One image can produce multiple pick rows (one per bet in the image),
             # so all picks from the same image share the same ocr_text.
             # The lookup by (capper, date) is reliable because each image comes
             # from a single capper and carries a single message date.
             for row in parsed_rows:
-                while len(row) < 9:
+                while len(row) < 8:
                     row.append("")
                 capper_key = row[1].strip() if len(row) > 1 else ""
                 date_key   = row[0].strip() if len(row) > 0 else ""
@@ -1578,8 +1578,8 @@ def process_manual_picks_queue(spreadsheet):
     valid_parsed_rows = [row for row in parsed_data_rows if row]
     for batch_start in range(0, len(valid_parsed_rows), STAGE_BATCH_SIZE):
         batch = valid_parsed_rows[batch_start : batch_start + STAGE_BATCH_SIZE]
-        # Preserve ocr_text (col 9) — Stage 2 doesn't re-output it
-        ocr_texts = [row[9] if len(row) > 9 else "" for row in batch]
+        # Preserve ocr_text (col 8) — Stage 2 doesn't re-output it
+        ocr_texts = [row[8] if len(row) > 8 else "" for row in batch]
         batch_csv = [",".join(row) for row in batch]
         prompt = build_stage2_prompt(batch_csv, schedule_data, known_cappers)
         print(f"Calling Sonnet to finalize batch of {len(batch_csv)} picks...")
@@ -1590,10 +1590,10 @@ def process_manual_picks_queue(spreadsheet):
             # Re-attach ocr_text positionally
             for j, row in enumerate(batch_finalized):
                 ocr = ocr_texts[j] if j < len(ocr_texts) else ""
-                if len(row) < 10:
+                if len(row) < 9:
                     row.append(ocr)
                 else:
-                    row[9] = ocr
+                    row[8] = ocr
             print(f"Finalized {len(batch_finalized)} pick row(s)")
             all_manual_finalized.extend(batch_finalized)
         except Exception as e:
@@ -1632,20 +1632,20 @@ def process_manual_picks_queue(spreadsheet):
             for row in finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 10). Manual picks queue is always "discord_all_in_one"
+        # Tag all rows with source (index 9). Manual picks queue is always "discord_all_in_one"
         # until multi-source wiring is added in Step 3 of the integration plan.
         for row in finalized_rows:
-            while len(row) < 10:
+            while len(row) < 9:
                 row.append("")
-            if len(row) < 11:
+            if len(row) < 10:
                 row.append("discord_all_in_one")
 
-        # Also append to master_sheet (cols 0-8 + source at 10, strip ocr_text).
+        # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
         if finalized_rows:
             master_ws = get_or_create_picks_worksheet(spreadsheet, MASTER_SHEET)
             master_rows = [
-                row[:9] + [row[10]] for row in finalized_rows
+                row[:8] + [row[9]] for row in finalized_rows
                 if not _TOTAL_LINE_RE.match(str(row[4]))
             ]
             skipped_totals = len(finalized_rows) - len(master_rows)
