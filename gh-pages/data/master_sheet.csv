@@ -13246,144 +13246,146 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-03-24,ydc,NHL,Detroit Red Wings,ML,Ottawa Senators @ Detroit Red Wings,Detroit Red Wings -1.5,lose,discord_all_in_one
 2026-03-25,25_legs,CBB,Auburn Tigers,-8.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,a11_bets,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,a11_bets,NBA,Miami Heat,3.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,a11_bets,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
+2026-03-25,a11_bets,NBA,Miami Heat,3.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,a11_bets,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
 2026-03-25,a11_bets,NBA,Toronto Raptors,4.5,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,algo_picks,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
+2026-03-25,algo_picks,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
 2026-03-25,algo_picks,NBA,Toronto Raptors,-3.5,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,beezo_wins,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
+2026-03-25,beezo_wins,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
 2026-03-25,beezo_wins,NHL,Buffalo Sabres,ML,Boston Bruins @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-25,beezo_wins,CBB,Dayton Flyers,-7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
+2026-03-25,beezo_wins,CBB,Dayton Flyers,-7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
 2026-03-25,beezo_wins,CBB,Auburn Tigers,-8.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,beezo_wins,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,beezo_wins,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,,discord_all_in_one
+2026-03-25,beezo_wins,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,beezo_wins,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,lose,discord_all_in_one
 2026-03-25,beezo_wins,NBA,San Antonio Spurs,-16.5,San Antonio Spurs @ Memphis Grizzlies,San Antonio Spurs -16.5,,discord_all_in_one
 2026-03-25,beezo_wins,NBA,Toronto Raptors,-3.5,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,bet_labs,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,bet_labs,NBA,Boston Celtics,3,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
+2026-03-25,bet_labs,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,bet_labs,NBA,Boston Celtics,3,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
 2026-03-25,cash_it_baby,NBA,San Antonio Spurs,-16.5,San Antonio Spurs @ Memphis Grizzlies,San Antonio Spurs -16.5,,discord_all_in_one
-2026-03-25,cblez,NBA,Philadelphia 76ers,-6,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,,discord_all_in_one
+2026-03-25,cblez,NBA,Philadelphia 76ers,-6,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,win,discord_all_in_one
 2026-03-25,cblez,NBA,Minnesota Timberwolves,1.5,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,cblez,NBA,Oklahoma City Thunder,-2,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
-2026-03-25,cody_covers,NBA,Atlanta Hawks,3.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
+2026-03-25,cblez,NBA,Oklahoma City Thunder,-2,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,lose,discord_all_in_one
+2026-03-25,cody_covers,NBA,Atlanta Hawks,3.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,win,discord_all_in_one
 2026-03-25,cody_covers,NHL,Buffalo Sabres,-1.5,Boston Bruins @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-25,cody_covers,NBA,Chicago Bulls,7.5,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,,discord_all_in_one
+2026-03-25,cody_covers,NBA,Chicago Bulls,7.5,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,lose,discord_all_in_one
 2026-03-25,cody_covers,CBB,Nevada Wolf Pack,10.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,cody_covers,NBA,Utah Jazz,ML,Washington Wizards @ Utah Jazz,Utah Jazz -3.5,,discord_all_in_one
 2026-03-25,dommy_locked,NHL,Buffalo Sabres,ML,Boston Bruins @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
 2026-03-25,dommy_locked,CBB,Auburn Tigers,-9.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,exclusive_play,NBA,Philadelphia 76ers,-6.5,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,,discord_all_in_one
+2026-03-25,exclusive_play,NBA,Philadelphia 76ers,-6.5,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,win,discord_all_in_one
 2026-03-25,locks_by_tommy,NBA,Golden State Warriors,-10.5,Brooklyn Nets @ Golden State Warriors,Golden State Warriors -12.5,,discord_all_in_one
 2026-03-25,locks_by_tommy,NBA,Minnesota Timberwolves,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,locks_by_tommy,CBB,Dayton Flyers,-6.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
-2026-03-25,locks_by_tommy,NBA,Cleveland Cavaliers,ML,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,locks_by_tommy,CBB,Dayton Flyers,-6.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
+2026-03-25,locks_by_tommy,NBA,Cleveland Cavaliers,ML,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,lose,discord_all_in_one
 2026-03-25,locks_by_tommy,CBB,Auburn Tigers,-8.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,matt_severance,NHL,Buffalo Sabres,-1,Boston Bruins @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-25,matt_severance,NBA,Indiana Pacers,ML,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -9.5,,discord_all_in_one
-2026-03-25,nicky_cashin,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,nicky_cashin,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,,discord_all_in_one
-2026-03-25,pardon_my_pick,NBA,Philadelphia 76ers,-6.5,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,,discord_all_in_one
-2026-03-25,pardon_my_pick,CBB,Dayton Flyers,-7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
-2026-03-25,pardon_my_pick,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,matt_severance,NBA,Indiana Pacers,ML,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -9.5,lose,discord_all_in_one
+2026-03-25,nicky_cashin,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,nicky_cashin,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,lose,discord_all_in_one
+2026-03-25,pardon_my_pick,NBA,Philadelphia 76ers,-6.5,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,win,discord_all_in_one
+2026-03-25,pardon_my_pick,CBB,Dayton Flyers,-7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
+2026-03-25,pardon_my_pick,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
 2026-03-25,pardon_my_pick,CBB,Nevada Wolf Pack,9.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,parlay_safari,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,parlay_safari,NBA,Cleveland Cavaliers,-2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,parlay_safari,NBA,Cleveland Cavaliers,-2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,lose,discord_all_in_one
 2026-03-25,parlay_safari,CBB,Auburn Tigers,-9.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,parlay_safari,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
+2026-03-25,parlay_safari,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,win,discord_all_in_one
 2026-03-25,parlay_safari,NBA,Utah Jazz,4.5,Washington Wizards @ Utah Jazz,Utah Jazz -4.5,,discord_all_in_one
-2026-03-25,porter_picks,CBB,Dayton Flyers,-7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
-2026-03-25,porter_picks,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,porter_picks,CBB,Dayton Flyers,-7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
+2026-03-25,porter_picks,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
 2026-03-25,prop_joe,NBA,Houston Rockets,-2,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,prop_joe,CBB,Dayton Flyers,-7,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
+2026-03-25,prop_joe,CBB,Dayton Flyers,-7,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
 2026-03-25,prop_joe,CBB,Auburn Tigers,-9,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,prop_joe,NBA,Utah Jazz,5,Washington Wizards @ Utah Jazz,Utah Jazz -4.5,,discord_all_in_one
-2026-03-25,random_other_cappers,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,random_other_cappers,NBA,Indiana Pacers,11.5,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -9.5,,discord_all_in_one
-2026-03-25,random_other_cappers,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,,discord_all_in_one
+2026-03-25,random_other_cappers,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
+2026-03-25,random_other_cappers,NBA,Indiana Pacers,11.5,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -9.5,win,discord_all_in_one
+2026-03-25,random_other_cappers,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,lose,discord_all_in_one
 2026-03-25,random_other_cappers,NBA,San Antonio Spurs,-15.5,San Antonio Spurs @ Memphis Grizzlies,San Antonio Spurs -16.5,,discord_all_in_one
 2026-03-25,random_other_cappers,NBA,LA Clippers,ML,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,seeking_returns,NBA,Cleveland Cavaliers,-2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,smart_money_sports,NBA,Atlanta Hawks,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,smart_money_sports,CBB,Illinois State Redbirds,7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
-2026-03-25,smart_money_sports,NBA,Miami Heat,ML,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,the_gambling_gawd,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
+2026-03-25,seeking_returns,NBA,Cleveland Cavaliers,-2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,lose,discord_all_in_one
+2026-03-25,smart_money_sports,NBA,Atlanta Hawks,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,win,discord_all_in_one
+2026-03-25,smart_money_sports,CBB,Illinois State Redbirds,7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,win,discord_all_in_one
+2026-03-25,smart_money_sports,NBA,Miami Heat,ML,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,the_gambling_gawd,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
 2026-03-25,the_gambling_gawd,NBA,Denver Nuggets,-11.5,Dallas Mavericks @ Denver Nuggets,Denver Nuggets -11.5,,discord_all_in_one
 2026-03-25,the_gambling_gawd,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,the_gambling_gawd,NBA,Boston Celtics,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,,discord_all_in_one
+2026-03-25,the_gambling_gawd,NBA,Boston Celtics,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,win,discord_all_in_one
 2026-03-25,this_girl_betz,NHL,Buffalo Sabres,ML,Boston Bruins @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-25,this_girl_betz,NBA,Philadelphia 76ers,-6,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,,discord_all_in_one
+2026-03-25,this_girl_betz,NBA,Philadelphia 76ers,-6,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,win,discord_all_in_one
 2026-03-25,this_girl_betz,NBA,Minnesota Timberwolves,2,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,this_girl_betz,CBB,Dayton Flyers,-6.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
+2026-03-25,this_girl_betz,CBB,Dayton Flyers,-6.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
 2026-03-25,this_girl_betz,CBB,Nevada Wolf Pack,10,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,this_girl_betz,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,this_girl_betz,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
+2026-03-25,this_girl_betz,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,win,discord_all_in_one
+2026-03-25,this_girl_betz,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,lose,discord_all_in_one
 2026-03-25,this_girl_betz,NBA,LA Clippers,-3.5,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
 2026-03-25,thomas_casale,CBB,Arizona Wildcats,-7.5,team_not_found,,,discord_all_in_one
 2026-03-25,thomas_casale,CBB,Michigan Wolverines,-9.5,team_not_found,,,discord_all_in_one
 2026-03-25,thomas_casale,CBB,Tennessee Volunteers,4.5,team_not_found,,,discord_all_in_one
-2026-03-25,vinny,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,vinny,NBA,Miami Heat,3.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,vinny,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
+2026-03-25,vinny,NBA,Miami Heat,3.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
 2026-03-25,vinny,NBA,Portland Trail Blazers,-12.5,Milwaukee Bucks @ Portland Trail Blazers,Portland Trail Blazers -12.5,,discord_all_in_one
-2026-03-25,vinny,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,,discord_all_in_one
+2026-03-25,vinny,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,win,discord_all_in_one
 2026-03-25,bullies_picks,CBB,Auburn Tigers,-6.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,cash_cing,NBA,Miami Heat,3,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,cash_cing,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,,discord_all_in_one
+2026-03-25,cash_cing,NBA,Miami Heat,3,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,cash_cing,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -1.5,win,discord_all_in_one
 2026-03-25,cash_cing,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,kims_picks,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,kims_picks,NBA,Los Angeles Lakers,-9.5,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -9.5,,discord_all_in_one
+2026-03-25,kims_picks,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,kims_picks,NBA,Los Angeles Lakers,-9.5,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -9.5,lose,discord_all_in_one
 2026-03-25,kims_picks,NBA,Minnesota Timberwolves,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
 2026-03-25,the_betting_queen,NHL,Buffalo Sabres,-1.5,Boston Bruins @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
 2026-03-25,bankroll_bill,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
 2026-03-25,bankroll_bill,CBB,Auburn Tigers,-8,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,darth_fader,NBA,Atlanta Hawks,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
+2026-03-25,darth_fader,NBA,Atlanta Hawks,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,win,discord_all_in_one
 2026-03-25,darth_fader,NBA,Memphis Grizzlies,165,San Antonio Spurs @ Memphis Grizzlies,San Antonio Spurs -16.5,,discord_all_in_one
-2026-03-25,darth_fader,CBB,Illinois State Redbirds,7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
-2026-03-25,dirty_bubble_bets,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,porter_picks,NBA,Boston Celtics,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
+2026-03-25,darth_fader,CBB,Illinois State Redbirds,7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,win,discord_all_in_one
+2026-03-25,dirty_bubble_bets,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,porter_picks,NBA,Boston Celtics,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
 2026-03-25,porter_picks,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,bet_labs,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,cesar,NBA,Boston Celtics,4.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
-2026-03-25,duck_investments,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,duck_investments,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
+2026-03-25,bet_labs,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,cesar,NBA,Boston Celtics,4.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
+2026-03-25,duck_investments,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
+2026-03-25,duck_investments,NBA,Oklahoma City Thunder,ML,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,lose,discord_all_in_one
 2026-03-25,duck_investments,NBA,LA Clippers,ML,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,duck_investments,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,hammering_hank,NBA,Boston Celtics,2,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
+2026-03-25,duck_investments,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,win,discord_all_in_one
+2026-03-25,hammering_hank,NBA,Boston Celtics,2,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
 2026-03-25,lear_locks,CBB,Nevada Wolf Pack,10,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,proven_winner,NBA,Toronto Raptors,4.5,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
 2026-03-25,proven_winner,CBB,Auburn Tigers,-8.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,proven_winner,NBA,Miami Heat,3.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,proven_winner,NBA,Miami Heat,3.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
 2026-03-25,proven_winner,NBA,San Antonio Spurs,-16.5,San Antonio Spurs @ Memphis Grizzlies,San Antonio Spurs -16.5,,discord_all_in_one
 2026-03-25,tb_sports_betting,CBB,Auburn Tigers,-8.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,tcc,NBA,Detroit Pistons,-2.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,tcc,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
-2026-03-25,ydc,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
+2026-03-25,tcc,NBA,Detroit Pistons,-2.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
+2026-03-25,tcc,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
+2026-03-25,ydc,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
 2026-03-25,ydc,NBA,LA Clippers,-2,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,af_sports,NBA,Atlanta Hawks,3.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,analytics_capper,CBB,Illinois State Redbirds,7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
+2026-03-25,af_sports,NBA,Atlanta Hawks,3.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,win,discord_all_in_one
+2026-03-25,analytics_capper,CBB,Illinois State Redbirds,7.5,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,win,discord_all_in_one
 2026-03-25,analytics_capper,CBB,Nevada Wolf Pack,9,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,analytics_capper,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,random_other_cappers,NBA,Detroit Pistons,-2.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-25,random_other_cappers,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,sean_perry_wins,NBA,Atlanta Hawks,3,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
+2026-03-25,analytics_capper,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,random_other_cappers,NBA,Detroit Pistons,-2.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,lose,discord_all_in_one
+2026-03-25,random_other_cappers,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,sean_perry_wins,NBA,Atlanta Hawks,3,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -2.5,win,discord_all_in_one
 2026-03-25,the_sharp_sheets,NBA,Washington Wizards,4.5,Washington Wizards @ Utah Jazz,Utah Jazz -4.5,,discord_all_in_one
 2026-03-25,bankroll_bill,NBA,Brooklyn Nets,ML,Brooklyn Nets @ Golden State Warriors,Golden State Warriors -12.5,,discord_all_in_one
-2026-03-25,bankroll_bill,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,cesar,NBA,Atlanta Hawks,3.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -1.5,,discord_all_in_one
-2026-03-25,chamba,NBA,Cleveland Cavaliers,ML,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,bankroll_bill,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,cesar,NBA,Atlanta Hawks,3.5,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -1.5,win,discord_all_in_one
+2026-03-25,chamba,NBA,Cleveland Cavaliers,ML,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,lose,discord_all_in_one
 2026-03-25,chamba,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,hammering_hank,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
-2026-03-25,hammering_hank,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,isw,NBA,Cleveland Cavaliers,-2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,,discord_all_in_one
+2026-03-25,hammering_hank,NBA,Miami Heat,2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,win,discord_all_in_one
+2026-03-25,hammering_hank,NHL,Toronto Maple Leafs,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,win,discord_all_in_one
+2026-03-25,isw,NBA,Cleveland Cavaliers,-2.5,Miami Heat @ Cleveland Cavaliers,Cleveland Cavaliers -2.5,lose,discord_all_in_one
 2026-03-25,laformula,NBA,Houston Rockets,ML,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,mc_bets,CBB,Dayton Flyers,-7,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,,discord_all_in_one
+2026-03-25,mc_bets,CBB,Dayton Flyers,-7,Illinois State Redbirds @ Dayton Flyers,Dayton Flyers -7.5,lose,discord_all_in_one
 2026-03-25,mc_bets,CBB,Nevada Wolf Pack,9,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
 2026-03-25,monumental,CBB,Auburn Tigers,-6.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
-2026-03-25,monumental,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,,discord_all_in_one
-2026-03-25,monumental,NBA,Philadelphia 76ers,ML,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,,discord_all_in_one
+2026-03-25,monumental,NHL,New York Rangers,ML,New York Rangers @ Toronto Maple Leafs,New York Rangers -1.5,lose,discord_all_in_one
+2026-03-25,monumental,NBA,Philadelphia 76ers,ML,Chicago Bulls @ Philadelphia 76ers,Philadelphia 76ers -6.5,win,discord_all_in_one
 2026-03-25,monumental,NBA,LA Clippers,-2,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
-2026-03-25,monumental,NBA,Atlanta Hawks,4,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -1.5,,discord_all_in_one
-2026-03-25,sbk,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,,discord_all_in_one
-2026-03-25,sbk,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -1.5,,discord_all_in_one
+2026-03-25,monumental,NBA,Atlanta Hawks,4,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -1.5,win,discord_all_in_one
+2026-03-25,sbk,NBA,Boston Celtics,2.5,Oklahoma City Thunder @ Boston Celtics,Oklahoma City Thunder -2.5,win,discord_all_in_one
+2026-03-25,sbk,NBA,Detroit Pistons,ML,Atlanta Hawks @ Detroit Pistons,Detroit Pistons -1.5,lose,discord_all_in_one
 2026-03-25,sbk,NBA,Houston Rockets,-1.5,Houston Rockets @ Minnesota Timberwolves,Houston Rockets -1.5,,discord_all_in_one
-2026-03-25,isw,NBA,Indiana Pacers,9.5,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -8.5,,discord_all_in_one
+2026-03-25,isw,NBA,Indiana Pacers,9.5,Los Angeles Lakers @ Indiana Pacers,Los Angeles Lakers -8.5,win,discord_all_in_one
 2026-03-25,nicky_cashin,CBB,Auburn Tigers,-8.5,Nevada Wolf Pack @ Auburn Tigers,Auburn Tigers -8.5,,discord_all_in_one
+2026-03-25,ab,NBA,Toronto Raptors,-1.5,Toronto Raptors @ LA Clippers,LA Clippers -3.5,,discord_all_in_one
+2026-03-25,hammering_hank,NBA,Washington Wizards,3.5,Washington Wizards @ Utah Jazz,Utah Jazz -3.5,,discord_all_in_one
