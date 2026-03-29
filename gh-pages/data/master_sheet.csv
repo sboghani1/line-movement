@@ -13671,113 +13671,114 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-03-27,out_of_line_bets,CBB,Alabama Crimson Tide,9.5,Alabama Crimson Tide @ Michigan Wolverines,Michigan Wolverines -9.5,lose,discord_all_in_one
 2026-03-27,isw,CBB,Tennessee Volunteers,4.5,Tennessee Volunteers @ Iowa State Cyclones,Iowa State Cyclones -3.5,win,discord_all_in_one
 2026-03-28,a11_bets,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,a11_bets,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,a11_bets,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,a11_bets,CBB,Tennessee Volunteers,7.5,team_not_found,,,discord_all_in_one
 2026-03-28,anders_picks,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,bet_labs,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,bet_sharper,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,bet_sharper,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,matt_severance,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,mojo,CBB,Iowa Hawkeyes,6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,mojo,CBB,Iowa Hawkeyes,6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,mr_big_bets,CBB,Arizona Wildcats,-6,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,picks_4_dayzzz,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,picks_4_dayzzz,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,picks_4_dayzzz,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,picks_4_dayzzz,NBA,Memphis Grizzlies,4.5,Chicago Bulls @ Memphis Grizzlies,Chicago Bulls -3.5,,discord_all_in_one
-2026-03-28,picks_4_dayzzz,NBA,Minnesota Timberwolves,-1.5,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,,discord_all_in_one
-2026-03-28,the_gambling_gawd,NHL,Buffalo Sabres,-1,Seattle Kraken @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-28,analytics_capper,NHL,Ottawa Senators,ML,Ottawa Senators @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,,discord_all_in_one
-2026-03-28,analytics_capper,NHL,Pittsburgh Penguins,ML,Dallas Stars @ Pittsburgh Penguins,Dallas Stars -1.5,,discord_all_in_one
-2026-03-28,analytics_capper,NHL,Minnesota Wild,ML,Minnesota Wild @ Boston Bruins,Minnesota Wild -1.5,,discord_all_in_one
-2026-03-28,cash_it_baby,NBA,San Antonio Spurs,-18,San Antonio Spurs @ Milwaukee Bucks,San Antonio Spurs -18.5,,discord_all_in_one
+2026-03-28,picks_4_dayzzz,NBA,Minnesota Timberwolves,-1.5,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,lose,discord_all_in_one
+2026-03-28,the_gambling_gawd,NHL,Buffalo Sabres,-1,Seattle Kraken @ Buffalo Sabres,Buffalo Sabres -1.5,push,discord_all_in_one
+2026-03-28,analytics_capper,NHL,Ottawa Senators,ML,Ottawa Senators @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,lose,discord_all_in_one
+2026-03-28,analytics_capper,NHL,Pittsburgh Penguins,ML,Dallas Stars @ Pittsburgh Penguins,Dallas Stars -1.5,lose,discord_all_in_one
+2026-03-28,analytics_capper,NHL,Minnesota Wild,ML,Minnesota Wild @ Boston Bruins,Minnesota Wild -1.5,lose,discord_all_in_one
+2026-03-28,cash_it_baby,NBA,San Antonio Spurs,-18,San Antonio Spurs @ Milwaukee Bucks,San Antonio Spurs -18.5,win,discord_all_in_one
 2026-03-28,cash_it_baby,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,cash_it_baby,NHL,Colorado Avalanche,ML,Winnipeg Jets @ Colorado Avalanche,Colorado Avalanche -1.5,,discord_all_in_one
+2026-03-28,cash_it_baby,NHL,Colorado Avalanche,ML,Winnipeg Jets @ Colorado Avalanche,Colorado Avalanche -1.5,lose,discord_all_in_one
 2026-03-28,cblez,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,cblez,NBA,Milwaukee Bucks,18,San Antonio Spurs @ Milwaukee Bucks,San Antonio Spurs -18.5,,discord_all_in_one
-2026-03-28,cblez,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,cblez,NBA,Milwaukee Bucks,18,San Antonio Spurs @ Milwaukee Bucks,San Antonio Spurs -18.5,lose,discord_all_in_one
+2026-03-28,cblez,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,dommy_locked,CBB,UConn Huskies,5.5,team_not_found,,,discord_all_in_one
-2026-03-28,capper_not_found,NHL,Ottawa Senators,ML,Ottawa Senators @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,,discord_all_in_one
-2026-03-28,matt_severance,NHL,Columbus Blue Jackets,-1,San Jose Sharks @ Columbus Blue Jackets,Columbus Blue Jackets -1.5,,discord_all_in_one
-2026-03-28,pardon_my_pick,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,capper_not_found,NHL,Ottawa Senators,ML,Ottawa Senators @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,lose,discord_all_in_one
+2026-03-28,matt_severance,NHL,Columbus Blue Jackets,-1,San Jose Sharks @ Columbus Blue Jackets,Columbus Blue Jackets -1.5,lose,discord_all_in_one
+2026-03-28,pardon_my_pick,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,pardon_my_pick,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,smart_money_sports,CBB,Illinois Fighting Illini,-7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,smart_money_sports,CBB,Illinois Fighting Illini,-7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,smart_money_sports,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,the_sharp_sheets,CBB,Illinois Fighting Illini,-7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,the_sharp_sheets,CBB,Illinois Fighting Illini,-7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,the_sharp_sheets,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,this_girl_betz,NHL,Edmonton Oilers,ML,Anaheim Ducks @ Edmonton Oilers,Edmonton Oilers -1.5,,discord_all_in_one
-2026-03-28,this_girl_betz,NHL,Columbus Blue Jackets,ML,San Jose Sharks @ Columbus Blue Jackets,Columbus Blue Jackets -1.5,,discord_all_in_one
-2026-03-28,this_girl_betz,NHL,Colorado Avalanche,-1.5,Winnipeg Jets @ Colorado Avalanche,Colorado Avalanche -1.5,,discord_all_in_one
-2026-03-28,this_girl_betz,NBA,Charlotte Hornets,-5.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,,discord_all_in_one
+2026-03-28,this_girl_betz,NHL,Edmonton Oilers,ML,Anaheim Ducks @ Edmonton Oilers,Edmonton Oilers -1.5,win,discord_all_in_one
+2026-03-28,this_girl_betz,NHL,Columbus Blue Jackets,ML,San Jose Sharks @ Columbus Blue Jackets,Columbus Blue Jackets -1.5,lose,discord_all_in_one
+2026-03-28,this_girl_betz,NHL,Colorado Avalanche,-1.5,Winnipeg Jets @ Colorado Avalanche,Colorado Avalanche -1.5,lose,discord_all_in_one
+2026-03-28,this_girl_betz,NBA,Charlotte Hornets,-5.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,lose,discord_all_in_one
 2026-03-28,this_girl_betz,NBA,Chicago Bulls,-3.5,Chicago Bulls @ Memphis Grizzlies,Chicago Bulls -3.5,,discord_all_in_one
 2026-03-28,this_girl_betz,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,25_legs,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,25_legs,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,25_legs,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,bullies_picks,CBB,Iowa Hawkeyes,9.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,bullies_picks,CBB,Iowa Hawkeyes,9.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,bullies_picks,CBB,Arizona Wildcats,-3.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,dormroom_degenerates,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,dormroom_degenerates,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,dormroom_degenerates,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,parlay_safari,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,parlay_safari,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,parlay_safari,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,the_pick_don,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,vinny,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,vinny,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,vinny,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,vinny,NBA,Atlanta Hawks,-14.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -14.5,,discord_all_in_one
-2026-03-28,a11_bets,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,vinny,NBA,Atlanta Hawks,-14.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -14.5,lose,discord_all_in_one
+2026-03-28,a11_bets,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,a11_bets,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,bet_labs,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,bet_labs,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,darth_fader,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,dirty_bubble_bets,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,dommy_locked,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,porter_picks,CBB,Iowa Hawkeyes,7.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,porter_picks,CBB,Iowa Hawkeyes,7.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,porter_picks,CBB,Purdue Boilermakers,6,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,exclusive_play,CBB,Purdue Boilermakers,6,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,laformula,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,matthew_p07,CBB,Iowa Hawkeyes,8,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,matthew_p07,CBB,Iowa Hawkeyes,8,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,matthew_p07,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,porter_picks,CBB,Purdue Boilermakers,-8,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,bankroll_bill,NHL,Minnesota Wild,ML,Minnesota Wild @ Boston Bruins,Minnesota Wild -1.5,,discord_all_in_one
+2026-03-28,bankroll_bill,NHL,Minnesota Wild,ML,Minnesota Wild @ Boston Bruins,Minnesota Wild -1.5,lose,discord_all_in_one
 2026-03-28,lear_locks,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -6.5,,discord_all_in_one
 2026-03-28,algo_picks,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,bankroll_bill,NBA,Atlanta Hawks,-14.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -14.5,,discord_all_in_one
-2026-03-28,bankroll_bill,NBA,Detroit Pistons,ML,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,,discord_all_in_one
-2026-03-28,betting_with_bush,CBB,Iowa Hawkeyes,ML,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,bankroll_bill,NBA,Atlanta Hawks,-14.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -14.5,lose,discord_all_in_one
+2026-03-28,bankroll_bill,NBA,Detroit Pistons,ML,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,win,discord_all_in_one
+2026-03-28,betting_with_bush,CBB,Iowa Hawkeyes,ML,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,cash_cing,CBB,Purdue Boilermakers,6,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,cash_cing,CBB,Illinois Fighting Illini,-6,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,cash_cing,CBB,Illinois Fighting Illini,-6,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,duck_investments,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,duck_investments,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,duck_investments,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,five,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,nicky_cashin,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,nicky_cashin,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,out_of_line_bets,CBB,Arizona Wildcats,-5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,sbk,CBB,Illinois Fighting Illini,-7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
-2026-03-28,tb_sports_betting,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,sbk,CBB,Illinois Fighting Illini,-7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
+2026-03-28,tb_sports_betting,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,tb_sports_betting,NBA,Chicago Bulls,-4,Chicago Bulls @ Memphis Grizzlies,Chicago Bulls -4.5,,discord_all_in_one
-2026-03-28,analytics_capper,NBA,Charlotte Hornets,-6.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,,discord_all_in_one
-2026-03-28,analytics_capper,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,analytics_capper,NBA,Charlotte Hornets,-6.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,lose,discord_all_in_one
+2026-03-28,analytics_capper,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,analytics_capper,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,beezo_wins,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,beezo_wins,CBB,Illinois Fighting Illini,-6.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
 2026-03-28,beezo_wins,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,beezo_wins,NBA,San Antonio Spurs,-18.5,San Antonio Spurs @ Milwaukee Bucks,San Antonio Spurs -17.5,,discord_all_in_one
-2026-03-28,beezo_wins,NBA,Minnesota Timberwolves,-2.5,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,,discord_all_in_one
-2026-03-28,hammering_hank,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
-2026-03-28,seeking_returns,CBB,Iowa Hawkeyes,7.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
-2026-03-28,tcc,NBA,Minnesota Timberwolves,2.5,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,,discord_all_in_one
+2026-03-28,beezo_wins,NBA,San Antonio Spurs,-18.5,San Antonio Spurs @ Milwaukee Bucks,San Antonio Spurs -17.5,win,discord_all_in_one
+2026-03-28,beezo_wins,NBA,Minnesota Timberwolves,-2.5,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,lose,discord_all_in_one
+2026-03-28,hammering_hank,CBB,Iowa Hawkeyes,7,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
+2026-03-28,seeking_returns,CBB,Iowa Hawkeyes,7.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
+2026-03-28,tcc,NBA,Minnesota Timberwolves,2.5,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,lose,discord_all_in_one
 2026-03-28,tcc,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,ydc,NHL,Dallas Stars,ML,Dallas Stars @ Pittsburgh Penguins,Dallas Stars -1.5,,discord_all_in_one
-2026-03-28,ydc,NBA,Minnesota Timberwolves,2,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,,discord_all_in_one
+2026-03-28,ydc,NHL,Dallas Stars,ML,Dallas Stars @ Pittsburgh Penguins,Dallas Stars -1.5,win,discord_all_in_one
+2026-03-28,ydc,NBA,Minnesota Timberwolves,2,Detroit Pistons @ Minnesota Timberwolves,Detroit Pistons -1.5,lose,discord_all_in_one
 2026-03-28,ydc,CBB,Purdue Boilermakers,7,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,bankroll_bill,CBB,Arizona Wildcats,-5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,cesar,NHL,Buffalo Sabres,ML,Seattle Kraken @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
+2026-03-28,cesar,NHL,Buffalo Sabres,ML,Seattle Kraken @ Buffalo Sabres,Buffalo Sabres -1.5,win,discord_all_in_one
 2026-03-28,dpatt,NBA,Chicago Bulls,ML,Chicago Bulls @ Memphis Grizzlies,Chicago Bulls -4.5,,discord_all_in_one
-2026-03-28,dpatt,NBA,Charlotte Hornets,-3.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,,discord_all_in_one
-2026-03-28,kims_picks,NBA,Philadelphia 76ers,5.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,,discord_all_in_one
+2026-03-28,dpatt,NBA,Charlotte Hornets,-3.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,lose,discord_all_in_one
+2026-03-28,kims_picks,NBA,Philadelphia 76ers,5.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,win,discord_all_in_one
 2026-03-28,kims_picks,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,kleos,NBA,Charlotte Hornets,-6,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,,discord_all_in_one
-2026-03-28,kleos,NBA,Atlanta Hawks,-14,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -14.5,,discord_all_in_one
+2026-03-28,kleos,NBA,Charlotte Hornets,-6,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,lose,discord_all_in_one
+2026-03-28,kleos,NBA,Atlanta Hawks,-14,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -14.5,lose,discord_all_in_one
 2026-03-28,kleos,NBA,Phoenix Suns,-16,Utah Jazz @ Phoenix Suns,Phoenix Suns -16.5,,discord_all_in_one
-2026-03-28,brandon_the_profit,CBB,Iowa Hawkeyes,7.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
+2026-03-28,brandon_the_profit,CBB,Iowa Hawkeyes,7.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,lose,discord_all_in_one
 2026-03-28,nicky_cashin,CBB,Purdue Boilermakers,6,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
-2026-03-28,chamba,NBA,Philadelphia 76ers,8.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,,discord_all_in_one
-2026-03-28,chamba,NBA,Atlanta Hawks,-12.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -13.5,,discord_all_in_one
-2026-03-28,chamba,CBB,Illinois Fighting Illini,-4.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,,discord_all_in_one
-2026-03-28,hammering_hank,NBA,Sacramento Kings,13.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -13.5,,discord_all_in_one
+2026-03-28,chamba,NBA,Philadelphia 76ers,8.5,Philadelphia 76ers @ Charlotte Hornets,Charlotte Hornets -6.5,win,discord_all_in_one
+2026-03-28,chamba,NBA,Atlanta Hawks,-12.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -13.5,lose,discord_all_in_one
+2026-03-28,chamba,CBB,Illinois Fighting Illini,-4.5,Iowa Hawkeyes @ Illinois Fighting Illini,Illinois Fighting Illini -6.5,win,discord_all_in_one
+2026-03-28,hammering_hank,NBA,Sacramento Kings,13.5,Sacramento Kings @ Atlanta Hawks,Atlanta Hawks -13.5,win,discord_all_in_one
 2026-03-28,sbk,CBB,Arizona Wildcats,-5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,af_sports,CBB,Purdue Boilermakers,5.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
 2026-03-28,sean_perry_wins,CBB,Purdue Boilermakers,7.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
+2026-03-28,isw,CBB,Purdue Boilermakers,6.5,Purdue Boilermakers @ Arizona Wildcats,Arizona Wildcats -5.5,,discord_all_in_one
