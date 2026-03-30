@@ -207,6 +207,17 @@ def format_schedule_context(schedule: Dict[str, List[Tuple[str, str, str]]]) -> 
     return "\n".join(lines) if lines else "(no games found)"
 
 
+def _capper_fallback_key(date: str, sport: str, pick: str, line: str) -> tuple:
+    """Key for capper_fallback dict: (date, sport, pick_lower, line).
+
+    Note: pick here should be the raw pick from parsed_picks_new at build time,
+    and the master_sheet pick at lookup time. If Stage 2 resolved the pick to a
+    different ESPN name, the lookup will miss — this is a known best-effort
+    limitation (capper_not_found is the diagnostic we want; OCR text is bonus).
+    """
+    return (date, sport, pick.lower(), line)
+
+
 # ── OCR text lookup ───────────────────────────────────────────────────────────
 def load_ocr_index(
     ss, target_date: str
@@ -261,9 +272,7 @@ def load_ocr_index(
         ocr_text   = row[ocr_col].strip()
 
         ocr_index[(date, raw_capper, sport, raw_pick, line)] = ocr_text
-        # Fallback key omits capper — used when master_sheet has the sentinel
-        fb_key = (date, sport, raw_pick.lower(), line)
-        capper_fallback.setdefault(fb_key, (raw_capper, ocr_text))
+        capper_fallback.setdefault(_capper_fallback_key(date, sport, raw_pick, line), (raw_capper, ocr_text))
 
     return ocr_index, capper_fallback
 
@@ -563,6 +572,8 @@ def check_unresolved_capper(
     ms_ws: gspread.Worksheet,
     ms_row_num: int,
     dry_run: bool,
+    *,
+    capper_fallback: Optional[Dict[tuple, Tuple[str, str]]] = None,
     **ctx,
 ) -> Optional[dict]:
     """
@@ -586,11 +597,7 @@ def check_unresolved_capper(
     line     = pick.get("line", "").strip()
     date     = pick.get("date", "").strip()
 
-    # Recover the raw capper name from the fallback index (parsed_picks_new).
-    # The standard ocr_index key includes capper, so it can't be used here.
-    capper_fallback = ctx.get("capper_fallback", {})
-    fb_key = (date, sport, raw_pick.lower(), line)
-    fb = capper_fallback.get(fb_key)
+    fb = (capper_fallback or {}).get(_capper_fallback_key(date, sport, raw_pick, line))
     raw_capper_name = fb[0] if fb else "unknown"
 
     return {
@@ -990,9 +997,9 @@ def run_audit(
         p = r["pick_row"]
         ocr_text = ocr_index.get((p["date"], p["capper"], p["sport"], p["pick"], p["line"]), "")
         if not ocr_text and p.get("capper") == CAPPER_NOT_FOUND:
-            fb = capper_fallback.get((p["date"], p["sport"], p["pick"].lower(), p["line"]))
+            fb = capper_fallback.get(_capper_fallback_key(p["date"], p["sport"], p["pick"], p["line"]))
             if fb:
-                ocr_text = fb[1]
+                _, ocr_text = fb
         return make_audit_row(
             pick_row=p,
             check_failed=r["check_failed"],
