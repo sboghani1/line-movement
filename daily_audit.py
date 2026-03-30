@@ -208,19 +208,30 @@ def format_schedule_context(schedule: Dict[str, List[Tuple[str, str, str]]]) -> 
 
 
 # ── OCR text lookup ───────────────────────────────────────────────────────────
-def load_ocr_index(ss, target_date: str) -> Dict[tuple, str]:
+def load_ocr_index(
+    ss, target_date: str
+) -> Tuple[Dict[tuple, str], Dict[tuple, Tuple[str, str]]]:
     """
     Load OCR text from parsed_picks_new for target_date.
-    Returns {(date, capper, sport, pick, line): ocr_text}.
+
+    Returns:
+        ocr_index:       {(date, raw_capper, sport, raw_pick, line): ocr_text}
+        capper_fallback: {(date, sport, raw_pick_lower, line): (raw_capper, ocr_text)}
+
+    ocr_index is keyed with the raw capper from parsed_picks_new (Stage 1 output,
+    before Stage 2 resolution). For rows where capper resolved to the sentinel
+    "capper_not_found", the standard lookup fails because master_sheet stores the
+    sentinel rather than the raw name. capper_fallback omits the capper from its
+    key so those rows can still retrieve the raw capper name and OCR text.
     """
     try:
         ws = ss.worksheet(PICKS_NEW_SHEET)
         all_values = sheets_call(ws.get_all_values)
     except gspread.exceptions.WorksheetNotFound:
-        return {}
+        return {}, {}
 
     if len(all_values) < 4:
-        return {}
+        return {}, {}
 
     header = all_values[2]  # header is row 3
     col = {h: i for i, h in enumerate(header)}
@@ -231,7 +242,9 @@ def load_ocr_index(ss, target_date: str) -> Dict[tuple, str]:
     line_col   = col.get("line", 4)
     ocr_col    = col.get("ocr_text", 9)
 
-    index = {}
+    ocr_index: Dict[tuple, str] = {}
+    capper_fallback: Dict[tuple, Tuple[str, str]] = {}
+
     for row in all_values[3:]:
         if not any(cell.strip() for cell in row):
             continue
@@ -239,15 +252,20 @@ def load_ocr_index(ss, target_date: str) -> Dict[tuple, str]:
             row.append("")
         if row[date_col].strip() != target_date:
             continue
-        key = (
-            row[date_col].strip(),
-            row[capper_col].strip(),
-            row[sport_col].strip(),
-            row[pick_col].strip(),
-            row[line_col].strip(),
-        )
-        index[key] = row[ocr_col].strip()
-    return index
+
+        date       = row[date_col].strip()
+        raw_capper = row[capper_col].strip()
+        sport      = row[sport_col].strip()
+        raw_pick   = row[pick_col].strip()
+        line       = row[line_col].strip()
+        ocr_text   = row[ocr_col].strip()
+
+        ocr_index[(date, raw_capper, sport, raw_pick, line)] = ocr_text
+        # Fallback key omits capper — used when master_sheet has the sentinel
+        fb_key = (date, sport, raw_pick.lower(), line)
+        capper_fallback.setdefault(fb_key, (raw_capper, ocr_text))
+
+    return ocr_index, capper_fallback
 
 
 # ── Audit row builder ─────────────────────────────────────────────────────────
@@ -564,19 +582,28 @@ def check_unresolved_capper(
         return None
 
     raw_pick = pick.get("pick", "").strip()
-    date = pick.get("date", "").strip()
+    sport    = pick.get("sport", "").strip()
+    line     = pick.get("line", "").strip()
+    date     = pick.get("date", "").strip()
+
+    # Recover the raw capper name from the fallback index (parsed_picks_new).
+    # The standard ocr_index key includes capper, so it can't be used here.
+    capper_fallback = ctx.get("capper_fallback", {})
+    fb_key = (date, sport, raw_pick.lower(), line)
+    fb = capper_fallback.get(fb_key)
+    raw_capper_name = fb[0] if fb else "unknown"
 
     return {
         "pick_row": pick,
         "check_failed": "unresolved_capper",
         "details": (
-            f"capper resolver could not match raw capper name "
+            f"capper resolver could not match raw name '{raw_capper_name}' "
             f"(date={date}, pick={raw_pick}); "
             f"capper is set to sentinel '{CAPPER_NOT_FOUND}'"
         ),
         "suggested_fix": (
             f"set capper to correct unique_capper_name; "
-            f"add raw name as alias to capper_name_resolution"
+            f"add '{raw_capper_name}' as alias to capper_name_resolution"
         ),
         "status": "needs_review",
     }
@@ -841,7 +868,7 @@ def run_audit(
 
     # Load OCR index for ocr_text column in audit rows
     print(f"\nLoading OCR text from {PICKS_NEW_SHEET}...")
-    ocr_index = load_ocr_index(ss, target_date)
+    ocr_index, capper_fallback = load_ocr_index(ss, target_date)
     print(f"  {len(ocr_index)} OCR entries loaded")
 
     # ── Run checks ───────────────────────────────────────────────────────────
@@ -872,7 +899,8 @@ def run_audit(
             findings.append(result)
 
         # Check 4: unresolved capper (capper = "capper_not_found" sentinel)
-        result = check_unresolved_capper(pick_dict, scores, ms_ws, row_num, dry_run)
+        result = check_unresolved_capper(pick_dict, scores, ms_ws, row_num, dry_run,
+                                         capper_fallback=capper_fallback)
         if result:
             findings.append(result)
 
@@ -960,6 +988,11 @@ def run_audit(
 
     def _audit_row(r: dict) -> list:
         p = r["pick_row"]
+        ocr_text = ocr_index.get((p["date"], p["capper"], p["sport"], p["pick"], p["line"]), "")
+        if not ocr_text and p.get("capper") == CAPPER_NOT_FOUND:
+            fb = capper_fallback.get((p["date"], p["sport"], p["pick"].lower(), p["line"]))
+            if fb:
+                ocr_text = fb[1]
         return make_audit_row(
             pick_row=p,
             check_failed=r["check_failed"],
@@ -967,7 +1000,7 @@ def run_audit(
             suggested_fix=r["suggested_fix"],
             status=r["status"],
             ms_row=r["ms_row"],
-            ocr_text=ocr_index.get((p["date"], p["capper"], p["sport"], p["pick"], p["line"]), ""),
+            ocr_text=ocr_text,
         )
 
     # ── Pass 1: upgrade existing needs_review rows that were auto-fixed ───────
