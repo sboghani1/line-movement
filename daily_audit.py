@@ -373,17 +373,20 @@ def check_next_day_game(
     target_date: str,
 ) -> Optional[dict]:
     """
-    If game is empty, try to match the pick against the D+1 schedule.
+    If game is empty or team_not_found, try to match the pick against the D+1 schedule.
 
     Handles cappers who post picks the night before a game (advance picks) or
     UTC boundary cases where the pick's stored date is one day before the game.
+    team_not_found sentinels are treated as "no game" because the resolver only
+    checks the pick's stored date; advance picks land on D+1, not D+0.
 
     - 0 matches on D+1 → return None
     - 1 match on D+1  → auto-fix: patch date/game/spread/result in master_sheet
     - 2+ matches      → needs_review with match details
     """
-    # Fast-path: game already matched, nothing to do
-    if pick.get("game", "").strip():
+    # Fast-path: game already matched, nothing to do.
+    game_val = pick.get("game", "").strip()
+    if game_val and game_val != TEAM_NOT_FOUND:
         return None
 
     # Lazy-load D+1 schedule (cached across picks in the same audit run)
@@ -477,7 +480,7 @@ def check_next_day_game(
     # If result couldn't be computed (score not yet available), check_missing_columns
     # will catch and fill it on the next nightly run once the score is available.
     status = "auto_fixed"
-    details = f"game missing; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}"
+    details = f"game unresolved; matched '{pick_team}' to D+1 ({d1_date}): {matched_game}"
     if not new_result:
         details += "; result pending — check_missing_columns will fill on next run"
 
