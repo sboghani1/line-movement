@@ -49,23 +49,38 @@ PICKS_COLUMNS = [
     "source",   # index 9 — "discord_all_in_one" or "telegram_cappers_free"
 ]
 
-# ── Source identifier ─────────────────────────────────────────────────────────
+# ── Source identifiers ───────────────────────────────────────────────────────
 DISCORD_SOURCE = "discord_all_in_one"
+TELEGRAM_SOURCE = "telegram_cappers_free"
 
-# ── Discord prompt configuration ─────────────────────────────────────────────
+# ── Per-source prompt configuration ──────────────────────────────────────────
+# New sports go to TELEGRAM first; enable for Discord only after its own testing.
 DISCORD_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB"}
+TELEGRAM_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB", "MLB"}
 
 _DISCORD_SPORT_DEF = "NBA, CBB, or NHL only. Normalize NCAAB to CBB."
+_TELEGRAM_SPORT_DEF = "NBA, CBB, NHL, or MLB only. Normalize NCAAB to CBB."
 
 _DISCORD_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
 - Bet types: Spread or Moneyline (ML) ONLY
 - Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets"""
+
+_TELEGRAM_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball), MLB ONLY. Skip ATP, NFL, soccer, tennis, etc.
+- Bet types: Spread or Moneyline (ML) ONLY. For MLB: ML and run line (-1.5/+1.5) are valid.
+- Skip: Totals (O/U — including baseball totals like "over 7"), player props, team totals, first half bets, quarter bets, parlays, live bets
+- For MLB: "Guardians/Mariners over 7" is a total — SKIP. "Guardians ML" is valid — INCLUDE."""
 
 _DISCORD_PARSING_PATTERNS = """- "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
 - "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
 - Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
 - NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
 - "MI" after a team name is a common OCR misread of "ML" — treat it as ML (e.g. "Kentucky MI (-140)" = Kentucky ML, "New Mexico St MI (-140)" = New Mexico St ML). "MI"/"ML" is the bet type, NOT a second team — "Team MI" on one line = one pick."""
+
+_TELEGRAM_PARSING_PATTERNS = """- "@handle • Today 5:54 AM" style headers are message metadata — ignore them entirely, do not extract as picks.
+- Emoji bullets (✓, •, ✅, 🔒, etc.) precede individual picks — use them to identify pick boundaries but do not include in output.
+- Unit sizes like "2U", "3U", "0.5U" are stake sizes — ignore them, do not include in the line column.
+- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
+- "MI" after a team name is a common OCR misread of "ML" — treat it as ML."""
 
 # ── Prompt examples ──────────────────────────────────────────────────────────
 # Example rows for prompts (spread and ML per sport - NO totals)
@@ -77,6 +92,9 @@ EXAMPLE_PICKS_ROWS_DISCORD = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-1
 2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,"""
+
+# Telegram examples will be populated as real Telegram OCR cases emerge.
+EXAMPLE_PICKS_ROWS_TELEGRAM = ""
 
 # Stage 2 examples: input (capper,sport,pick,line) → output (capper,pick,game)
 # Claude only resolves abbreviations, normalizes capper names, and fills game column.
@@ -116,13 +134,16 @@ def call_sonnet_text(prompt: str, max_tokens: int = 8192) -> str:
 
 # ── Prompt builders ──────────────────────────────────────────────────────────
 def build_stage1_prompt(
-    picks_to_parse: List[Tuple[str, str, str, int]], schedule_data: dict
+    picks_to_parse: List[Tuple[str, str, str, int]],
+    schedule_data: dict,
+    source: str = DISCORD_SOURCE,
 ) -> str:
     """Build the Stage 1 parsing prompt.
 
     Args:
         picks_to_parse: List of (capper_name, message_date, ocr_text, row_id) tuples
-        schedule_data: Dict with 'nba', 'cbb', 'nhl' schedule strings
+        schedule_data: Dict with 'nba', 'cbb', 'nhl' (and optionally 'mlb') schedule strings
+        source: DISCORD_SOURCE or TELEGRAM_SOURCE — selects source-specific prompt sections
 
     Returns:
         The full prompt string
@@ -130,6 +151,24 @@ def build_stage1_prompt(
     picks_section = ""
     for capper, date, ocr_text, row_id in picks_to_parse:
         picks_section += f"\n[ROW:{row_id}] [Capper: {capper}, Date: {date}]\n{ocr_text}\n"
+
+    if source == TELEGRAM_SOURCE:
+        parsing_patterns = _TELEGRAM_PARSING_PATTERNS
+        example_rows = EXAMPLE_PICKS_ROWS_TELEGRAM
+        sport_def = _TELEGRAM_SPORT_DEF
+        filter_rules = _TELEGRAM_FILTER_RULES
+        mlb_schedule_line = f"\nMLB: {schedule_data.get('mlb', 'No schedule — use team names exactly as written')}"
+    else:
+        parsing_patterns = _DISCORD_PARSING_PATTERNS
+        example_rows = EXAMPLE_PICKS_ROWS_DISCORD
+        sport_def = _DISCORD_SPORT_DEF
+        filter_rules = _DISCORD_FILTER_RULES
+        mlb_schedule_line = ""
+
+    examples_block = (
+        f"\nEXAMPLE ROWS (note pick column is always a single FULL team name):\n{example_rows}"
+        if example_rows else ""
+    )
 
     prompt = f"""Parse the following betting picks from OCR text into CSV rows.
 
@@ -139,7 +178,7 @@ date,capper,sport,pick,line,game,spread,result
 COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
-- sport: {_DISCORD_SPORT_DEF}
+- sport: {sport_def}
 - pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
@@ -152,8 +191,8 @@ ROW ATTRIBUTION (CRITICAL):
 - If an OCR block is unreadable or contains no valid picks, output nothing for that row
 - Do NOT hallucinate picks that are not explicitly present in the OCR text
 
-COMMON PARSING PATTERNS (may appear with ANY capper):
-{_DISCORD_PARSING_PATTERNS}
+SOURCE-SPECIFIC PARSING PATTERNS:
+{parsing_patterns}
 
 ABBREVIATION RESOLUTION (MANDATORY):
 - The pick column MUST contain the FULL official team name from the schedule (e.g., "Oklahoma City Thunder" not "OKC")
@@ -179,20 +218,17 @@ NEVER INVERT PICKS (CRITICAL):
 - ALWAYS record the team that is explicitly named in the OCR text
 
 FILTERING RULES - ONLY INCLUDE:
-{_DISCORD_FILTER_RULES}
-
-EXAMPLE ROWS (note pick column is always a single FULL team name):
-{EXAMPLE_PICKS_ROWS_DISCORD}
-
+{filter_rules}
+{examples_block}
 TODAY'S SCHEDULE (use to resolve team name abbreviations):
 NBA: {schedule_data.get("nba", "No games")}
 CBB: {schedule_data.get("cbb", "No games")}
-NHL: {schedule_data.get("nhl", "No games")}
+NHL: {schedule_data.get("nhl", "No games")}{mlb_schedule_line}
 
 PICKS TO PARSE:
 {picks_section}
 
-OUTPUT (CSV rows only, no headers, no explanation):"""
+OUTPUT (one CSV row per line, no headers, no explanation, no blank lines between rows):"""
 
     return prompt
 
@@ -315,16 +351,40 @@ def parse_csv_response(response: str, valid_sports: set | None = None) -> List[L
             continue
         try:
             for row in csv.reader(io.StringIO(line)):
-                if len(row) >= 5:
-                    if not _is_valid_date(row[0]):
-                        continue
-                    if not _is_valid_sport(row[2], valid_sports):
-                        continue
-                    if not _is_valid_line(row[4]):
-                        continue
-                    while len(row) < 8:
-                        row.append("")
-                    rows.append(row[:8])
+                if len(row) < 5:
+                    continue
+                # Handle packed rows: model sometimes writes multiple rows on one line.
+                # Scan from position 5 for a date boundary and split there.
+                split_at = next(
+                    (i for i in range(5, len(row)) if _is_valid_date(row[i])), None
+                )
+                if split_at is not None:
+                    i = 0
+                    while i < len(row):
+                        if not _is_valid_date(row[i]):
+                            i += 1
+                            continue
+                        next_boundary = next(
+                            (j for j in range(i + 5, len(row)) if _is_valid_date(row[j])),
+                            len(row),
+                        )
+                        sub = [f.strip() for f in row[i:next_boundary]]
+                        while len(sub) < 8:
+                            sub.append("")
+                        sub = sub[:8]
+                        if _is_valid_sport(sub[2], valid_sports) and _is_valid_line(sub[4]):
+                            rows.append(sub)
+                        i = next_boundary
+                    continue
+                if not _is_valid_date(row[0]):
+                    continue
+                if not _is_valid_sport(row[2], valid_sports):
+                    continue
+                if not _is_valid_line(row[4]):
+                    continue
+                while len(row) < 8:
+                    row.append("")
+                rows.append(row[:8])
         except Exception:
             continue
     return rows
