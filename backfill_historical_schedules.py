@@ -60,14 +60,14 @@ ODDS_API_SPORT_KEYS = {
     "mlb": "baseball_mlb",
 }
 
-# Primary Odds API market per sport: moneyline (h2h) for hockey/baseball, spread for others
+# Primary Odds API market per sport: spreads for all
 SPORT_PRIMARY_MARKETS = {
     "nba": "spreads",
     "cbb": "spreads",
-    "nhl": "h2h",
+    "nhl": "spreads",
     "nfl": "spreads",
     "cfb": "spreads",
-    "mlb": "h2h",
+    "mlb": "spreads",
 }
 
 PREFERRED_BOOKMAKERS = ["draftkings", "fanduel", "betmgm", "williamhill_us"]
@@ -198,8 +198,8 @@ def fetch_d1_cbb_games(date_str: str) -> list[dict]:
 def fetch_odds_api_lines(sport: str, game_date: str) -> tuple[dict, int | None]:
     """Fetch pre-game line + over/under from The Odds API for a sport/date.
 
-    For NHL uses h2h (moneyline) as the primary market — hockey's main betting
-    line is ML, not the puck line. NBA/CBB use spreads as usual.
+    All sports use spreads as the primary market (puck line ±1.5 for NHL,
+    run line ±1.5 for MLB) per SPORT_PRIMARY_MARKETS.
 
     Queries a snapshot at 11 AM ET (16:00 UTC) on the game date, which is
     pre-game for all US sports.
@@ -587,6 +587,115 @@ def update_period_scores(sport: str, worksheet, dry_run: bool, limit: int | None
     return total_updated
 
 
+def update_spreads_for_sport(sport: str, worksheet, dry_run: bool, limit: int | None) -> int:
+    """Re-fetch odds from The Odds API and overwrite the spread + over_under columns.
+
+    Useful after changing the primary market (e.g. NHL h2h → spreads) to fix
+    existing rows without re-inserting them.  Groups rows by game_date and makes
+    one Odds API call per date.
+    """
+    import gspread.utils
+
+    all_rows = worksheet.get_all_values()
+    if not all_rows:
+        print(f"  {sport}: sheet is empty")
+        return 0
+
+    headers = all_rows[0]
+    try:
+        game_date_col = headers.index("game_date")
+        away_team_col = headers.index("away_team")
+        home_team_col = headers.index("home_team")
+        spread_col = headers.index("spread")
+        over_under_col = headers.index("over_under")
+    except ValueError as e:
+        print(f"  ❌ Missing column: {e}")
+        return 0
+
+    if not ODDS_API_KEY:
+        print(f"  ❌ ODDS_API_KEY not set — cannot re-fetch odds")
+        return 0
+
+    # Group rows by date
+    dates_to_rows: dict[str, list] = {}
+    for i, row in enumerate(all_rows[1:], start=2):
+        game_date_str = row[game_date_col] if len(row) > game_date_col else ""
+        if not game_date_str:
+            continue
+        away_team = row[away_team_col] if len(row) > away_team_col else ""
+        home_team = row[home_team_col] if len(row) > home_team_col else ""
+        dates_to_rows.setdefault(game_date_str, []).append((i, away_team, home_team))
+
+    total_dates = len(dates_to_rows)
+    total_rows = sum(len(v) for v in dates_to_rows.values())
+    print(f"  {sport}: {total_rows} rows across {total_dates} dates")
+
+    if dry_run:
+        print(f"  [dry-run] would re-fetch odds for {total_dates} dates")
+        return 0
+
+    total_updated = 0
+    dates_processed = 0
+    start_time = time.monotonic()
+    live = sys.stdout.isatty()
+
+    if live:
+        for line in _render_progress_box(sport, 0, total_dates, 0, label="spread update", unit="dates"):
+            print(line)
+    log_lines = 0
+
+    for game_date_str, rows_for_date in sorted(dates_to_rows.items()):
+        if limit is not None and dates_processed >= limit:
+            break
+
+        games = [
+            {"away_team": a, "home_team": h, "spread": "", "over_under": ""}
+            for _, a, h in rows_for_date
+        ]
+
+        odds_lookup, credits_remaining = fetch_odds_api_lines(sport, game_date_str)
+        if odds_lookup:
+            match_odds_to_games(games, odds_lookup)
+
+        date_batch = []
+        spread_hits = 0
+        for (row_idx, _away, _home), game in zip(rows_for_date, games):
+            if game.get("spread"):
+                date_batch.append({
+                    "range": gspread.utils.rowcol_to_a1(row_idx, spread_col + 1),
+                    "values": [[game["spread"]]],
+                })
+                spread_hits += 1
+            if game.get("over_under"):
+                date_batch.append({
+                    "range": gspread.utils.rowcol_to_a1(row_idx, over_under_col + 1),
+                    "values": [[game["over_under"]]],
+                })
+
+        if date_batch:
+            worksheet.batch_update(date_batch)
+            total_updated += spread_hits
+
+        dates_processed += 1
+        credits_str = f", {credits_remaining} credits left" if credits_remaining is not None else ""
+        hits = sum(1 for g in games if g.get("spread"))
+        log_line = f"    {game_date_str}: {hits}/{len(games)} games with odds{credits_str}"
+
+        if live:
+            print(log_line)
+            log_lines += 1
+            elapsed = time.monotonic() - start_time
+            box = _render_progress_box(sport, dates_processed, total_dates, elapsed, label="spread update", unit="dates")
+            _redraw_box(log_lines, box)
+        else:
+            pct = dates_processed / total_dates * 100 if total_dates else 100
+            print(f"{log_line}  [{pct:.0f}%]")
+
+        time.sleep(1.2)  # stay well under Odds API rate limit
+
+    return total_updated
+
+
 def main():
     parser = argparse.ArgumentParser(description="Backfill historical schedules from master_sheet")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing to sheets")
@@ -595,10 +704,25 @@ def main():
     parser.add_argument("--start-date", help="Override season start date (YYYY-MM-DD)")
     parser.add_argument("--update-period-scores", action="store_true",
                         help="Fill period_scores for existing rows that have a score but no period_scores")
+    parser.add_argument("--update-spreads", action="store_true",
+                        help="Re-fetch odds and overwrite spread/over_under for all existing rows (e.g. after changing NHL market from h2h to spreads)")
     args = parser.parse_args()
 
     if args.dry_run:
         print("--- DRY RUN MODE — no writes will happen ---\n")
+
+    if args.update_spreads:
+        sports = [args.sport] if args.sport else list(SPORT_CONFIG.keys())
+        client = get_gspread_client()
+        spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
+        total = 0
+        for sport in sports:
+            ws_name = SPORT_CONFIG[sport]
+            ws = get_or_create_worksheet(spreadsheet, ws_name)
+            print(f"\n{sport.upper()}...")
+            total += update_spreads_for_sport(sport, ws, args.dry_run, args.limit)
+        print(f"\nDone. Total rows updated: {total}")
+        return
 
     if args.update_period_scores:
         sports = [args.sport] if args.sport else list(SPORT_CONFIG.keys())
