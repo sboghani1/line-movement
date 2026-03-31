@@ -35,12 +35,19 @@ from sheets_utils import (
 import daily_audit
 import populate_results
 from discord_fetcher import get_messages_with_images_since
+try:
+    import telegram_fetcher
+except ImportError:
+    telegram_fetcher = None  # type: ignore[assignment]
 from stage2_python import finalize_picks_python, TEAM_NOT_FOUND, CAPPER_NOT_FOUND
 from team_resolver import TeamResolver
 from capper_resolver import CapperResolver
 from pick_parser import (
     PICKS_COLUMNS,
     DISCORD_SOURCE,
+    TELEGRAM_SOURCE,
+    DISCORD_VALID_SPORTS,
+    TELEGRAM_VALID_SPORTS,
     get_claude_cost,
     log_claude_usage,
     call_sonnet_text,
@@ -407,11 +414,45 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     return _run_ocr_api(image_contents, processed_count, len(image_urls), skipped_indices)
 
 
-def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
+def extract_text_from_bytes_batch(image_items: List[Tuple[bytes, str]]) -> List[str]:
+    """Use Claude Haiku to OCR multiple images supplied as raw bytes.
+
+    Args:
+        image_items: List of (image_bytes, media_type) tuples
+
+    Returns:
+        List of OCR text results, one per input item in the same order
+    """
+    if not ANTHROPIC_API_KEY:
+        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+    if not image_items:
+        return []
+    image_contents: list = []
+    skipped_indices: set = set()
+    processed_count = 0
+    for i, (image_bytes, media_type) in enumerate(image_items):
+        compressed = _compress_image_if_needed(image_bytes, media_type, label=f"Image {i + 1} ")
+        if compressed is None:
+            skipped_indices.add(i)
+            continue
+        image_bytes, media_type = compressed
+        image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+        processed_count += 1
+        image_contents.append({"type": "text", "text": f"[Image {processed_count}]"})
+        image_contents.append(
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}}
+        )
+    if processed_count == 0:
+        return [""] * len(image_items)
+    return _run_ocr_api(image_contents, processed_count, len(image_items), skipped_indices)
+
+
+def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str, str]]:
     """Get image_pull rows that need Stage 1 processing.
 
     Returns:
-        List of (row_index, capper_name, message_date, ocr_text) tuples
+        List of (row_index, capper_name, message_date, ocr_text, source) tuples
+        where source is DISCORD_SOURCE or TELEGRAM_SOURCE, derived from col 3.
     """
     all_values = sheets_read(worksheet.get_all_values)
     rows_to_process = []
@@ -446,8 +487,11 @@ def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
         message_sent_at = row[1] if len(row) > 1 else ""
         # Extract date from message_sent_at (format: YYYY-MM-DD HH:MM:SS)
         message_date = message_sent_at.split(" ")[0] if message_sent_at else ""
+        # Derive source from image_url col: telegram: prefix → Telegram, else Discord
+        image_ref = row[3] if len(row) > 3 else ""
+        source = TELEGRAM_SOURCE if image_ref.startswith("telegram:") else DISCORD_SOURCE
 
-        rows_to_process.append((i, capper_name, message_date, ocr_text))
+        rows_to_process.append((i, capper_name, message_date, ocr_text, source))
 
     return rows_to_process
 
@@ -484,92 +528,103 @@ def run_stage1(spreadsheet, image_pull_ws):
 
     print(f"\n── Stage 1: Parsing {len(rows_to_process)} OCR result(s) ──")
 
-    # Process in batches to keep each prompt focused and prevent hallucination
+    # Rows are grouped by source so each batch uses a single source-specific prompt.
     all_parsed_rows = []
     all_processed_row_idxs = []
 
-    for batch_start in range(0, len(rows_to_process), STAGE_BATCH_SIZE):
-        batch = rows_to_process[batch_start : batch_start + STAGE_BATCH_SIZE]
-        print(f"\nBatch {batch_start // STAGE_BATCH_SIZE + 1}: {len(batch)} row(s)")
+    discord_rows = [r for r in rows_to_process if r[4] == DISCORD_SOURCE]
+    telegram_rows = [r for r in rows_to_process if r[4] == TELEGRAM_SOURCE]
+    source_groups = []
+    if discord_rows:
+        source_groups.append((discord_rows, DISCORD_SOURCE))
+    if telegram_rows:
+        source_groups.append((telegram_rows, TELEGRAM_SOURCE))
 
-        # Get unique dates in this batch to fetch only relevant schedules
-        message_dates = set()
-        for _, _, date, _ in batch:
-            if date:
-                message_dates.add(date)
+    batch_num = 0
+    for source_group, source_name in source_groups:
+        for batch_start in range(0, len(source_group), STAGE_BATCH_SIZE):
+            batch = source_group[batch_start : batch_start + STAGE_BATCH_SIZE]
+            batch_num += 1
+            print(f"\nBatch {batch_num} ({source_name}): {len(batch)} row(s)")
 
-        print(f"Fetching schedules for dates: {sorted(message_dates)}")
+            # Get unique dates in this batch to fetch only relevant schedules
+            message_dates = set()
+            for _, _, date, _, _ in batch:
+                if date:
+                    message_dates.add(date)
 
-        all_nba_games = []
-        all_cbb_games = []
-        all_nhl_games = []
+            print(f"Fetching schedules for dates: {sorted(message_dates)}")
 
-        for msg_date in sorted(message_dates):
-            all_nba_games.extend(
-                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-            )
-            all_cbb_games.extend(
-                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-            )
-            all_nhl_games.extend(
-                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-            )
+            all_nba_games = []
+            all_cbb_games = []
+            all_nhl_games = []
 
-        schedule_data = {
-            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-        }
-
-        # Build picks list with row_id anchoring
-        picks_to_parse = [
-            (capper, date, ocr, row_idx)
-            for row_idx, capper, date, ocr in batch
-        ]
-        # Map (capper, date) -> ocr_text so we can attach it to parsed rows
-        ocr_lookup = {(capper, date): ocr for _, capper, date, ocr in batch}
-
-        prompt = build_stage1_prompt(picks_to_parse, schedule_data)
-        print(f"Calling Sonnet to parse {len(picks_to_parse)} picks...")
-
-        try:
-            response = call_sonnet_text(prompt)
-            parsed_rows = parse_csv_response(response)
-            print(f"Parsed {len(parsed_rows)} pick row(s)")
-            # Attach ocr_text as col 8 keyed by (capper, date).
-            # One image can produce multiple pick rows (one per bet in the image),
-            # so all picks from the same image share the same ocr_text.
-            for row in parsed_rows:
-                while len(row) < 8:
-                    row.append("")
-                capper_key = row[1].strip() if len(row) > 1 else ""
-                date_key   = row[0].strip() if len(row) > 0 else ""
-                row.append(ocr_lookup.get((capper_key, date_key), ""))
-            all_parsed_rows.extend(parsed_rows)
-            all_processed_row_idxs.extend([row_idx for row_idx, _, _, _ in batch])
-
-        except Exception as e:
-            print(f"Stage 1 batch failed: {e}")
-            # Mark failed rows
-            all_values = sheets_read(image_pull_ws.get_all_values)
-            cells_to_update = []
-            for row_idx, _, _, _ in batch:
-                current_stage = (
-                    all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
+            for msg_date in sorted(message_dates):
+                all_nba_games.extend(
+                    get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
                 )
-                if current_stage.startswith("parse_failed_attempt_count_"):
-                    try:
-                        count = int(current_stage.split("_")[-1]) + 1
-                    except ValueError:
+                all_cbb_games.extend(
+                    get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
+                )
+                all_nhl_games.extend(
+                    get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
+                )
+
+            schedule_data = {
+                "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
+                "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
+                "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
+            }
+
+            # Build picks list with row_id anchoring
+            picks_to_parse = [
+                (capper, date, ocr, row_idx)
+                for row_idx, capper, date, ocr, _ in batch
+            ]
+            # Map (capper, date) -> ocr_text so we can attach it to parsed rows
+            ocr_lookup = {(capper, date): ocr for _, capper, date, ocr, _ in batch}
+
+            prompt = build_stage1_prompt(picks_to_parse, schedule_data, source=source_name)
+            source_valid_sports = TELEGRAM_VALID_SPORTS if source_name == TELEGRAM_SOURCE else DISCORD_VALID_SPORTS
+            print(f"Calling Sonnet to parse {len(picks_to_parse)} picks...")
+
+            try:
+                response = call_sonnet_text(prompt)
+                parsed_rows = parse_csv_response(response, valid_sports=source_valid_sports)
+                print(f"Parsed {len(parsed_rows)} pick row(s)")
+                # Attach ocr_text (col 8) and source (col 9) to each parsed row.
+                for row in parsed_rows:
+                    while len(row) < 8:
+                        row.append("")
+                    capper_key = row[1].strip() if len(row) > 1 else ""
+                    date_key   = row[0].strip() if len(row) > 0 else ""
+                    row.append(ocr_lookup.get((capper_key, date_key), ""))  # col 8: ocr_text
+                    row.append(source_name)                                  # col 9: source
+                all_parsed_rows.extend(parsed_rows)
+                all_processed_row_idxs.extend([row_idx for row_idx, _, _, _, _ in batch])
+
+            except Exception as e:
+                print(f"Stage 1 batch failed: {e}")
+                # Mark failed rows
+                all_values = sheets_read(image_pull_ws.get_all_values)
+                cells_to_update = []
+                for row_idx, _, _, _, _ in batch:
+                    current_stage = (
+                        all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
+                    )
+                    if current_stage.startswith("parse_failed_attempt_count_"):
+                        try:
+                            count = int(current_stage.split("_")[-1]) + 1
+                        except ValueError:
+                            count = 1
+                    else:
                         count = 1
-                else:
-                    count = 1
-                cells_to_update.append(
-                    gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
-                )
-            if cells_to_update:
-                sheets_write(image_pull_ws.update_cells, cells_to_update)
-            continue
+                    cells_to_update.append(
+                        gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
+                    )
+                if cells_to_update:
+                    sheets_write(image_pull_ws.update_cells, cells_to_update)
+                continue
 
     if all_parsed_rows:
         # Get or create parsed_picks worksheet
@@ -661,8 +716,16 @@ def run_stage2(spreadsheet, image_pull_ws,
         capper_resolver = CapperResolver(spreadsheet)
 
     valid_rows = [row for row in data_rows if row]
-    # Preserve ocr_text (col 8) from input rows
+    # Preserve ocr_text (col 8) and source (col 9) from input rows.
+    # Guard: col 9 may contain ocr_text (not a source) for manual-queue rows
+    # written by process_manual_picks_queue — fall back to DISCORD_SOURCE.
+    _valid_sources = {DISCORD_SOURCE, TELEGRAM_SOURCE}
     ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_rows]
+    sources = [
+        (row[9] if row[9] in _valid_sources else DISCORD_SOURCE)
+        if len(row) > 9 else DISCORD_SOURCE
+        for row in valid_rows
+    ]
 
     # Run Python Stage 2 — no Claude API call needed
     all_finalized_rows = finalize_picks_python(
@@ -718,12 +781,15 @@ def run_stage2(spreadsheet, image_pull_ws,
             for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 9).
-        for row in all_finalized_rows:
+        # Tag each row with its source (col 9), read from parsed_picks col 9.
+        for j, row in enumerate(all_finalized_rows):
             while len(row) < 9:
                 row.append("")
+            source = sources[j] if j < len(sources) else DISCORD_SOURCE
             if len(row) < 10:
-                row.append(DISCORD_SOURCE)
+                row.append(source)
+            else:
+                row[9] = source
 
         # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
@@ -1378,6 +1444,68 @@ def main():
                 print("All images already exist in sheet")
         else:
             print("No new messages with images found since last run")
+
+        # ── Telegram ─────────────────────────────────────────────────────────
+        if telegram_fetcher:
+            print("\n── Fetching Telegram images ──")
+            try:
+                telegram_items = telegram_fetcher.fetch_images_since(last_run)
+            except Exception as e:
+                print(f"Telegram fetch failed: {e}")
+                telegram_items = []
+
+            if telegram_items:
+                print(f"Found {len(telegram_items)} Telegram image(s)")
+                # Fresh read includes any Discord rows just inserted this cycle
+                existing_tg_refs = get_existing_urls(worksheet)
+                tg_to_process = [
+                    item for item in telegram_items
+                    if item["source_ref"] not in existing_tg_refs
+                ]
+                if tg_to_process:
+                    ocr_items = [(item["image_bytes"], item["media_type"]) for item in tg_to_process]
+                    print(f"Running OCR on {len(ocr_items)} Telegram image(s)...")
+                    tg_ocr_results = []
+                    for i in range(0, len(ocr_items), OCR_BATCH_SIZE):
+                        tg_ocr_results.extend(
+                            extract_text_from_bytes_batch(ocr_items[i : i + OCR_BATCH_SIZE])
+                        )
+                    log_activity(
+                        spreadsheet, "ocr_images",
+                        f"Completed Telegram OCR for {len(ocr_items)} rows",
+                    )
+
+                    tg_rows_to_insert = []
+                    for idx, item in enumerate(tg_to_process):
+                        ocr_text = tg_ocr_results[idx] if idx < len(tg_ocr_results) else ""
+                        print(f"\nTelegram: {item['capper_name']} @ {item['sent_at']} ET")
+                        print(f"Ref: {item['source_ref']}")
+                        print(f"OCR: {ocr_text[:100]}..." if len(ocr_text) > 100 else f"OCR: {ocr_text}")
+                        tg_rows_to_insert.append(
+                            [timestamp, item["sent_at"], item["capper_name"],
+                             item["source_ref"], ocr_text, ""]
+                        )
+
+                    if tg_rows_to_insert:
+                        next_row = len(sheets_read(worksheet.get_all_values)) + 1
+                        end_row = next_row + len(tg_rows_to_insert) - 1
+                        if end_row > worksheet.row_count:
+                            sheets_write(worksheet.resize, rows=end_row + 100)
+                        sheets_write(
+                            worksheet.update,
+                            range_name=f"A{next_row}:F{end_row}",
+                            values=tg_rows_to_insert,
+                            value_input_option="USER_ENTERED",
+                        )
+                        print(f"\n✅ Inserted {len(tg_rows_to_insert)} Telegram rows to sheet")
+                    log_activity(
+                        spreadsheet, "query_telegram",
+                        f"Processed {len(tg_rows_to_insert)} Telegram images",
+                    )
+                else:
+                    print("All Telegram images already in sheet")
+            else:
+                print("No new Telegram images since last run")
 
         # Update the last run timestamp
         update_last_run_timestamp(worksheet, now_utc)
