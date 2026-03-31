@@ -40,6 +40,7 @@ from team_resolver import TeamResolver
 from capper_resolver import CapperResolver
 from pick_parser import (
     PICKS_COLUMNS,
+    DISCORD_SOURCE,
     get_claude_cost,
     log_claude_usage,
     call_sonnet_text,
@@ -294,6 +295,79 @@ def extract_capper_from_ocr(ocr_text: str) -> Optional[str]:
     return None
 
 
+
+# Claude's 5MB limit applies to base64-encoded data (~33% larger than raw bytes).
+# 3.5MB raw -> ~4.7MB base64, safely under the limit.
+_OCR_MAX_IMAGE_BYTES = int(3.5 * 1024 * 1024)
+
+
+def _compress_image_if_needed(
+    image_bytes: bytes, media_type: str, label: str = ""
+) -> tuple[bytes, str] | None:
+    """Compress image bytes to fit within _OCR_MAX_IMAGE_BYTES.
+
+    Returns (compressed_bytes, new_media_type), or None if compression failed.
+    """
+    if len(image_bytes) <= _OCR_MAX_IMAGE_BYTES:
+        return image_bytes, media_type
+    original_mb = len(image_bytes) / (1024 * 1024)
+    print(f"  ⚠️ {label}exceeds 3.5MB ({original_mb:.2f}MB), compressing...")
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    quality = 85
+    for _ in range(20):
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
+        image_bytes = buffer.getvalue()
+        if len(image_bytes) <= _OCR_MAX_IMAGE_BYTES:
+            print(f"    Compressed to {len(image_bytes) / (1024 * 1024):.2f}MB (quality={quality})")
+            return image_bytes, "image/jpeg"
+        if quality > 20:
+            quality -= 10
+        else:
+            img = img.resize(
+                (img.width * 3 // 4, img.height * 3 // 4),
+                Image.Resampling.LANCZOS,
+            )
+            quality = 50
+    print(f"    ⚠️ Could not compress below 3.5MB, skipping")
+    return None
+
+
+def _run_ocr_api(image_contents: list, processed_count: int, total: int, skipped: set) -> list[str]:
+    """Call Claude Haiku with pre-built image_contents and parse the OCR response."""
+    prompt_text = (
+        f"Read and transcribe every word visible in each of the {processed_count} images above.\n"
+        "For each image, output in this exact format:\n\n"
+        "[Image 1]\n<transcribed text here>\n\n"
+        "[Image 2]\n<transcribed text here>\n\n"
+        "...and so on. Preserve the layout of each image's text as much as possible."
+    )
+    image_contents.append({"type": "text", "text": prompt_text})
+    # Use direct Anthropic API -- the LiteLLM proxy (localhost:4000) strips image content.
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, base_url="https://api.anthropic.com")
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": image_contents}],
+    )
+    log_claude_usage(message)
+    parts = re.split(r"\[Image \d+\]\s*", message.content[0].text)
+    ocr_results = [p.strip() for p in parts[1:]]
+    while len(ocr_results) < processed_count:
+        ocr_results.append("")
+    results: list[str] = []
+    ocr_idx = 0
+    for i in range(total):
+        if i in skipped:
+            results.append("")
+        else:
+            results.append(ocr_results[ocr_idx] if ocr_idx < len(ocr_results) else "")
+            ocr_idx += 1
+    return results
+
+
 def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     """Use Claude Haiku to OCR multiple images in a single batch call.
 
@@ -305,155 +379,32 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     """
     if not ANTHROPIC_API_KEY:
         raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-
     if not image_urls:
         return []
-
-    # Download and encode all images
-    # Claude's 5MB limit applies to base64-encoded data, which is ~33% larger than raw bytes
-    # So we limit raw bytes to 3.5MB which becomes ~4.7MB after base64 encoding
-    MAX_IMAGE_SIZE = (
-        3.5 * 1024 * 1024
-    )  # 3.5MB raw = ~4.7MB base64 (under Claude's 5MB limit)
-
-    image_contents = []
-    skipped_indices = set()  # Track which images were skipped
+    image_contents: list = []
+    skipped_indices: set = set()
     processed_count = 0
-
     for i, url in enumerate(image_urls):
         response = requests.get(url)
         response.raise_for_status()
-
         content_type = response.headers.get("content-type", "image/jpeg")
         media_type = get_media_type(url, content_type)
-        image_bytes = response.content
-
-        # Resize if image is too large
-        if len(image_bytes) > MAX_IMAGE_SIZE:
-            original_size_mb = len(image_bytes) / (1024 * 1024)
-            print(
-                f"  ⚠️ Image {i + 1} exceeds 3.5MB ({original_size_mb:.2f}MB): {url[:100]}..."
-            )
-            img = Image.open(io.BytesIO(image_bytes))
-            # Convert to RGB if necessary (for PNG with alpha)
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-
-            # Reduce quality/size until under limit
-            quality = 85
-            attempts = 0
-            max_attempts = 20  # Safety limit
-            while len(image_bytes) > MAX_IMAGE_SIZE and attempts < max_attempts:
-                attempts += 1
-                buffer = io.BytesIO()
-                img.save(buffer, format="JPEG", quality=quality, optimize=True)
-                image_bytes = buffer.getvalue()
-
-                if len(image_bytes) <= MAX_IMAGE_SIZE:
-                    break
-
-                # Reduce quality first
-                if quality > 20:
-                    quality -= 10
-                else:
-                    # Quality is already low, reduce dimensions
-                    img = img.resize(
-                        (img.width * 3 // 4, img.height * 3 // 4),
-                        Image.Resampling.LANCZOS,
-                    )
-                    quality = 50  # Reset quality after resize
-
-            new_size_mb = len(image_bytes) / (1024 * 1024)
-            if len(image_bytes) > MAX_IMAGE_SIZE:
-                print(
-                    f"    ⚠️ Could not compress below 3.5MB ({new_size_mb:.2f}MB), skipping image"
-                )
-                skipped_indices.add(i)
-                continue
-            print(f"    Compressed to {new_size_mb:.2f}MB (quality={quality})")
-            media_type = "image/jpeg"
-
+        compressed = _compress_image_if_needed(
+            response.content, media_type, label=f"Image {i + 1} ({url[:80]}...) "
+        )
+        if compressed is None:
+            skipped_indices.add(i)
+            continue
+        image_bytes, media_type = compressed
         image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
         processed_count += 1
-
-        image_contents.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": image_data,
-                },
-            }
-        )
         image_contents.append({"type": "text", "text": f"[Image {processed_count}]"})
-
-    # If all images were skipped, return empty strings
+        image_contents.append(
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}}
+        )
     if processed_count == 0:
         return [""] * len(image_urls)
-
-    # Simple OCR prompt - just read text
-    # Note: "Extract all text" phrasing causes the github_copilot-routed model
-    # to respond as if no images were attached. Use "Read and transcribe" instead.
-    prompt_text = f"""Read and transcribe every word visible in each of the {processed_count} images above.
-For each image, output in this exact format:
-
-[Image 1]
-<transcribed text here>
-
-[Image 2]
-<transcribed text here>
-
-...and so on. Preserve the layout of each image's text as much as possible."""
-
-    image_contents.append({"type": "text", "text": prompt_text})
-
-    # Use direct Anthropic API for vision calls — the LiteLLM proxy
-    # (ANTHROPIC_BASE_URL=localhost:4000) strips image content from requests.
-    client = anthropic.Anthropic(
-        api_key=ANTHROPIC_API_KEY,
-        base_url="https://api.anthropic.com",
-    )
-
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=4096,
-        messages=[
-            {
-                "role": "user",
-                "content": image_contents,
-            }
-        ],
-    )
-
-    # Track token usage
-    log_claude_usage(message)
-
-    # Parse the response to extract text for each image
-    response_text = message.content[0].text
-    ocr_results = []
-
-    # Split by [Image N] markers
-    parts = re.split(r"\[Image \d+\]\s*", response_text)
-    # First part is empty or intro text, skip it
-    for part in parts[1:]:
-        ocr_results.append(part.strip())
-
-    # Pad with empty strings if we got fewer results than processed images
-    while len(ocr_results) < processed_count:
-        ocr_results.append("")
-
-    # Now rebuild full results list, inserting empty strings for skipped images
-    results = []
-    ocr_idx = 0
-    for i in range(len(image_urls)):
-        if i in skipped_indices:
-            results.append("")
-        else:
-            results.append(ocr_results[ocr_idx] if ocr_idx < len(ocr_results) else "")
-            ocr_idx += 1
-
-    return results
+    return _run_ocr_api(image_contents, processed_count, len(image_urls), skipped_indices)
 
 
 def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
@@ -585,11 +536,9 @@ def run_stage1(spreadsheet, image_pull_ws):
             response = call_sonnet_text(prompt)
             parsed_rows = parse_csv_response(response)
             print(f"Parsed {len(parsed_rows)} pick row(s)")
-            # Attach ocr_text as col 9 keyed by (capper, date).
+            # Attach ocr_text as col 8 keyed by (capper, date).
             # One image can produce multiple pick rows (one per bet in the image),
             # so all picks from the same image share the same ocr_text.
-            # The lookup by (capper, date) is reliable because each image comes
-            # from a single capper and carries a single message date.
             for row in parsed_rows:
                 while len(row) < 8:
                     row.append("")
@@ -769,13 +718,12 @@ def run_stage2(spreadsheet, image_pull_ws,
             for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 9). Hardcoded "discord_all_in_one" until
-        # Telegram wiring is added in Step 3 of the integration plan.
+        # Tag all rows with source (index 9).
         for row in all_finalized_rows:
             while len(row) < 9:
                 row.append("")
             if len(row) < 10:
-                row.append("discord_all_in_one")
+                row.append(DISCORD_SOURCE)
 
         # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
