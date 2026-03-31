@@ -499,11 +499,17 @@ def deduplicate_ml_vs_spread(
     existing_rows: Optional[List[List[str]]] = None,
     existing_row_offset: int = 0,
 ) -> Tuple[List[List[str]], List[int]]:
-    """Drop ML picks when a spread pick exists for the same capper+game+date.
+    """Deduplicate picks in two passes.
 
-    Handles both orderings:
-    - Spread is new, ML already exists in the sheet → returns sheet row indices to delete
-    - ML is new, spread already exists in the sheet → filters ML from new_rows
+    Pass 1 — exact-match dedup: drop any new row whose (date, capper, pick, line)
+    already exists in the sheet or earlier in the same batch. Handles the
+    cross-source case where a capper posts the same pick on both Discord and
+    Telegram. The first-seen row wins (Discord rows precede Telegram rows in the
+    batch because run_stage1 processes Discord first).
+
+    Pass 2 — ML/spread dedup: when a spread pick exists for the same
+    capper+game+date, drop the ML copy and return sheet indices of any existing
+    ML rows that a new spread supersedes.
 
     Args:
         new_rows: Rows about to be appended (each is a list of column values).
@@ -522,26 +528,53 @@ def deduplicate_ml_vs_spread(
         return bool(re.match(r"^[+-]?\d", l))
 
     def row_key(row: List[str]) -> tuple:
+        """(date, capper, game) — used for ML/spread dedup."""
         date = row[0].strip() if len(row) > 0 else ""
         capper = row[1].strip().upper() if len(row) > 1 else ""
         game = row[5].strip().upper() if len(row) > 5 else ""
         return (date, capper, game)
 
+    def exact_key(row: List[str]) -> tuple:
+        """(date, capper, pick, line) — used for cross-source exact-match dedup.
+        Game is intentionally excluded: OCR from different sources may resolve
+        the same game slightly differently."""
+        date = row[0].strip() if len(row) > 0 else ""
+        capper = row[1].strip().upper() if len(row) > 1 else ""
+        pick = row[3].strip().upper() if len(row) > 3 else ""
+        line = row[4].strip().upper() if len(row) > 4 else ""
+        return (date, capper, pick, line)
+
     existing_rows = existing_rows or []
 
+    # ── Pass 1: exact-match dedup ─────────────────────────────────────────────
+    existing_exact_keys: set = {exact_key(r) for r in existing_rows}
+    seen_exact_keys: set = set()
+    after_exact: List[List[str]] = []
+    for row in new_rows:
+        k = exact_key(row)
+        if k in existing_exact_keys or k in seen_exact_keys:
+            print(
+                f"  [dedup] Dropping duplicate pick for {row[1]} - {row[3]} {row[4]} "
+                f"(already exists)"
+            )
+            continue
+        seen_exact_keys.add(k)
+        after_exact.append(row)
+
+    # ── Pass 2: ML/spread dedup ───────────────────────────────────────────────
     existing_spread_keys: set = set()
     for row in existing_rows:
         if len(row) > 4 and is_spread(row[4]):
             existing_spread_keys.add(row_key(row))
 
     new_spread_keys: set = set()
-    for row in new_rows:
+    for row in after_exact:
         if len(row) > 4 and is_spread(row[4]):
             new_spread_keys.add(row_key(row))
 
     all_spread_keys = existing_spread_keys | new_spread_keys
     filtered_new: List[List[str]] = []
-    for row in new_rows:
+    for row in after_exact:
         line = row[4].strip().upper() if len(row) > 4 else ""
         if line == "ML" and row_key(row) in all_spread_keys:
             print(
