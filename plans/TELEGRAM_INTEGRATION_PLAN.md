@@ -11,8 +11,9 @@ A new `source` column distinguishes origin in the final output.
 ## Architecture
 
 ```
-discord_fetcher.py      ← new file, extracted from capper_analyzer.py (Discord logic)
+discord_fetcher.py      ← extracted from capper_analyzer.py (Discord logic)
 telegram_fetcher.py     ← new file (Telethon, async)
+backtest_telegram.py    ← local backtest tool (fetch → OCR cache → Stage 1 → results.txt)
 capper_analyzer.py      ← orchestrator: calls both fetchers, merges, runs existing pipeline
 ```
 
@@ -23,10 +24,25 @@ point Discord rows do. Everything downstream (Stage 1/2, sheets, CSV, git push) 
 
 - **Discord**: keeps URL-based OCR (CDN URL stored in `image_pull`, backfill still works)
 - **Telegram**: bytes-based OCR (image downloaded at fetch time, no public URL). `backfill_ocr`
-  also handles Telegram rows by re-downloading via Telethon using the encoded `channel_id:msg_id`
-  — same resilience as Discord, different download mechanism.
+  skips `telegram:` refs (guard in place); full Telethon re-download backfill is a future TODO.
 - **`image_pull` source ref**: Discord rows keep CDN URL; Telegram rows store `telegram:{channel_id}:{msg_id}`
-- **`source` column**: added as the last column in `master_sheet` and `parsed_picks_new`; value is `"discord_all_in_one"` or `"telegram_cappers_free"`
+- **`source` column**: last column in `master_sheet` and `parsed_picks_new`; value is
+  `"discord_all_in_one"` or `"telegram_cappers_free"` (constants `DISCORD_SOURCE` / `TELEGRAM_SOURCE`)
+
+### Source-isolation principle
+
+New sports and prompt features are enabled for **Telegram first**, Discord separately after its
+own testing. The code is structured to make enabling a feature for Discord a one-line change:
+
+| Concern | Discord constant | Telegram constant |
+|---|---|---|
+| Valid sports (prompt + CSV filter) | `DISCORD_VALID_SPORTS` | `TELEGRAM_VALID_SPORTS` |
+| Sport definition line in prompt | `_DISCORD_SPORT_DEF` | `_TELEGRAM_SPORT_DEF` |
+| Filtering rules in prompt | `_DISCORD_FILTER_RULES` | `_TELEGRAM_FILTER_RULES` |
+| Parsing pattern notes | `_DISCORD_PARSING_PATTERNS` | `_TELEGRAM_PARSING_PATTERNS` |
+| Example pick rows | `EXAMPLE_PICKS_ROWS_DISCORD` | `EXAMPLE_PICKS_ROWS_TELEGRAM` |
+
+**Currently Telegram-only (not yet enabled for Discord):** MLB
 
 ---
 
@@ -36,114 +52,66 @@ point Discord rows do. Everything downstream (Stage 1/2, sheets, CSV, git push) 
 |---|---|---|
 | `discord_fetcher.py` | New | Extracted from `capper_analyzer.py`, no logic change |
 | `telegram_fetcher.py` | New | Telethon, async wrapped in `asyncio.run()` |
-| `capper_analyzer.py` | Modified | Imports both fetchers; adds `source` tagging; `backfill_ocr` guard |
+| `backtest_telegram.py` | New | Local backtest tool; see Backtest section below |
+| `capper_analyzer.py` | Modified | See details below |
+| `requirements.txt` | Modified | Added `telethon>=1.36.0` |
+| `.github/workflows/capper_analyzer.yml` | TODO (Step 4) | Add Telegram secrets |
 | `populate_results.py` | None | Uses header-based lookup — safe automatically |
 | `daily_audit.py` | None | Uses header-based lookup — safe automatically |
 | `gh-pages/index.html` | None | Reads CSV dynamically — new column is additive |
-| `requirements.txt` | Modified | Add `telethon` |
-| `.github/workflows/capper_analyzer.yml` | Modified | Add Telegram secrets |
+
+### `capper_analyzer.py` changes summary
+
+- `DISCORD_SOURCE` / `TELEGRAM_SOURCE` string constants
+- `DISCORD_VALID_SPORTS` / `TELEGRAM_VALID_SPORTS` sets
+- `_DISCORD_SPORT_DEF` / `_TELEGRAM_SPORT_DEF` — sport line in prompt
+- `_DISCORD_FILTER_RULES` / `_TELEGRAM_FILTER_RULES` — filtering section in prompt
+- `_DISCORD_PARSING_PATTERNS` / `_TELEGRAM_PARSING_PATTERNS` — source-specific pattern notes
+- `EXAMPLE_PICKS_ROWS_DISCORD` (renamed) / `EXAMPLE_PICKS_ROWS_TELEGRAM` (empty, fill in Step 5)
+- `build_stage1_prompt(picks, schedule, source)` — branches on source for all of the above
+- `extract_text_from_bytes_batch(items)` — OCR from raw bytes (Telegram path)
+- `get_rows_needing_stage1` — returns 5-tuple including source (derived from col 3 prefix)
+- `run_stage1` — groups rows by source, runs separate source-specific prompt per group;
+  attaches `source` as col 9 to parsed rows so Stage 2 tags correctly
+- `run_stage2` — reads source from col 9 instead of hardcoding; guards against
+  manual-queue rows that put ocr_text in col 9 instead of col 8 (pre-existing discrepancy)
+- `parse_csv_response(response, valid_sports)` — `valid_sports` param, defaults to
+  `DISCORD_VALID_SPORTS`; packed-row splitter handles model cramming multiple rows on one line
+- `_is_valid_sport(s, valid_sports)` — accepts set override
+- Telegram fetch block added to `run()` after Discord block
 
 ---
 
 ## Steps
 
-Each step is independently landable and verifiable before moving to the next.
+### ✅ Step 0 — Add `source` column (done)
 
----
+`source` column added to `master_sheet` and `parsed_picks_new`. `PICKS_COLUMNS` updated.
+All existing rows backfilled with `"discord"`.
 
-### Step 0 — Add `source` column (schema migration, no code yet)
+### ✅ Step 1 — Extract `discord_fetcher.py` (done)
 
-**Why first:** The column needs to exist in the sheet before any code tries to write to it.
-Do this manually in Google Sheets + via a one-off backfill script.
+Pure refactor. `capper_analyzer.py` imports `get_messages_with_images_since` from it.
 
-**Changes:**
-- In `master_sheet`: add `source` as the last column header, backfill all existing rows with `"discord"`
-- In `parsed_picks_new`: same — add `source` header, backfill with `"discord"`
-- In `capper_analyzer.py`: add `"source"` to `PICKS_COLUMNS` list (last position)
+### ✅ Step 2 — Guard `backfill_ocr` against non-URL rows (done)
 
-**Verify:** Open both sheets, confirm `source` column exists and all existing rows say `"discord"`.
-Confirm the next scheduled run writes `"discord"` to new Discord picks.
+`backfill_ocr` skips rows where source ref does not start with `"http"`.
+TODO comment in place for future Telethon re-download backfill.
 
----
+### ✅ Step 3 — `telegram_fetcher.py` + wire into `capper_analyzer.py` (done)
 
-### Step 1 — Extract `discord_fetcher.py` (pure refactor)
+All code written and locally tested via `backtest_telegram.py`.
+**Not yet deployed to GitHub Actions** — waiting on Step 5 backtest sign-off.
 
-**Why:** Creates symmetry so both fetchers are equal citizens.
-Zero behavior change — this is purely moving code.
+### ✅ Step 3 addendum — Source-specific Stage 1 prompts (done)
 
-**Functions to move out of `capper_analyzer.py`:**
-- `fetch_recent_messages`
-- `fetch_all_messages_since`
-- `get_messages_with_images_since`
-- `parse_discord_timestamp`
+All source isolation constants and branching in place. See source-isolation table above.
 
-`capper_analyzer.py` imports them from `discord_fetcher`.
+### ⬜ Step 4 — GitHub Actions secrets + workflow update
 
-**Verify:** Run the next scheduled cycle. `image_pull` and `master_sheet` output
-is identical to before. No errors in Actions logs.
+Add to repo secrets: `TELEGRAM_SESSION`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_CHANNEL_ID`
 
----
-
-### Step 2 — Guard `backfill_ocr` against non-URL rows (temporary)
-
-**Why:** `backfill_ocr` runs every 15 minutes and passes every source-ref from
-`image_pull` into `requests.get()`. A `telegram:...` string would throw an error.
-This guard must land before any Telegram rows appear in the sheet.
-
-**Change:** In `backfill_ocr`, skip rows where the source ref does not start with `"http"`.
-A `TODO` comment marks this as temporary — Step 3 replaces the skip with proper
-Telegram backfill via Telethon (parse `telegram:channel_id:msg_id`, re-download bytes,
-OCR). This preserves the same crash-recovery resilience as the Discord URL backfill.
-
-**Verify:** Run a cycle, confirm no errors, Discord backfill still works.
-
----
-
-### Step 3 — Add `telegram_fetcher.py` + wire into `capper_analyzer.py`
-
-**`telegram_fetcher.py` responsibilities:**
-- Connect via `StringSession` from env
-- Accept a `since_timestamp` (same pattern as Discord)
-- Iterate messages newest-first, stop at cutoff
-- Handle album grouping: carry capper name forward across `text=None` messages
-  using `msg.grouped_id` to associate images in the same album
-- Extract capper name: first line of `msg.text`, strip `**` markdown, uppercase
-- Download image bytes immediately via `client.download_media()`
-- Return a list of dicts (same shape Discord produces) with:
-  - `source_ref`: `"telegram:{channel_id}:{msg_id}"`
-  - `image_bytes`: raw bytes
-  - `media_type`: `"image/jpeg"` (all Telegram photos are JPEG)
-  - `sent_at`: Eastern-formatted timestamp
-  - `capper_name`: uppercased
-  - `message_content`: raw text for context
-  - `message_dt`: UTC datetime for ordering
-  - `source`: `"telegram"`
-
-**`capper_analyzer.py` changes:**
-- Call `discord_fetcher.get_messages_with_images_since(last_run)` → tag each result `source="discord"`
-- Call `telegram_fetcher.fetch_images_since(last_run)` → already tagged `source="telegram"`
-- Merge into one list, sorted by `message_dt`
-- Discord items: OCR via existing `extract_text_from_images_batch(urls)` (unchanged)
-- Telegram items: OCR via `ocr_from_bytes(images)` (bytes-based, validated in scratch tests)
-- Both write to `image_pull` — Discord with CDN URL, Telegram with `telegram:` ref
-- Both write `source` value when appending to `parsed_picks_new` and `master_sheet`
-
-**Verify:**
-- Confirm Telegram rows appear in `image_pull` with `telegram:` source ref
-- Confirm `source` column is populated correctly in `master_sheet`
-- Confirm Discord rows are unaffected
-- Inspect Stage 1/2 output for Telegram picks — expect iteration needed (see Step 5)
-
----
-
-### Step 4 — GitHub Actions secrets + workflow update
-
-**Add to repo secrets:**
-- `TELEGRAM_SESSION`
-- `TELEGRAM_API_ID`
-- `TELEGRAM_API_HASH`
-
-**Update `capper_analyzer.yml`:**
+Update `capper_analyzer.yml`:
 ```yaml
 env:
   DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
@@ -152,47 +120,57 @@ env:
   TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
   TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
   TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+  TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
 ```
-
-**Update `requirements.txt`:** add `telethon>=1.36.0`
 
 **Verify:** First live CI run fetches Telegram images. Check Actions logs for errors.
 
----
+### 🔄 Step 5 — Backtest and iterate (in progress)
 
-### Step 5 — Validate and iterate (expected bugs)
+**Backtest tool:** `backtest_telegram.py`
 
-This step is ongoing. Known areas likely to need adjustment:
+```
+python backtest_telegram.py --fetch 50   # download 50 images (one-time)
+python backtest_telegram.py --parse      # re-parse from cache (free, iterate on prompt)
+python backtest_telegram.py --fresh-ocr  # re-OCR if images changed
+python backtest_telegram.py --debug      # print raw Stage 1 responses
+```
 
-**Capper name mismatches:**
-Telegram may produce `BEEZOWINS` where Discord has `BEEZO WINS` for the same person.
-Monitor `master_sheet` for duplicate capper identities and normalize as needed.
+Local cache: `backtest_data/telegram/` — images, messages.json, ocr_cache.json, results.txt
 
-**Stage 1 prompt tuning:**
-The Stage 1 prompt was written with Discord pick screenshot formats in mind.
-Telegram OCR will surface different layouts (e.g. `@handle • Today 5:54 AM` headers,
-emoji bullets, unit sizes like `2U`). Add Telegram-style examples to `EXAMPLE_PICKS_ROWS`
-as real cases emerge.
+**Results from 5-image test (all correct):**
+- Multi-pick images (Knicks +8.5, Hornets ML, Guardians ML from one image): ✓
+- Betting slip screenshots (Pelicans +6): ✓
+- Duke ML from minimal pick card: ✓
+- Baseball total (over 7) correctly skipped: ✓
+- Same-game parlay correctly skipped: ✓
 
-**Multi-pick cards:**
-Some Telegram images contain many picks per image. Verify Stage 1 correctly
-extracts multiple rows from a single OCR block.
+**Bugs found and fixed during backtest:**
+1. `_is_valid_sport` didn't include MLB → rows silently dropped; fixed with `TELEGRAM_VALID_SPORTS`
+2. Model sometimes packs multiple CSV rows on one line → `parse_csv_response` packed-row
+   splitter: finds date boundaries starting at position 5, splits cleanly
+3. MLB enabled for Telegram only (not Discord) per source-isolation principle
 
-**Album grouping edge cases:**
-If the admin posts a capper's name in one message and the images in a follow-up
-message with no text, verify the `grouped_id` carry-forward logic catches it.
+**Known areas to watch in larger batches:**
+- Capper name mismatches (e.g. `BEEZOWINS` vs `BEEZO WINS`)
+- Album grouping: capper name carried forward via `grouped_id`
+- False-positive images (promos, announcements) — should produce 0 picks
+- Multi-pick cards with many picks per image
+- `EXAMPLE_PICKS_ROWS_TELEGRAM` is empty — add real examples as patterns emerge
 
-**False-positive images:**
-Telegram channel may contain non-pick images (promo graphics, announcements).
-Verify Stage 1 correctly returns no rows for these rather than hallucinating picks.
+**Sign-off criteria before Step 4 deployment:**
+- ≥ 50 images tested
+- No false positives (hallucinated picks from non-pick images)
+- No missed picks on clearly readable pick cards
+- Capper names reasonable (fixable via capper_name_resolution sheet post-deploy)
 
 ---
 
 ## What Is Explicitly Not Changed
 
-- `backfill_ocr` logic (except the temporary `startswith("http")` guard, replaced in Step 3)
-- `extract_text_from_images_batch` — Discord uses this unchanged
-- Stage 1 / Stage 2 parsing functions (until tuning in Step 5)
+- `backfill_ocr` logic (except the `startswith("http")` guard)
+- `extract_text_from_images_batch` — Discord OCR path, unchanged
+- Stage 2 (`stage2_python.py`) — pure Python, source-agnostic
 - Sheets write logic
 - CSV sync and git push
 - GitHub Actions schedule (15 min cadence)

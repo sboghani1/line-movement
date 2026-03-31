@@ -35,6 +35,10 @@ from sheets_utils import (
 import daily_audit
 import populate_results
 from discord_fetcher import get_messages_with_images_since
+try:
+    import telegram_fetcher
+except ImportError:
+    telegram_fetcher = None  # type: ignore[assignment]
 from stage2_python import finalize_picks_python, TEAM_NOT_FOUND, CAPPER_NOT_FOUND
 from team_resolver import TeamResolver
 from capper_resolver import CapperResolver
@@ -73,8 +77,11 @@ PICKS_COLUMNS = [
     "spread",
     "result",
     "ocr_text",
-    "source",   # index 9 — "discord_all_in_one" or "telegram"
+    "source",   # index 9 — "discord_all_in_one" or "telegram_cappers_free"
 ]
+
+DISCORD_SOURCE = "discord_all_in_one"
+TELEGRAM_SOURCE = "telegram_cappers_free"
 
 # Maximum number of messages to process per run
 MAX_MESSAGES_PER_RUN = 500
@@ -140,13 +147,45 @@ def log_claude_usage(message):
 
 # Example rows for prompts (spread and ML per sport - NO totals)
 # Includes examples for tricky formats: Porter Picks "O opponent" and Analytics Capper "v opponent"
-EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,,
+EXAMPLE_PICKS_ROWS_DISCORD = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,,
 2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
 2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,,
 2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,"""
+
+# Telegram examples will be populated as real Telegram OCR cases emerge (Step 5).
+EXAMPLE_PICKS_ROWS_TELEGRAM = ""
+
+_DISCORD_PARSING_PATTERNS = """- "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
+- "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
+- Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
+- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
+- "MI" after a team name is a common OCR misread of "ML" — treat it as ML (e.g. "Kentucky MI (-140)" = Kentucky ML, "New Mexico St MI (-140)" = New Mexico St ML). "MI"/"ML" is the bet type, NOT a second team — "Team MI" on one line = one pick."""
+
+_TELEGRAM_PARSING_PATTERNS = """- "@handle • Today 5:54 AM" style headers are message metadata — ignore them entirely, do not extract as picks.
+- Emoji bullets (✓, •, ✅, 🔒, etc.) precede individual picks — use them to identify pick boundaries but do not include in output.
+- Unit sizes like "2U", "3U", "0.5U" are stake sizes — ignore them, do not include in the line column.
+- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
+- "MI" after a team name is a common OCR misread of "ML" — treat it as ML."""
+
+# Per-source: valid sports for prompt instructions and CSV response filtering.
+# Add new sports to TELEGRAM first; enable for Discord only after its own testing.
+DISCORD_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB"}
+TELEGRAM_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB", "MLB"}
+
+_DISCORD_SPORT_DEF = "NBA, CBB, or NHL only. Normalize NCAAB to CBB."
+_TELEGRAM_SPORT_DEF = "NBA, CBB, NHL, or MLB only. Normalize NCAAB to CBB."
+
+_DISCORD_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
+- Bet types: Spread or Moneyline (ML) ONLY
+- Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets"""
+
+_TELEGRAM_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball), MLB ONLY. Skip ATP, NFL, soccer, tennis, etc.
+- Bet types: Spread or Moneyline (ML) ONLY. For MLB: ML and run line (-1.5/+1.5) are valid.
+- Skip: Totals (O/U — including baseball totals like "over 7"), player props, team totals, first half bets, quarter bets, parlays, live bets
+- For MLB: "Guardians/Mariners over 7" is a total — SKIP. "Guardians ML" is valid — INCLUDE."""
 
 # Stage 2 examples: input (capper,sport,pick,line) → output (capper,pick,game)
 # Claude only resolves abbreviations, normalizes capper names, and fills game column.
@@ -368,6 +407,92 @@ def extract_capper_from_ocr(ocr_text: str) -> Optional[str]:
     return None
 
 
+# Claude's 5MB limit applies to base64-encoded data (~33% larger than raw bytes).
+# 3.5MB raw → ~4.7MB base64, safely under the limit.
+_OCR_MAX_IMAGE_BYTES = int(3.5 * 1024 * 1024)
+
+
+def _compress_image_if_needed(
+    image_bytes: bytes, media_type: str, label: str = ""
+) -> tuple[bytes, str] | None:
+    """Compress image bytes to fit within _OCR_MAX_IMAGE_BYTES.
+
+    Returns (compressed_bytes, new_media_type), or None if compression failed.
+    """
+    if len(image_bytes) <= _OCR_MAX_IMAGE_BYTES:
+        return image_bytes, media_type
+    original_mb = len(image_bytes) / (1024 * 1024)
+    print(f"  ⚠️ {label}exceeds 3.5MB ({original_mb:.2f}MB), compressing...")
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    quality = 85
+    for _ in range(20):
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
+        image_bytes = buffer.getvalue()
+        if len(image_bytes) <= _OCR_MAX_IMAGE_BYTES:
+            print(f"    Compressed to {len(image_bytes) / (1024 * 1024):.2f}MB (quality={quality})")
+            return image_bytes, "image/jpeg"
+        if quality > 20:
+            quality -= 10
+        else:
+            img = img.resize(
+                (img.width * 3 // 4, img.height * 3 // 4),
+                Image.Resampling.LANCZOS,
+            )
+            quality = 50
+    print(f"    ⚠️ Could not compress below 3.5MB, skipping")
+    return None
+
+
+def _run_ocr_api(image_contents: list, processed_count: int, total: int, skipped: set) -> list[str]:
+    """Call Claude Haiku with pre-built image_contents and parse the OCR response.
+
+    Args:
+        image_contents: List of Anthropic message content blocks (text + image alternating).
+        processed_count: Number of images that were successfully encoded (not skipped).
+        total: Total number of input items (including skipped).
+        skipped: Set of input indices that were skipped (will get empty string in output).
+
+    Returns:
+        List of OCR strings, one per input item in original order.
+    """
+    # Note: "Extract all text" phrasing causes the LiteLLM-routed model to drop images.
+    prompt_text = (
+        f"Read and transcribe every word visible in each of the {processed_count} images above.\n"
+        "For each image, output in this exact format:\n\n"
+        "[Image 1]\n<transcribed text here>\n\n"
+        "[Image 2]\n<transcribed text here>\n\n"
+        "...and so on. Preserve the layout of each image's text as much as possible."
+    )
+    image_contents.append({"type": "text", "text": prompt_text})
+
+    # Use direct Anthropic API — the LiteLLM proxy (localhost:4000) strips image content.
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, base_url="https://api.anthropic.com")
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": image_contents}],
+    )
+    log_claude_usage(message)
+
+    parts = re.split(r"\[Image \d+\]\s*", message.content[0].text)
+    ocr_results = [p.strip() for p in parts[1:]]
+    while len(ocr_results) < processed_count:
+        ocr_results.append("")
+
+    results: list[str] = []
+    ocr_idx = 0
+    for i in range(total):
+        if i in skipped:
+            results.append("")
+        else:
+            results.append(ocr_results[ocr_idx] if ocr_idx < len(ocr_results) else "")
+            ocr_idx += 1
+    return results
+
+
 def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     """Use Claude Haiku to OCR multiple images in a single batch call.
 
@@ -379,155 +504,71 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     """
     if not ANTHROPIC_API_KEY:
         raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-
     if not image_urls:
         return []
 
-    # Download and encode all images
-    # Claude's 5MB limit applies to base64-encoded data, which is ~33% larger than raw bytes
-    # So we limit raw bytes to 3.5MB which becomes ~4.7MB after base64 encoding
-    MAX_IMAGE_SIZE = (
-        3.5 * 1024 * 1024
-    )  # 3.5MB raw = ~4.7MB base64 (under Claude's 5MB limit)
-
-    image_contents = []
-    skipped_indices = set()  # Track which images were skipped
+    image_contents: list = []
+    skipped_indices: set = set()
     processed_count = 0
 
     for i, url in enumerate(image_urls):
         response = requests.get(url)
         response.raise_for_status()
-
         content_type = response.headers.get("content-type", "image/jpeg")
         media_type = get_media_type(url, content_type)
-        image_bytes = response.content
-
-        # Resize if image is too large
-        if len(image_bytes) > MAX_IMAGE_SIZE:
-            original_size_mb = len(image_bytes) / (1024 * 1024)
-            print(
-                f"  ⚠️ Image {i + 1} exceeds 3.5MB ({original_size_mb:.2f}MB): {url[:100]}..."
-            )
-            img = Image.open(io.BytesIO(image_bytes))
-            # Convert to RGB if necessary (for PNG with alpha)
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-
-            # Reduce quality/size until under limit
-            quality = 85
-            attempts = 0
-            max_attempts = 20  # Safety limit
-            while len(image_bytes) > MAX_IMAGE_SIZE and attempts < max_attempts:
-                attempts += 1
-                buffer = io.BytesIO()
-                img.save(buffer, format="JPEG", quality=quality, optimize=True)
-                image_bytes = buffer.getvalue()
-
-                if len(image_bytes) <= MAX_IMAGE_SIZE:
-                    break
-
-                # Reduce quality first
-                if quality > 20:
-                    quality -= 10
-                else:
-                    # Quality is already low, reduce dimensions
-                    img = img.resize(
-                        (img.width * 3 // 4, img.height * 3 // 4),
-                        Image.Resampling.LANCZOS,
-                    )
-                    quality = 50  # Reset quality after resize
-
-            new_size_mb = len(image_bytes) / (1024 * 1024)
-            if len(image_bytes) > MAX_IMAGE_SIZE:
-                print(
-                    f"    ⚠️ Could not compress below 3.5MB ({new_size_mb:.2f}MB), skipping image"
-                )
-                skipped_indices.add(i)
-                continue
-            print(f"    Compressed to {new_size_mb:.2f}MB (quality={quality})")
-            media_type = "image/jpeg"
-
+        compressed = _compress_image_if_needed(
+            response.content, media_type, label=f"Image {i + 1} ({url[:80]}...) "
+        )
+        if compressed is None:
+            skipped_indices.add(i)
+            continue
+        image_bytes, media_type = compressed
         image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
         processed_count += 1
-
-        image_contents.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": image_data,
-                },
-            }
-        )
         image_contents.append({"type": "text", "text": f"[Image {processed_count}]"})
+        image_contents.append(
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}}
+        )
 
-    # If all images were skipped, return empty strings
     if processed_count == 0:
         return [""] * len(image_urls)
+    return _run_ocr_api(image_contents, processed_count, len(image_urls), skipped_indices)
 
-    # Simple OCR prompt - just read text
-    # Note: "Extract all text" phrasing causes the github_copilot-routed model
-    # to respond as if no images were attached. Use "Read and transcribe" instead.
-    prompt_text = f"""Read and transcribe every word visible in each of the {processed_count} images above.
-For each image, output in this exact format:
 
-[Image 1]
-<transcribed text here>
+def extract_text_from_bytes_batch(image_items: List[Tuple[bytes, str]]) -> List[str]:
+    """Use Claude Haiku to OCR multiple images supplied as raw bytes.
 
-[Image 2]
-<transcribed text here>
+    Args:
+        image_items: List of (image_bytes, media_type) tuples
 
-...and so on. Preserve the layout of each image's text as much as possible."""
+    Returns:
+        List of OCR text results, one per input item in the same order
+    """
+    if not ANTHROPIC_API_KEY:
+        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+    if not image_items:
+        return []
 
-    image_contents.append({"type": "text", "text": prompt_text})
+    image_contents: list = []
+    skipped_indices: set = set()
+    processed_count = 0
 
-    # Use direct Anthropic API for vision calls — the LiteLLM proxy
-    # (ANTHROPIC_BASE_URL=localhost:4000) strips image content from requests.
-    client = anthropic.Anthropic(
-        api_key=ANTHROPIC_API_KEY,
-        base_url="https://api.anthropic.com",
-    )
+    for i, (image_bytes, media_type) in enumerate(image_items):
+        compressed = _compress_image_if_needed(image_bytes, media_type, label=f"Image {i + 1} ")
+        if compressed is None:
+            skipped_indices.add(i)
+            continue
+        image_bytes, media_type = compressed
+        image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+        processed_count += 1
+        image_contents.append({"type": "text", "text": f"[Image {processed_count}]"})
+        image_contents.append(
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}}
+        )
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=4096,
-        messages=[
-            {
-                "role": "user",
-                "content": image_contents,
-            }
-        ],
-    )
-
-    # Track token usage
-    log_claude_usage(message)
-
-    # Parse the response to extract text for each image
-    response_text = message.content[0].text
-    ocr_results = []
-
-    # Split by [Image N] markers
-    parts = re.split(r"\[Image \d+\]\s*", response_text)
-    # First part is empty or intro text, skip it
-    for part in parts[1:]:
-        ocr_results.append(part.strip())
-
-    # Pad with empty strings if we got fewer results than processed images
-    while len(ocr_results) < processed_count:
-        ocr_results.append("")
-
-    # Now rebuild full results list, inserting empty strings for skipped images
-    results = []
-    ocr_idx = 0
-    for i in range(len(image_urls)):
-        if i in skipped_indices:
-            results.append("")
-        else:
-            results.append(ocr_results[ocr_idx] if ocr_idx < len(ocr_results) else "")
-            ocr_idx += 1
-
-    return results
+    if processed_count == 0:
+        return [""] * len(image_items)
+    return _run_ocr_api(image_contents, processed_count, len(image_items), skipped_indices)
 
 
 # ── Pick Parsing (Stage 1 & Stage 2) ─────────────────────────────────────────
@@ -553,13 +594,17 @@ def call_sonnet_text(prompt: str, max_tokens: int = 8192) -> str:
 
 
 def build_stage1_prompt(
-    picks_to_parse: List[Tuple[str, str, str, int]], schedule_data: dict
+    picks_to_parse: List[Tuple[str, str, str, int]],
+    schedule_data: dict,
+    source: str = DISCORD_SOURCE,
 ) -> str:
     """Build the Stage 1 parsing prompt.
 
     Args:
         picks_to_parse: List of (capper_name, message_date, ocr_text, row_id) tuples
         schedule_data: Dict with 'nba', 'cbb', 'nhl' schedule strings
+        source: Source identifier — DISCORD_SOURCE or TELEGRAM_SOURCE.
+                Selects source-specific examples and parsing pattern notes.
 
     Returns:
         The full prompt string
@@ -567,6 +612,24 @@ def build_stage1_prompt(
     picks_section = ""
     for capper, date, ocr_text, row_id in picks_to_parse:
         picks_section += f"\n[ROW:{row_id}] [Capper: {capper}, Date: {date}]\n{ocr_text}\n"
+
+    if source == TELEGRAM_SOURCE:
+        parsing_patterns = _TELEGRAM_PARSING_PATTERNS
+        example_rows = EXAMPLE_PICKS_ROWS_TELEGRAM
+        sport_def = _TELEGRAM_SPORT_DEF
+        filter_rules = _TELEGRAM_FILTER_RULES
+        mlb_schedule_line = f"\nMLB: {schedule_data.get('mlb', 'No schedule — use team names exactly as written')}"
+    else:
+        parsing_patterns = _DISCORD_PARSING_PATTERNS
+        example_rows = EXAMPLE_PICKS_ROWS_DISCORD
+        sport_def = _DISCORD_SPORT_DEF
+        filter_rules = _DISCORD_FILTER_RULES
+        mlb_schedule_line = ""
+
+    examples_block = (
+        f"\nEXAMPLE ROWS (note pick column is always a single FULL team name):\n{example_rows}"
+        if example_rows else ""
+    )
 
     prompt = f"""Parse the following betting picks from OCR text into CSV rows.
 
@@ -576,7 +639,7 @@ date,capper,sport,pick,line,game,spread,result
 COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
-- sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
+- sport: {sport_def}
 - pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
@@ -589,12 +652,8 @@ ROW ATTRIBUTION (CRITICAL):
 - If an OCR block is unreadable or contains no valid picks, output nothing for that row
 - Do NOT hallucinate picks that are not explicitly present in the OCR text
 
-COMMON PARSING PATTERNS (may appear with ANY capper):
-- "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
-- "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
-- Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
-- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
-- "MI" after a team name is a common OCR misread of "ML" — treat it as ML (e.g. "Kentucky MI (-140)" = Kentucky ML, "New Mexico St MI (-140)" = New Mexico St ML). "MI"/"ML" is the bet type, NOT a second team — "Team MI" on one line = one pick.
+SOURCE-SPECIFIC PARSING PATTERNS:
+{parsing_patterns}
 
 ABBREVIATION RESOLUTION (MANDATORY):
 - The pick column MUST contain the FULL official team name from the schedule (e.g., "Oklahoma City Thunder" not "OKC")
@@ -620,22 +679,17 @@ NEVER INVERT PICKS (CRITICAL):
 - ALWAYS record the team that is explicitly named in the OCR text
 
 FILTERING RULES - ONLY INCLUDE:
-- Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
-- Bet types: Spread or Moneyline (ML) ONLY
-- Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets
-
-EXAMPLE ROWS (note pick column is always a single FULL team name):
-{EXAMPLE_PICKS_ROWS}
-
+{filter_rules}
+{examples_block}
 TODAY'S SCHEDULE (use to resolve team name abbreviations):
 NBA: {schedule_data.get("nba", "No games")}
 CBB: {schedule_data.get("cbb", "No games")}
-NHL: {schedule_data.get("nhl", "No games")}
+NHL: {schedule_data.get("nhl", "No games")}{mlb_schedule_line}
 
 PICKS TO PARSE:
 {picks_section}
 
-OUTPUT (CSV rows only, no headers, no explanation):"""
+OUTPUT (one CSV row per line, no headers, no explanation, no blank lines between rows):"""
 
     return prompt
 
@@ -733,9 +787,10 @@ def _is_valid_date(s: str) -> bool:
     return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", s.strip()))
 
 
-def _is_valid_sport(s: str) -> bool:
+def _is_valid_sport(s: str, valid_sports: set | None = None) -> bool:
     """Check if a string is a valid sport code."""
-    return s.strip().upper() in {"NBA", "CBB", "NHL", "NCAAB"}
+    allowed = valid_sports if valid_sports is not None else DISCORD_VALID_SPORTS
+    return s.strip().upper() in allowed
 
 
 def _is_valid_line(s: str) -> bool:
@@ -750,35 +805,64 @@ def _is_valid_line(s: str) -> bool:
     return False
 
 
-def parse_csv_response(response: str) -> List[List[str]]:
+def parse_csv_response(response: str, valid_sports: set = None) -> List[List[str]]:
     """Parse CSV response from Haiku into list of row lists (Stage 1: 8 columns).
 
     Validates that each row has a valid date, sport, and line to filter out
     Claude's chain-of-thought reasoning that sometimes leaks into the output.
+
+    Args:
+        valid_sports: Set of accepted sport codes. Defaults to DISCORD_VALID_SPORTS.
+                      Pass TELEGRAM_VALID_SPORTS (or a custom set) for other sources.
     """
     rows = []
     for line in response.strip().split("\n"):
         line = line.strip()
         if not line or line.startswith("date,"):  # Skip empty or header lines
             continue
-        # Simple CSV parsing (handles basic cases)
-        # Use csv module for more robust parsing
         try:
             reader = csv.reader(io.StringIO(line))
             for row in reader:
-                if len(row) >= 5:  # At least date, capper, sport, pick, line
-                    # Validate key fields to reject Claude reasoning text
-                    # that happens to contain enough commas
-                    if not _is_valid_date(row[0]):
-                        continue
-                    if not _is_valid_sport(row[2]):
-                        continue
-                    if not _is_valid_line(row[4]):
-                        continue
-                    # Pad to 8 columns if needed
-                    while len(row) < 8:
-                        row.append("")
-                    rows.append(row[:8])
+                if len(row) < 5:
+                    continue
+                # Handle packed rows: model sometimes writes multiple rows on one
+                # line. A second row can start as early as position 5 (min fields:
+                # date,capper,sport,pick,line). Scan from position 5 for a date
+                # boundary, then split there.
+                split_at = next(
+                    (i for i in range(5, len(row)) if _is_valid_date(row[i])),
+                    None,
+                )
+                if split_at is not None:
+                    i = 0
+                    while i < len(row):
+                        if not _is_valid_date(row[i]):
+                            i += 1
+                            continue
+                        # Boundary: next valid date at least 5 positions ahead
+                        next_boundary = next(
+                            (j for j in range(i + 5, len(row)) if _is_valid_date(row[j])),
+                            len(row),
+                        )
+                        # Take exactly the fields for this sub-row, pad to 8
+                        sub = [f.strip() for f in row[i:next_boundary]]
+                        while len(sub) < 8:
+                            sub.append("")
+                        sub = sub[:8]
+                        if _is_valid_sport(sub[2], valid_sports) and _is_valid_line(sub[4]):
+                            rows.append(sub)
+                        i = next_boundary
+                    continue
+                # Normal single-row path
+                if not _is_valid_date(row[0]):
+                    continue
+                if not _is_valid_sport(row[2], valid_sports):
+                    continue
+                if not _is_valid_line(row[4]):
+                    continue
+                while len(row) < 8:
+                    row.append("")
+                rows.append(row[:8])
         except Exception:
             continue
     return rows
@@ -982,7 +1066,8 @@ def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
     """Get image_pull rows that need Stage 1 processing.
 
     Returns:
-        List of (row_index, capper_name, message_date, ocr_text) tuples
+        List of (row_index, capper_name, message_date, ocr_text, source) tuples
+        where source is DISCORD_SOURCE or TELEGRAM_SOURCE, derived from col 3.
     """
     all_values = sheets_read(worksheet.get_all_values)
     rows_to_process = []
@@ -1017,8 +1102,11 @@ def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
         message_sent_at = row[1] if len(row) > 1 else ""
         # Extract date from message_sent_at (format: YYYY-MM-DD HH:MM:SS)
         message_date = message_sent_at.split(" ")[0] if message_sent_at else ""
+        # Derive source from image_url col: telegram: prefix → Telegram, else Discord
+        image_ref = row[3] if len(row) > 3 else ""
+        source = TELEGRAM_SOURCE if image_ref.startswith("telegram:") else DISCORD_SOURCE
 
-        rows_to_process.append((i, capper_name, message_date, ocr_text))
+        rows_to_process.append((i, capper_name, message_date, ocr_text, source))
 
     return rows_to_process
 
@@ -1055,94 +1143,109 @@ def run_stage1(spreadsheet, image_pull_ws):
 
     print(f"\n── Stage 1: Parsing {len(rows_to_process)} OCR result(s) ──")
 
-    # Process in batches to keep each prompt focused and prevent hallucination
+    # Process in batches to keep each prompt focused and prevent hallucination.
+    # Rows are grouped by source so each batch uses a single source-specific prompt.
     all_parsed_rows = []
     all_processed_row_idxs = []
 
-    for batch_start in range(0, len(rows_to_process), STAGE_BATCH_SIZE):
-        batch = rows_to_process[batch_start : batch_start + STAGE_BATCH_SIZE]
-        print(f"\nBatch {batch_start // STAGE_BATCH_SIZE + 1}: {len(batch)} row(s)")
+    discord_rows = [r for r in rows_to_process if r[4] == DISCORD_SOURCE]
+    telegram_rows = [r for r in rows_to_process if r[4] == TELEGRAM_SOURCE]
 
-        # Get unique dates in this batch to fetch only relevant schedules
-        message_dates = set()
-        for _, _, date, _ in batch:
-            if date:
-                message_dates.add(date)
+    source_groups = []
+    if discord_rows:
+        source_groups.append((discord_rows, DISCORD_SOURCE))
+    if telegram_rows:
+        source_groups.append((telegram_rows, TELEGRAM_SOURCE))
 
-        print(f"Fetching schedules for dates: {sorted(message_dates)}")
+    batch_num = 0
+    for source_group, source_name in source_groups:
+        for batch_start in range(0, len(source_group), STAGE_BATCH_SIZE):
+            batch = source_group[batch_start : batch_start + STAGE_BATCH_SIZE]
+            batch_num += 1
+            print(f"\nBatch {batch_num} ({source_name}): {len(batch)} row(s)")
 
-        all_nba_games = []
-        all_cbb_games = []
-        all_nhl_games = []
+            # Get unique dates in this batch to fetch only relevant schedules
+            message_dates = set()
+            for _, _, date, _, _ in batch:
+                if date:
+                    message_dates.add(date)
 
-        for msg_date in sorted(message_dates):
-            all_nba_games.extend(
-                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-            )
-            all_cbb_games.extend(
-                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-            )
-            all_nhl_games.extend(
-                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-            )
+            print(f"Fetching schedules for dates: {sorted(message_dates)}")
 
-        schedule_data = {
-            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-        }
+            all_nba_games = []
+            all_cbb_games = []
+            all_nhl_games = []
 
-        # Build picks list with row_id anchoring
-        picks_to_parse = [
-            (capper, date, ocr, row_idx)
-            for row_idx, capper, date, ocr in batch
-        ]
-        # Map (capper, date) -> ocr_text so we can attach it to parsed rows
-        ocr_lookup = {(capper, date): ocr for _, capper, date, ocr in batch}
-
-        prompt = build_stage1_prompt(picks_to_parse, schedule_data)
-        print(f"Calling Sonnet to parse {len(picks_to_parse)} picks...")
-
-        try:
-            response = call_sonnet_text(prompt)
-            parsed_rows = parse_csv_response(response)
-            print(f"Parsed {len(parsed_rows)} pick row(s)")
-            # Attach ocr_text as col 9 keyed by (capper, date).
-            # One image can produce multiple pick rows (one per bet in the image),
-            # so all picks from the same image share the same ocr_text.
-            # The lookup by (capper, date) is reliable because each image comes
-            # from a single capper and carries a single message date.
-            for row in parsed_rows:
-                while len(row) < 8:
-                    row.append("")
-                capper_key = row[1].strip() if len(row) > 1 else ""
-                date_key   = row[0].strip() if len(row) > 0 else ""
-                row.append(ocr_lookup.get((capper_key, date_key), ""))
-            all_parsed_rows.extend(parsed_rows)
-            all_processed_row_idxs.extend([row_idx for row_idx, _, _, _ in batch])
-
-        except Exception as e:
-            print(f"Stage 1 batch failed: {e}")
-            # Mark failed rows
-            all_values = sheets_read(image_pull_ws.get_all_values)
-            cells_to_update = []
-            for row_idx, _, _, _ in batch:
-                current_stage = (
-                    all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
+            for msg_date in sorted(message_dates):
+                all_nba_games.extend(
+                    get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
                 )
-                if current_stage.startswith("parse_failed_attempt_count_"):
-                    try:
-                        count = int(current_stage.split("_")[-1]) + 1
-                    except ValueError:
+                all_cbb_games.extend(
+                    get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
+                )
+                all_nhl_games.extend(
+                    get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
+                )
+
+            schedule_data = {
+                "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
+                "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
+                "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
+            }
+
+            # Build picks list with row_id anchoring
+            picks_to_parse = [
+                (capper, date, ocr, row_idx)
+                for row_idx, capper, date, ocr, _ in batch
+            ]
+            # Map (capper, date) -> ocr_text so we can attach it to parsed rows
+            ocr_lookup = {(capper, date): ocr for _, capper, date, ocr, _ in batch}
+
+            prompt = build_stage1_prompt(picks_to_parse, schedule_data, source=source_name)
+            source_valid_sports = TELEGRAM_VALID_SPORTS if source_name == TELEGRAM_SOURCE else DISCORD_VALID_SPORTS
+            print(f"Calling Sonnet to parse {len(picks_to_parse)} picks...")
+
+            try:
+                response = call_sonnet_text(prompt)
+                parsed_rows = parse_csv_response(response, valid_sports=source_valid_sports)
+                print(f"Parsed {len(parsed_rows)} pick row(s)")
+                # Attach ocr_text (col 8) and source (col 9) to each parsed row.
+                # One image can produce multiple pick rows (one per bet in the image),
+                # so all picks from the same image share the same ocr_text and source.
+                # The lookup by (capper, date) is reliable because each image comes
+                # from a single capper and carries a single message date.
+                for row in parsed_rows:
+                    while len(row) < 8:
+                        row.append("")
+                    capper_key = row[1].strip() if len(row) > 1 else ""
+                    date_key   = row[0].strip() if len(row) > 0 else ""
+                    row.append(ocr_lookup.get((capper_key, date_key), ""))  # col 8: ocr_text
+                    row.append(source_name)                                  # col 9: source
+                all_parsed_rows.extend(parsed_rows)
+                all_processed_row_idxs.extend([row_idx for row_idx, _, _, _, _ in batch])
+
+            except Exception as e:
+                print(f"Stage 1 batch failed: {e}")
+                # Mark failed rows
+                all_values = sheets_read(image_pull_ws.get_all_values)
+                cells_to_update = []
+                for row_idx, _, _, _, _ in batch:
+                    current_stage = (
+                        all_values[row_idx - 1][5] if len(all_values[row_idx - 1]) > 5 else ""
+                    )
+                    if current_stage.startswith("parse_failed_attempt_count_"):
+                        try:
+                            count = int(current_stage.split("_")[-1]) + 1
+                        except ValueError:
+                            count = 1
+                    else:
                         count = 1
-                else:
-                    count = 1
-                cells_to_update.append(
-                    gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
-                )
-            if cells_to_update:
-                sheets_write(image_pull_ws.update_cells, cells_to_update)
-            continue
+                    cells_to_update.append(
+                        gspread.Cell(row_idx, 6, f"parse_failed_attempt_count_{count}")
+                    )
+                if cells_to_update:
+                    sheets_write(image_pull_ws.update_cells, cells_to_update)
+                continue
 
     if all_parsed_rows:
         # Get or create parsed_picks worksheet
@@ -1234,8 +1337,16 @@ def run_stage2(spreadsheet, image_pull_ws,
         capper_resolver = CapperResolver(spreadsheet)
 
     valid_rows = [row for row in data_rows if row]
-    # Preserve ocr_text (col 8) from input rows
+    # Preserve ocr_text (col 8) and source (col 9) from input rows.
+    # Guard: col 9 may contain ocr_text (not a source) for manual-queue rows
+    # written by process_manual_picks_queue — fall back to DISCORD_SOURCE.
+    _valid_sources = {DISCORD_SOURCE, TELEGRAM_SOURCE}
     ocr_texts = [row[8] if len(row) > 8 else "" for row in valid_rows]
+    sources = [
+        (row[9] if row[9] in _valid_sources else DISCORD_SOURCE)
+        if len(row) > 9 else DISCORD_SOURCE
+        for row in valid_rows
+    ]
 
     # Run Python Stage 2 — no Claude API call needed
     all_finalized_rows = finalize_picks_python(
@@ -1291,13 +1402,15 @@ def run_stage2(spreadsheet, image_pull_ws,
             for row in all_finalized_rows:
                 print(f"  Finalized: {row[1]} - {row[5]} | {row[3]} {row[4]}")
 
-        # Tag all rows with source (index 9). Hardcoded "discord_all_in_one" until
-        # Telegram wiring is added in Step 3 of the integration plan.
-        for row in all_finalized_rows:
+        # Tag each row with its source (col 9), read from parsed_picks col 9.
+        for j, row in enumerate(all_finalized_rows):
             while len(row) < 9:
                 row.append("")
+            source = sources[j] if j < len(sources) else DISCORD_SOURCE
             if len(row) < 10:
-                row.append("discord_all_in_one")
+                row.append(source)
+            else:
+                row[9] = source
 
         # Also append to master_sheet (cols 0-7 + source at 9, strip ocr_text).
         # Filter out totals (O/U lines) — master_sheet is sides-only.
@@ -1952,6 +2065,81 @@ def main():
                 print("All images already exist in sheet")
         else:
             print("No new messages with images found since last run")
+
+        # ── Telegram ─────────────────────────────────────────────────────────
+        if telegram_fetcher:
+            print("\n── Fetching Telegram images ──")
+            try:
+                telegram_items = telegram_fetcher.fetch_images_since(last_run)
+            except Exception as e:
+                print(f"Telegram fetch failed: {e}")
+                telegram_items = []
+
+            if telegram_items:
+                print(f"Found {len(telegram_items)} Telegram image(s)")
+                # Fresh read includes any Discord rows just inserted this cycle
+                existing_tg_refs = get_existing_urls(worksheet)
+                tg_to_process = [
+                    item for item in telegram_items
+                    if item["source_ref"] not in existing_tg_refs
+                ]
+                if tg_to_process:
+                    # OCR all new Telegram images (bytes already in memory)
+                    ocr_items = [(item["image_bytes"], item["media_type"]) for item in tg_to_process]
+                    print(f"Running OCR on {len(ocr_items)} Telegram image(s)...")
+                    tg_ocr_results = []
+                    for i in range(0, len(ocr_items), OCR_BATCH_SIZE):
+                        tg_ocr_results.extend(
+                            extract_text_from_bytes_batch(ocr_items[i : i + OCR_BATCH_SIZE])
+                        )
+                    log_activity(
+                        spreadsheet,
+                        "ocr_images",
+                        f"Completed Telegram OCR for {len(ocr_items)} rows",
+                    )
+
+                    tg_rows_to_insert = []
+                    for idx, item in enumerate(tg_to_process):
+                        ocr_text = tg_ocr_results[idx] if idx < len(tg_ocr_results) else ""
+                        print(f"\nTelegram: {item['capper_name']} @ {item['sent_at']} ET")
+                        print(f"Ref: {item['source_ref']}")
+                        print(
+                            f"OCR: {ocr_text[:100]}..."
+                            if len(ocr_text) > 100
+                            else f"OCR: {ocr_text}"
+                        )
+                        tg_rows_to_insert.append(
+                            [
+                                timestamp,
+                                item["sent_at"],
+                                item["capper_name"],
+                                item["source_ref"],
+                                ocr_text,
+                                "",
+                            ]
+                        )
+
+                    if tg_rows_to_insert:
+                        next_row = len(sheets_read(worksheet.get_all_values)) + 1
+                        end_row = next_row + len(tg_rows_to_insert) - 1
+                        if end_row > worksheet.row_count:
+                            sheets_write(worksheet.resize, rows=end_row + 100)
+                        sheets_write(
+                            worksheet.update,
+                            range_name=f"A{next_row}:F{end_row}",
+                            values=tg_rows_to_insert,
+                            value_input_option="USER_ENTERED",
+                        )
+                        print(f"\n✅ Inserted {len(tg_rows_to_insert)} Telegram rows to sheet")
+                    log_activity(
+                        spreadsheet,
+                        "query_telegram",
+                        f"Processed {len(tg_rows_to_insert)} Telegram images",
+                    )
+                else:
+                    print("All Telegram images already in sheet")
+            else:
+                print("No new Telegram images since last run")
 
         # Update the last run timestamp
         update_last_run_timestamp(worksheet, now_utc)
