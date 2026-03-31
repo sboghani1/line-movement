@@ -2,3 +2,4 @@ ascebog.github.txt
 .env
 __pycache__/
 .claude/
+backtest_data/
