@@ -14005,3 +14005,9 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-03-31,travy,NBA,Phoenix Suns,4.5,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,,discord_all_in_one
 2026-03-31,ydc,NHL,Buffalo Sabres,ML,New York Islanders @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
 2026-03-31,ydc,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,,discord_all_in_one
+2026-03-31,analytics_capper,NBA,Orlando Magic,-1.5,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
+2026-03-31,analytics_capper,NBA,Houston Rockets,1.5,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
+2026-03-31,analytics_capper,NBA,Cleveland Cavaliers,1.5,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
+2026-03-31,analytics_capper,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
+2026-03-31,lear_locks,NBA,Houston Rockets,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
+2026-03-31,sean_perry_wins,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
