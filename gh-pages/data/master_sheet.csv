@@ -13967,63 +13967,65 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-03-30,cesar,NBA,Dallas Mavericks,9,Minnesota Timberwolves @ Dallas Mavericks,Minnesota Timberwolves -8.5,lose,discord_all_in_one
 2026-03-31,bet_labs,NBA,Los Angeles Lakers,-2,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -2.5,,discord_all_in_one
 2026-03-31,cash_it_baby,NBA,Toronto Raptors,2.5,Toronto Raptors @ Detroit Pistons,Detroit Pistons -2.5,,discord_all_in_one
-2026-03-31,cash_it_baby,NHL,Philadelphia Flyers,ML,Philadelphia Flyers @ Washington Capitals,Washington Capitals -1.5,,discord_all_in_one
-2026-03-31,dormroom_degenerates,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -1.5,,discord_all_in_one
-2026-03-31,dormroom_degenerates,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
-2026-03-31,prop_joe,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
+2026-03-31,cash_it_baby,NHL,Philadelphia Flyers,ML,Philadelphia Flyers @ Washington Capitals,Washington Capitals -1.5,lose,discord_all_in_one
+2026-03-31,dormroom_degenerates,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -1.5,lose,discord_all_in_one
+2026-03-31,dormroom_degenerates,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,lose,discord_all_in_one
+2026-03-31,prop_joe,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,lose,discord_all_in_one
 2026-03-31,prop_joe,NBA,Los Angeles Lakers,-1.5,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -2.5,,discord_all_in_one
-2026-03-31,tail_to_win,NBA,Phoenix Suns,2.5,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,,discord_all_in_one
-2026-03-31,tail_to_win,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
-2026-03-31,this_girl_betz,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,,discord_all_in_one
-2026-03-31,this_girl_betz,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -1.5,,discord_all_in_one
+2026-03-31,tail_to_win,NBA,Phoenix Suns,2.5,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,lose,discord_all_in_one
+2026-03-31,tail_to_win,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,lose,discord_all_in_one
+2026-03-31,this_girl_betz,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,win,discord_all_in_one
+2026-03-31,this_girl_betz,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -1.5,lose,discord_all_in_one
 2026-03-31,this_girl_betz,NBA,Los Angeles Lakers,ML,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -2.5,,discord_all_in_one
-2026-03-31,this_girl_betz,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
-2026-03-31,this_girl_betz,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-03-31,a11_bets,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
+2026-03-31,this_girl_betz,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,lose,discord_all_in_one
+2026-03-31,this_girl_betz,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-03-31,a11_bets,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,win,discord_all_in_one
 2026-03-31,a11_bets,NBA,Portland Trail Blazers,5.5,Portland Trail Blazers @ LA Clippers,LA Clippers -5.5,,discord_all_in_one
 2026-03-31,betting_with_bush,CBB,Michigan Wolverines,ML,team_not_found,,,discord_all_in_one
-2026-03-31,bullies_picks,NHL,Ottawa Senators,ML,Ottawa Senators @ Florida Panthers,Ottawa Senators -1.5,,discord_all_in_one
+2026-03-31,bullies_picks,NHL,Ottawa Senators,ML,Ottawa Senators @ Florida Panthers,Ottawa Senators -1.5,lose,discord_all_in_one
 2026-03-31,dommy_locked,CBB,UConn Huskies,2.5,team_not_found,,,discord_all_in_one
-2026-03-31,matt_severance,NHL,Buffalo Sabres,-1,New York Islanders @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-31,parlay_safari,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
-2026-03-31,parlay_safari,NHL,New York Rangers,ML,New Jersey Devils @ New York Rangers,New Jersey Devils -1.5,,discord_all_in_one
+2026-03-31,matt_severance,NHL,Buffalo Sabres,-1,New York Islanders @ Buffalo Sabres,Buffalo Sabres -1.5,push,discord_all_in_one
+2026-03-31,parlay_safari,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,lose,discord_all_in_one
+2026-03-31,parlay_safari,NHL,New York Rangers,ML,New Jersey Devils @ New York Rangers,New Jersey Devils -1.5,win,discord_all_in_one
 2026-03-31,the_gambling_gawd,NBA,Los Angeles Lakers,ML,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -2.5,,discord_all_in_one
-2026-03-31,bankroll_bill,NHL,Dallas Stars,ML,Dallas Stars @ Boston Bruins,Dallas Stars -1.5,,discord_all_in_one
-2026-03-31,bankroll_bill,NHL,New York Rangers,ML,New Jersey Devils @ New York Rangers,New Jersey Devils -1.5,,discord_all_in_one
-2026-03-31,brandon_the_profit,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
+2026-03-31,bankroll_bill,NHL,Dallas Stars,ML,Dallas Stars @ Boston Bruins,Dallas Stars -1.5,lose,discord_all_in_one
+2026-03-31,bankroll_bill,NHL,New York Rangers,ML,New Jersey Devils @ New York Rangers,New Jersey Devils -1.5,win,discord_all_in_one
+2026-03-31,brandon_the_profit,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,lose,discord_all_in_one
 2026-03-31,brandon_the_profit,NBA,Toronto Raptors,4,Toronto Raptors @ Detroit Pistons,Detroit Pistons -3.5,,discord_all_in_one
-2026-03-31,dirty_bubble_bets,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
-2026-03-31,hammering_hank,NHL,Dallas Stars,ML,Dallas Stars @ Boston Bruins,Dallas Stars -1.5,,discord_all_in_one
+2026-03-31,dirty_bubble_bets,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,lose,discord_all_in_one
+2026-03-31,hammering_hank,NHL,Dallas Stars,ML,Dallas Stars @ Boston Bruins,Dallas Stars -1.5,lose,discord_all_in_one
 2026-03-31,hammering_hank,NBA,Cleveland Cavaliers,2.5,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,hammering_hank,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,,discord_all_in_one
-2026-03-31,out_of_line_bets,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
+2026-03-31,hammering_hank,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,win,discord_all_in_one
+2026-03-31,out_of_line_bets,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,lose,discord_all_in_one
 2026-03-31,mr_big_bets,NBA,Los Angeles Lakers,ML,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,porter_picks,NBA,Charlotte Hornets,-17.5,Charlotte Hornets @ Brooklyn Nets,Charlotte Hornets -17.5,,discord_all_in_one
+2026-03-31,porter_picks,NBA,Charlotte Hornets,-17.5,Charlotte Hornets @ Brooklyn Nets,Charlotte Hornets -17.5,win,discord_all_in_one
 2026-03-31,smart_money_sports,NBA,Cleveland Cavaliers,ML,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
 2026-03-31,the_pick_don,NBA,Cleveland Cavaliers,2.5,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,the_sharp_sheets,NBA,New York Knicks,-1,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
-2026-03-31,travy,NBA,Phoenix Suns,4.5,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,,discord_all_in_one
-2026-03-31,ydc,NHL,Buffalo Sabres,ML,New York Islanders @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
-2026-03-31,ydc,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-03-31,analytics_capper,NBA,Orlando Magic,-1.5,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
-2026-03-31,analytics_capper,NBA,Houston Rockets,1.5,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
+2026-03-31,the_sharp_sheets,NBA,New York Knicks,-1,New York Knicks @ Houston Rockets,New York Knicks -1.5,lose,discord_all_in_one
+2026-03-31,travy,NBA,Phoenix Suns,4.5,Phoenix Suns @ Orlando Magic,Orlando Magic -1.5,win,discord_all_in_one
+2026-03-31,ydc,NHL,Buffalo Sabres,ML,New York Islanders @ Buffalo Sabres,Buffalo Sabres -1.5,win,discord_all_in_one
+2026-03-31,ydc,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-03-31,analytics_capper,NBA,Orlando Magic,-1.5,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,win,discord_all_in_one
+2026-03-31,analytics_capper,NBA,Houston Rockets,1.5,New York Knicks @ Houston Rockets,New York Knicks -1.5,win,discord_all_in_one
 2026-03-31,analytics_capper,NBA,Cleveland Cavaliers,1.5,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,analytics_capper,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
-2026-03-31,lear_locks,NBA,Houston Rockets,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
-2026-03-31,sean_perry_wins,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
-2026-03-31,anon,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
-2026-03-31,bankroll_bill,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -2.5,,discord_all_in_one
+2026-03-31,analytics_capper,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,lose,discord_all_in_one
+2026-03-31,lear_locks,NBA,Houston Rockets,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,win,discord_all_in_one
+2026-03-31,sean_perry_wins,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,win,discord_all_in_one
+2026-03-31,anon,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,win,discord_all_in_one
+2026-03-31,bankroll_bill,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -2.5,lose,discord_all_in_one
 2026-03-31,beezo_wins,NBA,LA Clippers,-5.5,Portland Trail Blazers @ LA Clippers,LA Clippers -5.5,,discord_all_in_one
 2026-03-31,beezo_wins,NBA,Toronto Raptors,2.5,Toronto Raptors @ Detroit Pistons,Detroit Pistons -3.5,,discord_all_in_one
-2026-03-31,beezo_wins,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,,discord_all_in_one
+2026-03-31,beezo_wins,NBA,Orlando Magic,ML,Phoenix Suns @ Orlando Magic,Orlando Magic -2.5,win,discord_all_in_one
 2026-03-31,beezo_wins,NBA,Cleveland Cavaliers,ML,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,beezo_wins,NHL,Tampa Bay Lightning,ML,Montreal Canadiens @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,,discord_all_in_one
-2026-03-31,beezo_wins,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-03-31,beezo_wins,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,,discord_all_in_one
-2026-03-31,hammering_hank,NBA,Charlotte Hornets,-17.5,Charlotte Hornets @ Brooklyn Nets,Charlotte Hornets -17.5,,discord_all_in_one
+2026-03-31,beezo_wins,NHL,Tampa Bay Lightning,ML,Montreal Canadiens @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,lose,discord_all_in_one
+2026-03-31,beezo_wins,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Columbus Blue Jackets,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-03-31,beezo_wins,NHL,Detroit Red Wings,ML,Detroit Red Wings @ Pittsburgh Penguins,Detroit Red Wings -1.5,lose,discord_all_in_one
+2026-03-31,hammering_hank,NBA,Charlotte Hornets,-17.5,Charlotte Hornets @ Brooklyn Nets,Charlotte Hornets -17.5,win,discord_all_in_one
 2026-03-31,capper_not_found,NBA,Cleveland Cavaliers,4,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
 2026-03-31,tb_sports_betting,NBA,Los Angeles Lakers,-1.5,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,tcc,NBA,Houston Rockets,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,,discord_all_in_one
+2026-03-31,tcc,NBA,Houston Rockets,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,win,discord_all_in_one
 2026-03-31,vinny,NBA,Toronto Raptors,2.5,Toronto Raptors @ Detroit Pistons,Detroit Pistons -3.5,,discord_all_in_one
 2026-03-31,vinny,NBA,Los Angeles Lakers,ML,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -1.5,,discord_all_in_one
-2026-03-31,pardon_my_pick,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -2.5,,discord_all_in_one
+2026-03-31,pardon_my_pick,NBA,Dallas Mavericks,ML,Dallas Mavericks @ Milwaukee Bucks,Dallas Mavericks -2.5,lose,discord_all_in_one
+2026-03-31,cesar,NBA,Cleveland Cavaliers,4,Cleveland Cavaliers @ Los Angeles Lakers,Los Angeles Lakers -2.5,,discord_all_in_one
+2026-03-31,hammering_hank,NBA,New York Knicks,ML,New York Knicks @ Houston Rockets,New York Knicks -1.5,lose,discord_all_in_one
