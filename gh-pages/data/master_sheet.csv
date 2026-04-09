@@ -14723,3 +14723,9 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-04-09,capper_not_found,NBA,New York Knicks,-3.5,Boston Celtics @ New York Knicks,New York Knicks -4.5,,discord_all_in_one
 2026-04-09,sharp_investments,NBA,Golden State Warriors,-2.5,Los Angeles Lakers @ Golden State Warriors,Golden State Warriors -2.5,,discord_all_in_one
 2026-04-09,sharp_investments,NBA,Toronto Raptors,-3.5,Miami Heat @ Toronto Raptors,Toronto Raptors -3.5,,discord_all_in_one
+2026-04-09,glitch,NHL,Buffalo Sabres,ML,Columbus Blue Jackets @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
+2026-04-09,random_other_cappers,NBA,New York Knicks,ML,Boston Celtics @ New York Knicks,New York Knicks -3.5,,discord_all_in_one
+2026-04-09,random_other_cappers,NBA,Los Angeles Lakers,3.5,Los Angeles Lakers @ Golden State Warriors,Golden State Warriors -2.5,,discord_all_in_one
+2026-04-09,random_other_cappers,NBA,Toronto Raptors,ML,Miami Heat @ Toronto Raptors,Toronto Raptors -3.5,,discord_all_in_one
+2026-04-09,random_other_cappers,NHL,New York Islanders,ML,Toronto Maple Leafs @ New York Islanders,New York Islanders -1.5,,discord_all_in_one
+2026-04-09,random_other_cappers,NHL,New Jersey Devils,ML,Pittsburgh Penguins @ New Jersey Devils,Pittsburgh Penguins -1.5,,discord_all_in_one
