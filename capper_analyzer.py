@@ -29,8 +29,8 @@ from PIL import Image
 from activity_logger import log_activity
 from git_utils import git_push_csv
 from sheets_utils import (
-    GOOGLE_SHEET_ID, get_gspread_client, sheets_read, sheets_write,
-    get_schedule_for_date,
+    GOOGLE_SHEET_ID, SPORT_TO_SCHED, get_gspread_client, sheets_read,
+    sheets_write, get_schedule_for_date,
 )
 import daily_audit
 import populate_results
@@ -57,9 +57,6 @@ PARSED_PICKS_SHEET = "parsed_picks"
 PARSED_PICKS_NEW_SHEET = "parsed_picks_new"
 FINALIZED_PICKS_SHEET = "finalized_picks"
 MASTER_SHEET = "master_sheet"
-NBA_SCHEDULE_SHEET = "nba_schedule"
-CBB_SCHEDULE_SHEET = "cbb_schedule"
-NHL_SCHEDULE_SHEET = "nhl_schedule"
 MANUAL_PICKS_QUEUE_SHEET = "manual_picks_queue"
 
 # CSV columns for picks
@@ -146,7 +143,8 @@ EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
 2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,,
-2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,"""
+2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,
+2026-04-10,BASEBALL EXPERT,MLB,New York Yankees,+1.5,Boston Red Sox @ New York Yankees,,"""
 
 # Stage 2 examples: input (capper,sport,pick,line) → output (capper,pick,game)
 # Claude only resolves abbreviations, normalizes capper names, and fills game column.
@@ -156,7 +154,8 @@ A11 BETS,NBA,LAC,ML
 ANALYTICS CAPPER,NHL,PHI,ML
 PORTER PICKS,CBB,Alabama,-8
 HAMMERING HANK,NBA,BKN,+8.5
-HAMMERING HANK,CBB,Florida,-8.5"""
+HAMMERING HANK,CBB,Florida,-8.5
+BASEBALL EXPERT,MLB,NYY,+1.5"""
 
 STAGE2_EXAMPLE_OUTPUT = """BEEZO WINS,Iowa State Cyclones,Iowa State Cyclones vs Kansas State Wildcats
 DARTH FADER,LA Clippers,LA Clippers @ Phoenix Suns
@@ -164,7 +163,8 @@ A11 BETS,LA Clippers,LA Clippers @ Phoenix Suns
 ANALYTICS CAPPER,Philadelphia Flyers,Washington Capitals @ Philadelphia Flyers
 PORTER PICKS,Alabama Crimson Tide,Alabama Crimson Tide vs Texas A&M Aggies
 HAMMERING HANK,Brooklyn Nets,Los Angeles Lakers @ Brooklyn Nets
-HAMMERING HANK,Florida Gators,Florida Gators vs Alabama Crimson Tide"""
+HAMMERING HANK,Florida Gators,Florida Gators vs Alabama Crimson Tide
+BASEBALL EXPERT,New York Yankees,Boston Red Sox @ New York Yankees"""
 
 
 # ── Google Sheets Setup ──────────────────────────────────────────────────────
@@ -265,6 +265,20 @@ def format_schedule_for_prompt(games: List[dict], sport: str) -> str:
 
     lines = [f"{g['away_team']} @ {g['home_team']}" for g in games]
     return "\n".join(lines)
+
+
+def fetch_schedule_data(spreadsheet, message_dates):
+    """Fetch schedule data for all sports and dates, formatted for prompts."""
+    all_games = {sport: [] for sport in SPORT_TO_SCHED}
+    for msg_date in sorted(message_dates):
+        for sport, sheet_name in SPORT_TO_SCHED.items():
+            all_games[sport].extend(
+                get_schedule_for_date(spreadsheet, sheet_name, msg_date)
+            )
+    return {
+        sport: format_schedule_for_prompt(games, sport.upper())
+        for sport, games in all_games.items()
+    }
 
 
 def lookup_spread_from_schedule(
@@ -576,7 +590,7 @@ date,capper,sport,pick,line,game,spread,result
 COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
-- sport: NBA, CBB, or NHL only. Normalize NCAAB to CBB.
+- sport: NBA, CBB, NHL, or MLB only. Normalize NCAAB to CBB.
 - pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
@@ -620,7 +634,7 @@ NEVER INVERT PICKS (CRITICAL):
 - ALWAYS record the team that is explicitly named in the OCR text
 
 FILTERING RULES - ONLY INCLUDE:
-- Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
+- Sports: NBA, NHL, CBB (college basketball), MLB ONLY. Skip ATP, NFL, soccer, etc.
 - Bet types: Spread or Moneyline (ML) ONLY
 - Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets
 
@@ -631,6 +645,7 @@ TODAY'S SCHEDULE (use to resolve team name abbreviations):
 NBA: {schedule_data.get("nba", "No games")}
 CBB: {schedule_data.get("cbb", "No games")}
 NHL: {schedule_data.get("nhl", "No games")}
+MLB: {schedule_data.get("mlb", "No games")}
 
 PICKS TO PARSE:
 {picks_section}
@@ -713,6 +728,9 @@ NHL SCHEDULE:
 CBB SCHEDULE:
 {schedule_data.get("cbb", "No games")}
 
+MLB SCHEDULE:
+{schedule_data.get("mlb", "No games")}
+
 EXAMPLE INPUT:
 {STAGE2_EXAMPLE_INPUT}
 
@@ -735,7 +753,7 @@ def _is_valid_date(s: str) -> bool:
 
 def _is_valid_sport(s: str) -> bool:
     """Check if a string is a valid sport code."""
-    return s.strip().upper() in {"NBA", "CBB", "NHL", "NCAAB"}
+    return s.strip().upper() in {"NBA", "CBB", "NHL", "NCAAB", "MLB"}
 
 
 def _is_valid_line(s: str) -> bool:
@@ -1070,27 +1088,7 @@ def run_stage1(spreadsheet, image_pull_ws):
                 message_dates.add(date)
 
         print(f"Fetching schedules for dates: {sorted(message_dates)}")
-
-        all_nba_games = []
-        all_cbb_games = []
-        all_nhl_games = []
-
-        for msg_date in sorted(message_dates):
-            all_nba_games.extend(
-                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-            )
-            all_cbb_games.extend(
-                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-            )
-            all_nhl_games.extend(
-                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-            )
-
-        schedule_data = {
-            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-        }
+        schedule_data = fetch_schedule_data(spreadsheet, message_dates)
 
         # Build picks list with row_id anchoring
         picks_to_parse = [
@@ -1557,27 +1555,7 @@ def process_manual_picks_queue(spreadsheet):
     # Get unique dates for schedule
     message_dates = set(date for _, date, _ in picks_to_parse)
     print(f"Fetching schedules for dates: {sorted(message_dates)}")
-
-    all_nba_games = []
-    all_cbb_games = []
-    all_nhl_games = []
-
-    for msg_date in sorted(message_dates):
-        all_nba_games.extend(
-            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-        )
-        all_cbb_games.extend(
-            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-        )
-        all_nhl_games.extend(
-            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-        )
-
-    schedule_data = {
-        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-    }
+    schedule_data = fetch_schedule_data(spreadsheet, message_dates)
 
     all_manual_parsed_rows = []
     for batch_start in range(0, len(picks_to_parse), STAGE_BATCH_SIZE):
