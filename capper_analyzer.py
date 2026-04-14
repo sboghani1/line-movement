@@ -40,6 +40,7 @@ from team_resolver import TeamResolver
 from capper_resolver import CapperResolver
 from pick_parser import (
     PICKS_COLUMNS,
+    CLAUDE_USAGE,
     get_claude_cost,
     log_claude_usage,
     call_sonnet_text,
