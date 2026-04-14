@@ -49,10 +49,28 @@ PICKS_COLUMNS = [
     "source",   # index 9 — "discord_all_in_one" or "telegram_cappers_free"
 ]
 
+# ── Source identifier ─────────────────────────────────────────────────────────
+DISCORD_SOURCE = "discord_all_in_one"
+
+# ── Discord prompt configuration ─────────────────────────────────────────────
+DISCORD_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB", "MLB"}
+
+_DISCORD_SPORT_DEF = "NBA, CBB, NHL, or MLB only. Normalize NCAAB to CBB."
+
+_DISCORD_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball), MLB ONLY. Skip ATP, NFL, soccer, etc.
+- Bet types: Spread or Moneyline (ML) ONLY
+- Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets"""
+
+_DISCORD_PARSING_PATTERNS = """- "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
+- "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
+- Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
+- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
+- "MI" after a team name is a common OCR misread of "ML" — treat it as ML (e.g. "Kentucky MI (-140)" = Kentucky ML, "New Mexico St MI (-140)" = New Mexico St ML). "MI"/"ML" is the bet type, NOT a second team — "Team MI" on one line = one pick."""
+
 # ── Prompt examples ──────────────────────────────────────────────────────────
 # Example rows for prompts (spread and ML per sport - NO totals)
 # Includes examples for tricky formats: Porter Picks "O opponent" and Analytics Capper "v opponent"
-EXAMPLE_PICKS_ROWS = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,,
+EXAMPLE_PICKS_ROWS_DISCORD = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-11.5,Iowa State Cyclones vs Kansas State Wildcats,,
 2026-02-01,DARTH FADER,NBA,LA Clippers,+2,LA Clippers @ Phoenix Suns,,
 2026-02-01,A11 BETS,NBA,LA Clippers,ML,LA Clippers @ Phoenix Suns,,
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
@@ -124,7 +142,7 @@ date,capper,sport,pick,line,game,spread,result
 COLUMN DEFINITIONS:
 - date: YYYY-MM-DD format (use the message date provided with each pick)
 - capper: Name of the person making the pick (provided with each pick)
-- sport: NBA, CBB, NHL, or MLB only. Normalize NCAAB to CBB.
+- sport: {_DISCORD_SPORT_DEF}
 - pick: A SINGLE team name (the team being bet on). NEVER use "Team A @ Team B" format. Use the schedule to resolve abbreviations (e.g., "TROY -6.5" means bet on "Troy Trojans").
 - line: ONLY the spread number or "ML". Strip all extra text (odds, units, opponent names).
 - game: Leave empty for now
@@ -138,11 +156,7 @@ ROW ATTRIBUTION (CRITICAL):
 - Do NOT hallucinate picks that are not explicitly present in the OCR text
 
 COMMON PARSING PATTERNS (may appear with ANY capper):
-- "-8 O Texas A&M 6-UNITS" format: The "O" means "over" (against opponent), NOT an over/under total. Extract ONLY the spread: line="-8"
-- "ML -130 v Capitals 5u POTD" format: Extra text after bet type. Extract ONLY: line="ML". Ignore odds (-130), opponent references (v Capitals), and unit sizes (5u).
-- Any "v ", "v.", or "vs" followed by a team name is context to ignore, not part of the line.
-- NHL "3-way", "3way", "3-way ML", "3way moneyline", "3 way ml" = regulation win bet — treat as line=ML. This is NOT a parlay.
-- "MI" after a team name is a common OCR misread of "ML" — treat it as ML (e.g. "Kentucky MI (-140)" = Kentucky ML, "New Mexico St MI (-140)" = New Mexico St ML). "MI"/"ML" is the bet type, NOT a second team — "Team MI" on one line = one pick.
+{_DISCORD_PARSING_PATTERNS}
 
 ABBREVIATION RESOLUTION (MANDATORY):
 - The pick column MUST contain the FULL official team name from the schedule (e.g., "Oklahoma City Thunder" not "OKC")
@@ -168,12 +182,10 @@ NEVER INVERT PICKS (CRITICAL):
 - ALWAYS record the team that is explicitly named in the OCR text
 
 FILTERING RULES - ONLY INCLUDE:
-- Sports: NBA, NHL, CBB (college basketball), MLB ONLY. Skip ATP, NFL, soccer, etc.
-- Bet types: Spread or Moneyline (ML) ONLY
-- Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets
+{_DISCORD_FILTER_RULES}
 
 EXAMPLE ROWS (note pick column is always a single FULL team name):
-{EXAMPLE_PICKS_ROWS}
+{EXAMPLE_PICKS_ROWS_DISCORD}
 
 TODAY'S SCHEDULE (use to resolve team name abbreviations):
 NBA: {schedule_data.get("nba", "No games")}
@@ -283,8 +295,9 @@ def _is_valid_date(s: str) -> bool:
     return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", s.strip()))
 
 
-def _is_valid_sport(s: str) -> bool:
-    return s.strip().upper() in {"NBA", "CBB", "NHL", "NCAAB", "MLB"}
+def _is_valid_sport(s: str, valid_sports: set | None = None) -> bool:
+    allowed = valid_sports if valid_sports is not None else DISCORD_VALID_SPORTS
+    return s.strip().upper() in allowed
 
 
 def _is_valid_line(s: str) -> bool:
@@ -294,11 +307,13 @@ def _is_valid_line(s: str) -> bool:
     return bool(re.match(r"^[+-]?\d+(\.\d+)?$", val))
 
 
-def parse_csv_response(response: str) -> List[List[str]]:
+def parse_csv_response(response: str, valid_sports: set | None = None) -> List[List[str]]:
     """Parse Stage 1 CSV response into list of 8-column row lists.
 
-    Validates date/sport/line to filter out any reasoning text that leaks
-    into the output.
+    Validates date/sport/line to filter out reasoning text that leaks into output.
+
+    Args:
+        valid_sports: Accepted sport codes. Defaults to DISCORD_VALID_SPORTS.
     """
     rows = []
     for line in response.strip().split("\n"):
@@ -310,7 +325,7 @@ def parse_csv_response(response: str) -> List[List[str]]:
                 if len(row) >= 5:
                     if not _is_valid_date(row[0]):
                         continue
-                    if not _is_valid_sport(row[2]):
+                    if not _is_valid_sport(row[2], valid_sports):
                         continue
                     if not _is_valid_line(row[4]):
                         continue
