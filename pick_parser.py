@@ -53,11 +53,11 @@ PICKS_COLUMNS = [
 DISCORD_SOURCE = "discord_all_in_one"
 
 # ── Discord prompt configuration ─────────────────────────────────────────────
-DISCORD_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB"}
+DISCORD_VALID_SPORTS = {"NBA", "CBB", "NHL", "NCAAB", "MLB"}
 
-_DISCORD_SPORT_DEF = "NBA, CBB, or NHL only. Normalize NCAAB to CBB."
+_DISCORD_SPORT_DEF = "NBA, CBB, NHL, or MLB only. Normalize NCAAB to CBB."
 
-_DISCORD_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball) ONLY. Skip ATP, NFL, soccer, etc.
+_DISCORD_FILTER_RULES = """- Sports: NBA, NHL, CBB (college basketball), MLB ONLY. Skip ATP, NFL, soccer, etc.
 - Bet types: Spread or Moneyline (ML) ONLY
 - Skip: Totals (O/U), player props, team totals, first half bets, quarter bets, parlays, live bets"""
 
@@ -76,7 +76,8 @@ EXAMPLE_PICKS_ROWS_DISCORD = """2026-02-01,BEEZO WINS,CBB,Iowa State Cyclones,-1
 2026-02-03,ANALYTICS CAPPER,NHL,Philadelphia Flyers,ML,Washington Capitals @ Philadelphia Flyers,,
 2026-02-04,PORTER PICKS,CBB,Alabama Crimson Tide,-8,Alabama Crimson Tide vs Texas A&M Aggies,,
 2026-02-03,HAMMERING HANK,NBA,Brooklyn Nets,+8.5,Los Angeles Lakers @ Brooklyn Nets,,
-2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,"""
+2026-02-01,HAMMERING HANK,CBB,Florida Gators,-8.5,Florida Gators vs Alabama Crimson Tide,,
+2026-04-10,BASEBALL EXPERT,MLB,New York Yankees,+1.5,Boston Red Sox @ New York Yankees,,"""
 
 # Stage 2 examples: input (capper,sport,pick,line) → output (capper,pick,game)
 # Claude only resolves abbreviations, normalizes capper names, and fills game column.
@@ -86,7 +87,8 @@ A11 BETS,NBA,LAC,ML
 ANALYTICS CAPPER,NHL,PHI,ML
 PORTER PICKS,CBB,Alabama,-8
 HAMMERING HANK,NBA,BKN,+8.5
-HAMMERING HANK,CBB,Florida,-8.5"""
+HAMMERING HANK,CBB,Florida,-8.5
+BASEBALL EXPERT,MLB,NYY,+1.5"""
 
 STAGE2_EXAMPLE_OUTPUT = """BEEZO WINS,Iowa State Cyclones,Iowa State Cyclones vs Kansas State Wildcats
 DARTH FADER,LA Clippers,LA Clippers @ Phoenix Suns
@@ -94,7 +96,8 @@ A11 BETS,LA Clippers,LA Clippers @ Phoenix Suns
 ANALYTICS CAPPER,Philadelphia Flyers,Washington Capitals @ Philadelphia Flyers
 PORTER PICKS,Alabama Crimson Tide,Alabama Crimson Tide vs Texas A&M Aggies
 HAMMERING HANK,Brooklyn Nets,Los Angeles Lakers @ Brooklyn Nets
-HAMMERING HANK,Florida Gators,Florida Gators vs Alabama Crimson Tide"""
+HAMMERING HANK,Florida Gators,Florida Gators vs Alabama Crimson Tide
+BASEBALL EXPERT,New York Yankees,Boston Red Sox @ New York Yankees"""
 
 
 # ── Claude API call ──────────────────────────────────────────────────────────
@@ -188,6 +191,7 @@ TODAY'S SCHEDULE (use to resolve team name abbreviations):
 NBA: {schedule_data.get("nba", "No games")}
 CBB: {schedule_data.get("cbb", "No games")}
 NHL: {schedule_data.get("nhl", "No games")}
+MLB: {schedule_data.get("mlb", "No games")}
 
 PICKS TO PARSE:
 {picks_section}
@@ -268,6 +272,9 @@ NHL SCHEDULE:
 
 CBB SCHEDULE:
 {schedule_data.get("cbb", "No games")}
+
+MLB SCHEDULE:
+{schedule_data.get("mlb", "No games")}
 
 EXAMPLE INPUT:
 {STAGE2_EXAMPLE_INPUT}

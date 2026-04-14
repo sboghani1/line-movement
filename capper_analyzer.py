@@ -29,8 +29,8 @@ from PIL import Image
 from activity_logger import log_activity
 from git_utils import git_push_csv
 from sheets_utils import (
-    GOOGLE_SHEET_ID, get_gspread_client, sheets_read, sheets_write,
-    get_schedule_for_date,
+    GOOGLE_SHEET_ID, SPORT_TO_SCHED, get_gspread_client, sheets_read,
+    sheets_write, get_schedule_for_date,
 )
 import daily_audit
 import populate_results
@@ -72,9 +72,6 @@ PARSED_PICKS_SHEET = "parsed_picks"
 PARSED_PICKS_NEW_SHEET = "parsed_picks_new"
 FINALIZED_PICKS_SHEET = "finalized_picks"
 MASTER_SHEET = "master_sheet"
-NBA_SCHEDULE_SHEET = "nba_schedule"
-CBB_SCHEDULE_SHEET = "cbb_schedule"
-NHL_SCHEDULE_SHEET = "nhl_schedule"
 MANUAL_PICKS_QUEUE_SHEET = "manual_picks_queue"
 
 # Maximum number of messages to process per run
@@ -217,6 +214,19 @@ def format_schedule_for_prompt(games: List[dict], sport: str) -> str:
     lines = [f"{g['away_team']} @ {g['home_team']}" for g in games]
     return "\n".join(lines)
 
+
+def fetch_schedule_data(spreadsheet, message_dates):
+    """Fetch schedule data for all sports and dates, formatted for prompts."""
+    all_games = {sport: [] for sport in SPORT_TO_SCHED}
+    for msg_date in sorted(message_dates):
+        for sport, sheet_name in SPORT_TO_SCHED.items():
+            all_games[sport].extend(
+                get_schedule_for_date(spreadsheet, sheet_name, msg_date)
+            )
+    return {
+        sport: format_schedule_for_prompt(games, sport.upper())
+        for sport, games in all_games.items()
+    }
 
 
 
@@ -407,6 +417,8 @@ def extract_text_from_images_batch(image_urls: List[str]) -> List[str]:
     return _run_ocr_api(image_contents, processed_count, len(image_urls), skipped_indices)
 
 
+
+
 def get_rows_needing_stage1(worksheet) -> List[Tuple[int, str, str, str]]:
     """Get image_pull rows that need Stage 1 processing.
 
@@ -499,27 +511,7 @@ def run_stage1(spreadsheet, image_pull_ws):
                 message_dates.add(date)
 
         print(f"Fetching schedules for dates: {sorted(message_dates)}")
-
-        all_nba_games = []
-        all_cbb_games = []
-        all_nhl_games = []
-
-        for msg_date in sorted(message_dates):
-            all_nba_games.extend(
-                get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-            )
-            all_cbb_games.extend(
-                get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-            )
-            all_nhl_games.extend(
-                get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-            )
-
-        schedule_data = {
-            "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-            "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-            "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-        }
+        schedule_data = fetch_schedule_data(spreadsheet, message_dates)
 
         # Build picks list with row_id anchoring
         picks_to_parse = [
@@ -983,27 +975,7 @@ def process_manual_picks_queue(spreadsheet):
     # Get unique dates for schedule
     message_dates = set(date for _, date, _ in picks_to_parse)
     print(f"Fetching schedules for dates: {sorted(message_dates)}")
-
-    all_nba_games = []
-    all_cbb_games = []
-    all_nhl_games = []
-
-    for msg_date in sorted(message_dates):
-        all_nba_games.extend(
-            get_schedule_for_date(spreadsheet, NBA_SCHEDULE_SHEET, msg_date)
-        )
-        all_cbb_games.extend(
-            get_schedule_for_date(spreadsheet, CBB_SCHEDULE_SHEET, msg_date)
-        )
-        all_nhl_games.extend(
-            get_schedule_for_date(spreadsheet, NHL_SCHEDULE_SHEET, msg_date)
-        )
-
-    schedule_data = {
-        "nba": format_schedule_for_prompt(all_nba_games, "NBA"),
-        "cbb": format_schedule_for_prompt(all_cbb_games, "CBB"),
-        "nhl": format_schedule_for_prompt(all_nhl_games, "NHL"),
-    }
+    schedule_data = fetch_schedule_data(spreadsheet, message_dates)
 
     all_manual_parsed_rows = []
     for batch_start in range(0, len(picks_to_parse), STAGE_BATCH_SIZE):

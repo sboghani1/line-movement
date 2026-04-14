@@ -24,7 +24,7 @@ function classifyPick(pick, gameSpread) {
   if (/^O\s?\d/.test(line)) return 'Over';
   if (/^U\s?\d/.test(line)) return 'Under';
   const spread = (gameSpread || pick.spread || '').trim();
-  const side = (pick.pick || '').trim();
+  const side = (pick.side || pick.pick || '').trim();
   if (spread && /[a-zA-Z]/.test(spread) && /\d/.test(spread)) {
     const spreadLower = spread.toLowerCase();
     const sideLower = side.toLowerCase();
@@ -121,6 +121,18 @@ const BET_TYPES  = ['Fav','Dog','Over','Under'];
 const OPPOSITE   = {Fav:'Dog',Dog:'Fav',Over:'Under',Under:'Over'};
 const SPORT_COLORS = {NBA:{bg:'#1d428a',text:'#fff'},NHL:{bg:'#000',text:'#fff'},CBB:{bg:'#ff6b00',text:'#fff'},NCAAB:{bg:'#ff6b00',text:'#fff'},Tennis:{bg:'#2e7d32',text:'#fff'},Soccer:{bg:'#326295',text:'#fff'},UFC:{bg:'#d20a0a',text:'#fff'},TGL:{bg:'#006400',text:'#fff'},default:{bg:'#333',text:'#fff'}};
 
+function parseSpreadValue(spread) {
+  // Split on space, take last token, parse as float, return absolute value
+  // e.g. "Lakers -4.5" → 4.5, "-3" → 3, "" → null
+  // Exclude moneyline odds: raw value outside -100..100 is a moneyline, not a spread
+  if (!spread) return null;
+  const tok = spread.trim().split(/\s+/).pop();
+  const v = parseFloat(tok);
+  if (isNaN(v)) return null;
+  if (v < -100 || v > 100) return null; // moneyline, not a spread
+  return Math.abs(v);
+}
+
 function buildGameGroups(picksSubset) {
   const gameGroups = {};
   picksSubset.forEach(pick => {
@@ -129,47 +141,86 @@ function buildGameGroups(picksSubset) {
     if (res!=='win'&&res!=='lose') return;
     const bt = classifyPick(pick, pick.gameSpread); if (!bt) return;
     const key = `${pick.date}-${pick.game}`;
-    if (!gameGroups[key]) gameGroups[key] = {sport:pick.sport, cappers:new Set(), Fav:[],Dog:[],Over:[],Under:[]};
+    if (!gameGroups[key]) gameGroups[key] = {sport:pick.sport, spread:pick.spread||'', cappers:new Set(), Fav:[],Dog:[],Over:[],Under:[]};
     gameGroups[key].cappers.add(pick.capper);
     gameGroups[key][bt].push({res, capper:pick.capper});
   });
   return gameGroups;
 }
 
-function applyLabelFn(gameGroups, labelFn, maxConsensus = Infinity, maxMinority = Infinity) {
+function applyLabelFn(gameGroups, labelFn, maxConsensus = Infinity, maxMinority = Infinity, spreadMin = 0, spreadMax = 100) {
   const history = {};
+  const excl = {spreadBelow:0, spreadAbove:0, cscBelow:0, cscAbove:0, minBelow:0, minAbove:0, tied:0};
+  let totalGames = Object.keys(gameGroups).length;
+  let favCount = 0, dogCount = 0;
+  // Track per-game exclusions (exclusive — spread-excluded games don't also count toward csc/min)
+  const spreadExcluded = new Set();
+  const cscExcluded    = new Set(); // excluded by csc (not already spread-excluded)
+  const minExcluded    = new Set(); // excluded by minority (not already spread/csc excluded)
+  const tiedExcluded   = new Set(); // excluded by 50/50 outcome
   const addEntry = (key, bt, label, win, cappers) => {
     if (!history[key]) history[key] = {Fav:{},Dog:{},Over:{},Under:{}};
     if (!history[key][bt][label]) history[key][bt][label] = {wins:0, losses:0, games:[]};
     history[key][bt][label].games.push({win, cappers});
     if (win) history[key][bt][label].wins++; else history[key][bt][label].losses++;
   };
-  Object.values(gameGroups).forEach(g => {
+  const spreadFilterActive = spreadMin > 0 || spreadMax < 100;
+
+  // First pass: mark spread-excluded games
+  if (spreadFilterActive) {
+    Object.entries(gameGroups).forEach(([gameKey, g]) => {
+      const sv = parseSpreadValue(g.spread);
+      if (sv !== null) {
+        if (sv < spreadMin) { spreadExcluded.add(gameKey); excl.spreadBelow++; }
+        else if (sv > spreadMax) { spreadExcluded.add(gameKey); excl.spreadAbove++; }
+      }
+    });
+  }
+
+  // Second pass: process non-spread-excluded games, track csc/min/tied exclusions per game+bt
+  Object.entries(gameGroups).forEach(([gameKey, g]) => {
+    if (spreadExcluded.has(gameKey)) return;
     const {sport, cappers} = g;
     BET_TYPES.forEach(bt => {
       const opp = OPPOSITE[bt];
       const heavy = g[bt], light = g[opp]; // heavy = consensus (majority) side, light = minority (opponent) side
       if (heavy.length <= light.length || heavy.length === 0) return;
-      if (heavy.length > maxConsensus) return;
-      if (light.length > maxMinority) return;
+      const exclKey = gameKey + bt;
+      if (heavy.length > maxConsensus) {
+        if (!cscExcluded.has(exclKey)) { cscExcluded.add(exclKey); excl.cscAbove++; }
+        return;
+      }
+      if (light.length > maxMinority) {
+        if (!minExcluded.has(exclKey) && !cscExcluded.has(exclKey)) { minExcluded.add(exclKey); excl.minAbove++; }
+        return;
+      }
       const total = heavy.length + light.length;
-      const label = labelFn(heavy.length, total); if (!label) return;
+      const label = labelFn(heavy.length, total);
+      if (!label) {
+        if (!cscExcluded.has(exclKey)) { cscExcluded.add(exclKey); excl.cscBelow++; }
+        return;
+      }
       const wins = heavy.filter(e=>e.res==='win').length;
       const losses = heavy.length - wins;
-      if (wins === losses) return;
+      if (wins === losses) {
+        if (!tiedExcluded.has(exclKey)) { tiedExcluded.add(exclKey); excl.tied++; }
+        return;
+      }
       const win = wins > losses;
+      if (bt === 'Fav') favCount++;
+      if (bt === 'Dog') dogCount++;
       addEntry('All', bt, label, win, cappers);
       addEntry(sport, bt, label, win, cappers);
       addEntry('All_cappers', bt, label, win, cappers);
       addEntry(`${sport}_cappers`, bt, label, win, cappers);
     });
   });
-  return history;
+  return {history, excl, totalGames, favCount, dogCount};
 }
 
-function buildRatioHistory(picksSubset, minTotal = 5, maxConsensus = Infinity, maxMinority = Infinity) {
+function buildRatioHistory(picksSubset, minTotal = 5, maxConsensus = Infinity, maxMinority = Infinity, spreadMin = 0, spreadMax = 100) {
   const groups = buildGameGroups(picksSubset);
-  return applyLabelFn(groups, (h, t) => getVerboseRatioLabel(h, t, minTotal), maxConsensus, maxMinority);
+  return applyLabelFn(groups, (h, t) => getVerboseRatioLabel(h, t, minTotal), maxConsensus, maxMinority, spreadMin, spreadMax);
 }
 
 function filterCapperData(btData, gameCappers) {
@@ -281,7 +332,7 @@ const ThisGameBadge = memo(({ratio}) => {
   );
 });
 
-const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, sectionSetters, btSetters, gameRanges, setBucketRanges}) => {
+const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, spreadMin, spreadMax, ratioExcl, ratioTotalGames, ratioFavCount, ratioDogCount, sectionSetters, btSetters, gameRanges, setBucketRanges}) => {
   const [open,setOpen] = useState(true);
   const [fineBuckets,setFineBuckets] = useState(false);
   const [expandedBt,setExpandedBt] = useState({Fav:false,Dog:false,Over:true,Under:true});
@@ -424,10 +475,23 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
 
               {isExpanded && <div style={{marginTop:'4px',marginLeft:'12px'}}>
                 {cr?.verboseLabel && <ThisGameBadge ratio={{...cr, label:cr.verboseLabel}}/>}
-                <div style={{fontSize:'0.72rem',color:'#fff',fontWeight:'700',marginBottom:'6px',display:'flex',gap:'16px'}}>
-                  <span>consensus: {minPicks}–{maxPicks}</span>
-                  <span>minority: {minOpponent}–{maxOpponent}</span>
+                <div style={{fontSize:'0.72rem',color:'#fff',fontWeight:'700',marginBottom:'6px',display:'flex',flexWrap:'wrap',gap:'12px'}}>
+                  <span>consensus: [{minPicks}–{maxPicks}]</span>
+                  <span>minority: [{minOpponent}–{maxOpponent}]</span>
+                  <span>spread: [{spreadMin}–{spreadMax}]</span>
                 </div>
+                {ratioExcl && ratioTotalGames != null && <div style={{fontSize:'0.68rem',color:'rgba(255,150,150,0.9)',fontWeight:'700',marginBottom:'6px',display:'flex',flexDirection:'column',gap:'2px'}}>
+                  <span style={{color:'#fff'}}>{ratioTotalGames.toLocaleString()} games to consider</span>
+                  <span>- {ratioExcl.spreadBelow} games excluded because it has &lt; |{spreadMin}| spread</span>
+                  <span>- {ratioExcl.spreadAbove} games excluded because it has &gt; |{spreadMax}| spread</span>
+                  <span>- {ratioExcl.cscBelow} games excluded because it has &lt; {minPicks} consensus count</span>
+                  <span>- {ratioExcl.cscAbove} games excluded because it has &gt; {maxPicks} consensus count</span>
+                  <span>- {ratioExcl.minBelow} games excluded because it has &lt; {minOpponent} minority count</span>
+                  <span>- {ratioExcl.minAbove} games excluded because it has &gt; {maxOpponent} minority count</span>
+                  <span>- {ratioExcl.tied} games excluded because consensus side had 50/50 capper outcome</span>
+                  <span style={{color:'rgba(255,255,255,0.5)'}}>=</span>
+                  <span style={{color:'#fff'}}>{(ratioFavCount+ratioDogCount).toLocaleString()} historical games in ratio calculations (Fav: {ratioFavCount.toLocaleString()} + Dog: {ratioDogCount.toLocaleString()})</span>
+                </div>}
                 <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',marginTop:'4px'}}>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(160px,1fr))',gap:'8px',minWidth:'660px'}}>
                   {allSections.map(sec => {
@@ -552,7 +616,7 @@ const AddFakeButton = memo(({onClick}) => (
   </button>
 ));
 
-const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, sectionSetters, btSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, collapsed, onToggleCollapse, isForeground, onForeground, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
+const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, spreadMin, spreadMax, ratioExcl, ratioTotalGames, ratioFavCount, ratioDogCount, sectionSetters, btSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, collapsed, onToggleCollapse, isForeground, onForeground, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
   const colors = SPORT_COLORS[game.sport]||SPORT_COLORS.default;
   const sides = Object.entries(game.sides);
   const totalPicks = sides.reduce((s,[,sd])=>s+sd.cappers.length, 0);
@@ -591,6 +655,12 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
         maxOpponent={maxOpponent}
         sectionSetters={sectionSetters}
         btSetters={btSetters}
+        spreadMin={spreadMin}
+        spreadMax={spreadMax}
+        ratioExcl={ratioExcl}
+        ratioTotalGames={ratioTotalGames}
+        ratioFavCount={ratioFavCount}
+        ratioDogCount={ratioDogCount}
         gameRanges={gameRanges}
         setBucketRanges={setBucketRanges}
       />}
@@ -694,6 +764,10 @@ function CapperConsensusTracker() {
   const [maxPicks,setMaxPicks] = useState(100);
   const [maxOpponentInput,setMaxOpponentInput] = useState('100');
   const [maxOpponent,setMaxOpponent] = useState(100);
+  const [spreadMinInput,setSpreadMinInput] = useState('0');
+  const [spreadMin,setSpreadMin] = useState(0);
+  const [spreadMaxInput,setSpreadMaxInput] = useState('100');
+  const [spreadMax,setSpreadMax] = useState(100);
   const [loading,setLoading] = useState(true);
   const [loadError,setLoadError] = useState(null);
   const [lastLoaded,setLastLoaded] = useState(null);
@@ -754,7 +828,6 @@ function CapperConsensusTracker() {
       if (values.length >= 4) {
         const row = {};
         headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
-        if (row.sport) row.sport = row.sport.toUpperCase();
         if (row.capper && row.game) data.push(row);
       }
     }
@@ -818,7 +891,7 @@ function CapperConsensusTracker() {
     setFakeCappers(prev => {
       const game = prev[gameName] || {};
       const sideFakes = game[side] || [];
-      return { ...prev, [gameName]: { ...game, [side]: [...sideFakes, {id, capper:capperName, sport, pick:side, game:gameName}] } };
+      return { ...prev, [gameName]: { ...game, [side]: [...sideFakes, {id, capper:capperName, sport, side, game:gameName}] } };
     });
   }, []);
 
@@ -857,7 +930,7 @@ function CapperConsensusTracker() {
     Object.values(fakeCappers).forEach(gameObj => {
       Object.values(gameObj).forEach(sideFakes => {
         sideFakes.forEach(f => {
-          result.push({...f, result:'', line:'', spread:'', pick:f.pick, date: selectedDate || ''});
+          result.push({...f, result:'', line:'', spread:'', pick:f.side, date: selectedDate || ''});
         });
       });
     });
@@ -894,14 +967,15 @@ function CapperConsensusTracker() {
     return records;
   }, [picks]);
 
-  const ratioHistory = useMemo(() => buildRatioHistory(picks, minPicks, maxPicks, maxOpponent), [picks, minPicks, maxPicks, maxOpponent]);
+  const {history: ratioHistory, excl: ratioExcl, totalGames: ratioTotalGames, favCount: ratioFavCount, dogCount: ratioDogCount} = useMemo(() => buildRatioHistory(picks, minPicks, maxPicks, maxOpponent, spreadMin, spreadMax), [picks, minPicks, maxPicks, maxOpponent, spreadMin, spreadMax]);
 
   const ratioHistoryL30 = useMemo(() => {
     if (!selectedDate) return {};
     const cutoff = new Date(selectedDate); cutoff.setDate(cutoff.getDate()-l30Days);
     const cutoffStr = cutoff.toISOString().slice(0,10);
-    return buildRatioHistory(picks.filter(p=>p.date<selectedDate&&p.date>=cutoffStr), minPicks, maxPicks, maxOpponent);
-  }, [picks, selectedDate, l30Days, minPicks, maxPicks, maxOpponent]);
+    const {history: h} = buildRatioHistory(picks.filter(p=>p.date<selectedDate&&p.date>=cutoffStr), minPicks, maxPicks, maxOpponent, spreadMin, spreadMax);
+    return h;
+  }, [picks, selectedDate, l30Days, minPicks, maxPicks, maxOpponent, spreadMin, spreadMax]);
 
   const filteredPicks = useMemo(() => picks.filter(p => {
     if (selectedSport!=='ALL'&&p.sport!==selectedSport) return false;
@@ -915,7 +989,7 @@ function CapperConsensusTracker() {
     const real = filteredPicks.filter(p => {
       const gameDeleted = deletedPicks[p.game];
       if (!gameDeleted) return true;
-      return !gameDeleted.has(p.pickKey || `${p.capper}-${p.pick}-${p.game}`);
+      return !gameDeleted.has(p.pickKey || `${p.capper}-${p.side||p.pick}-${p.game}`);
     });
     return [...real, ...fakes];
   }, [filteredPicks, fakePicks, selectedSport, deletedPicks]);
@@ -930,7 +1004,7 @@ function CapperConsensusTracker() {
       const gameKey = pick.game||`${pick.pick} game`;
       if (!games[gameKey]) games[gameKey]={game:gameKey,sport:pick.sport,sides:{},picks:[],spread:pick.spread||'',cappers:new Set(),date:pick.date};
       if (pick.spread&&!games[gameKey].spread) games[gameKey].spread=pick.spread;
-      const side=pick.pick;
+      const side=pick.side||pick.pick;
       const pickKey = `${pick.capper}-${side}-${gameKey}-${idx}`;
       if (!games[gameKey].sides[side]) games[gameKey].sides[side]={cappers:[],allCappers:[],wins:0,losses:0,winningCappers:[],losingCappers:[]};
       const bt=classifyPick(pick, games[gameKey].spread), capRec=getCapperRecords[pick.capper];
@@ -986,7 +1060,7 @@ function CapperConsensusTracker() {
         if (game.consensusLine) {
           bt = game.consensusLine.startsWith('-') ? 'Fav' : 'Dog';
         } else {
-          bt = classifyPick({pick:maj.side, line:'', spread:''}, game.spread);
+          bt = classifyPick({side:maj.side, line:'', spread:''}, game.spread);
         }
         if (bt) {
           ratios[bt] = {verboseLabel: getVerboseRatioLabel(maj.count, total, minPicks), count:maj.count, total};
@@ -1025,11 +1099,13 @@ function CapperConsensusTracker() {
   }, [gameConsensus, gameConsensusMap]);
 
   const applyAll = () => {
-    const vL = parseInt(l30Input);         if(!isNaN(vL)&&vL>0)  setL30Days(vL);
-    const vMin = parseInt(minPicksInput);  if(!isNaN(vMin)&&vMin>=1)  { setMinPicks(vMin); }
-    const vMino = parseInt(minOpponentInput); if(!isNaN(vMino)&&vMino>=0) setMinOpponent(vMino);
-    const vMax = parseInt(maxPicksInput);  if(!isNaN(vMax)&&vMax>=1)  { setMaxPicks(vMax); }
-    const vMaxo = parseInt(maxOpponentInput); if(!isNaN(vMaxo)&&vMaxo>=0) setMaxOpponent(vMaxo);
+    const vL = parseInt(l30Input);           if(!isNaN(vL)&&vL>0)    setL30Days(vL);
+    const vMin = parseInt(minPicksInput);    if(!isNaN(vMin)&&vMin>=1)  setMinPicks(vMin);
+    const vMino = parseInt(minOpponentInput);if(!isNaN(vMino)&&vMino>=0) setMinOpponent(vMino);
+    const vMax = parseInt(maxPicksInput);    if(!isNaN(vMax)&&vMax>=1)  setMaxPicks(vMax);
+    const vMaxo = parseInt(maxOpponentInput);if(!isNaN(vMaxo)&&vMaxo>=0) setMaxOpponent(vMaxo);
+    const vSMin = parseFloat(spreadMinInput);if(!isNaN(vSMin)&&vSMin>=0) setSpreadMin(vSMin);
+    const vSMax = parseFloat(spreadMaxInput);if(!isNaN(vSMax)&&vSMax>=0) setSpreadMax(vSMax);
   };
   const applyL30         = applyAll;
   const applyMinPicks    = applyAll;
@@ -1194,8 +1270,30 @@ function CapperConsensusTracker() {
                 style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
             </div>
           </div>
+          <div style={{display:'flex',gap:'24px',flexWrap:'wrap',alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <label style={{color:'rgba(255,255,255,0.7)',fontSize:'0.8rem',fontWeight:'600',whiteSpace:'nowrap',minWidth:'80px'}}>SPREAD ABS</label>
+              <input type="number" min="0" max="100" step="0.5" value={spreadMinInput} onChange={e=>setSpreadMinInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}} placeholder="min"
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+              <span style={{color:'rgba(255,255,255,0.4)',fontSize:'0.8rem'}}>–</span>
+              <input type="number" min="0" max="100" step="0.5" value={spreadMaxInput} onChange={e=>setSpreadMaxInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}}} placeholder="max"
+                style={{padding:'10px 8px',width:'70px',background:'rgba(0,33,165,0.4)',border:'2px solid rgba(0,33,165,0.6)',borderRadius:'8px',color:'#fff',fontSize:'0.9rem',textAlign:'center'}}/>
+            </div>
+          </div>
           <div>
             <button onClick={()=>{applyL30();applyMinPicks();applyMinOpponent();applyMaxPicks();applyMaxOpponent();}} style={{padding:'10px 16px',background:'linear-gradient(135deg,#0021A5,#001a8c)',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'8px',color:'#fff',fontSize:'0.8rem',fontWeight:'700',cursor:'pointer'}}>↻ Apply</button>
+            {(()=>{
+              const isDefault = l30Days===30 && minPicks===5 && maxPicks===100 && minOpponent===0 && maxOpponent===100 && spreadMin===0 && spreadMax===100;
+              return <button onClick={()=>{
+                setL30Input('30');      setL30Days(30);
+                setMinPicksInput('5');  setMinPicks(5);
+                setMaxPicksInput('100');setMaxPicks(100);
+                setMinOpponentInput('0');setMinOpponent(0);
+                setMaxOpponentInput('100');setMaxOpponent(100);
+                setSpreadMinInput('0'); setSpreadMin(0);
+                setSpreadMaxInput('100');setSpreadMax(100);
+              }} disabled={isDefault} style={{padding:'10px 16px',background:'rgba(255,255,255,0.08)',border:'2px solid rgba(255,255,255,0.2)',borderRadius:'8px',color:isDefault?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.7)',fontSize:'0.8rem',fontWeight:'700',cursor:isDefault?'not-allowed':'pointer',opacity:isDefault?0.5:1,marginLeft:'8px'}}>✕ Reset Filters</button>;
+            })()}
           </div>
         </div>
 
@@ -1273,6 +1371,12 @@ function CapperConsensusTracker() {
                     minOpponent={minOpponent}
                     maxPicks={maxPicks}
                     maxOpponent={maxOpponent}
+                    spreadMin={spreadMin}
+                    spreadMax={spreadMax}
+                    ratioExcl={ratioExcl}
+                    ratioTotalGames={ratioTotalGames}
+                    ratioFavCount={ratioFavCount}
+                    ratioDogCount={ratioDogCount}
                     sectionSetters={sectionSetters}
                     btSetters={btSetters}
                     fakeCappers={fakeCappers}
@@ -1291,8 +1395,15 @@ function CapperConsensusTracker() {
                         const sideCounts = Object.values(game.sides).map(s=>s.cappers.length).sort((a,b)=>b-a);
                         const consensusCount = sideCounts[0] || 0;
                         const minorityCount  = sideCounts[1] || 0;
-                        if (consensusCount > 0) { setMinPicks(consensusCount); setMinPicksInput(String(consensusCount)); }
-                        if (minorityCount  > 0) { setMinOpponent(minorityCount); setMinOpponentInput(String(minorityCount)); }
+                        // Set min to 6 below (floor at 5 for consensus, 0 for minority), max to 6 above
+                        const cscMin = Math.max(5, consensusCount - 6);
+                        const cscMax = consensusCount + 6;
+                        const minMin = Math.max(0, minorityCount - 6);
+                        const minMax = minorityCount + 6;
+                        setMinPicks(cscMin);    setMinPicksInput(String(cscMin));
+                        setMaxPicks(cscMax);    setMaxPicksInput(String(cscMax));
+                        setMinOpponent(minMin); setMinOpponentInput(String(minMin));
+                        setMaxOpponent(minMax); setMaxOpponentInput(String(minMax));
                         // Expand relevant bet type sections after a tick (so CapperRatioHistory has mounted)
                         setTimeout(() => {
                           const setter = btSetters.current[game.game];
