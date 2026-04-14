@@ -41,6 +41,7 @@ from capper_resolver import CapperResolver
 from pick_parser import (
     PICKS_COLUMNS,
     DISCORD_SOURCE,
+    CLAUDE_USAGE,
     get_claude_cost,
     log_claude_usage,
     call_sonnet_text,
