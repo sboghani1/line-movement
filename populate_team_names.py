@@ -139,6 +139,37 @@ ABBREV_MAP = {
     ("NIU", "cbb"): ["northern illinois huskies", "northern illinois"],
     ("BGSU", "cbb"): ["bowling green falcons", "bowling green"],
     ("KSU", "cbb"): ["kansas state wildcats"],
+    # MLB
+    ("ARI", "mlb"): ["arizona diamondbacks"],
+    ("ATL", "mlb"): ["atlanta braves"],
+    ("BAL", "mlb"): ["baltimore orioles"],
+    ("BOS", "mlb"): ["boston red sox"],
+    ("CHC", "mlb"): ["chicago cubs"],
+    ("CWS", "mlb"): ["chicago white sox"],
+    ("CIN", "mlb"): ["cincinnati reds"],
+    ("CLE", "mlb"): ["cleveland guardians"],
+    ("COL", "mlb"): ["colorado rockies"],
+    ("DET", "mlb"): ["detroit tigers"],
+    ("HOU", "mlb"): ["houston astros"],
+    ("KC", "mlb"): ["kansas city royals"],
+    ("LAA", "mlb"): ["los angeles angels"],
+    ("LAD", "mlb"): ["los angeles dodgers"],
+    ("MIA", "mlb"): ["miami marlins"],
+    ("MIL", "mlb"): ["milwaukee brewers"],
+    ("MIN", "mlb"): ["minnesota twins"],
+    ("NYM", "mlb"): ["new york mets"],
+    ("NYY", "mlb"): ["new york yankees"],
+    ("OAK", "mlb"): ["athletics"],
+    ("PHI", "mlb"): ["philadelphia phillies"],
+    ("PIT", "mlb"): ["pittsburgh pirates"],
+    ("SD", "mlb"): ["san diego padres"],
+    ("SF", "mlb"): ["san francisco giants"],
+    ("SEA", "mlb"): ["seattle mariners"],
+    ("STL", "mlb"): ["st. louis cardinals"],
+    ("TB", "mlb"): ["tampa bay rays"],
+    ("TEX", "mlb"): ["texas rangers"],
+    ("TOR", "mlb"): ["toronto blue jays"],
+    ("WSH", "mlb"): ["washington nationals"],
 }
 
 
@@ -353,6 +384,45 @@ def main():
         if espn_name in espn_teams.get("nhl", set()):
             for nick in nicks:
                 team_aliases[("nhl", espn_name)].add(nick)
+                nickname_count += 1
+
+    # MLB mascot/city nicknames
+    mlb_nicknames = {
+        "Arizona Diamondbacks": ["Diamondbacks", "D-backs", "Dbacks"],
+        "Atlanta Braves": ["Braves"],
+        "Baltimore Orioles": ["Orioles", "O's"],
+        "Boston Red Sox": ["Red Sox", "BoSox"],
+        "Chicago Cubs": ["Cubs"],
+        "Chicago White Sox": ["White Sox", "ChiSox"],
+        "Cincinnati Reds": ["Reds"],
+        "Cleveland Guardians": ["Guardians"],
+        "Colorado Rockies": ["Rockies"],
+        "Detroit Tigers": ["Tigers"],
+        "Houston Astros": ["Astros", "Stros"],
+        "Kansas City Royals": ["Royals"],
+        "Los Angeles Angels": ["Angels", "LA Angels", "Halos"],
+        "Los Angeles Dodgers": ["Dodgers"],
+        "Miami Marlins": ["Marlins"],
+        "Milwaukee Brewers": ["Brewers", "Brew Crew"],
+        "Minnesota Twins": ["Twins"],
+        "New York Mets": ["Mets"],
+        "New York Yankees": ["Yankees", "Yanks"],
+        "Athletics": ["A's", "Oakland", "Oakland A's", "Oakland Athletics"],
+        "Philadelphia Phillies": ["Phillies", "Phils"],
+        "Pittsburgh Pirates": ["Pirates", "Bucs"],
+        "San Diego Padres": ["Padres"],
+        "San Francisco Giants": ["Giants"],
+        "Seattle Mariners": ["Mariners", "M's"],
+        "St. Louis Cardinals": ["Cardinals", "Cards"],
+        "Tampa Bay Rays": ["Rays"],
+        "Texas Rangers": ["Rangers"],
+        "Toronto Blue Jays": ["Blue Jays", "Jays"],
+        "Washington Nationals": ["Nationals", "Nats"],
+    }
+    for espn_name, nicks in mlb_nicknames.items():
+        if espn_name in espn_teams.get("mlb", set()):
+            for nick in nicks:
+                team_aliases[("mlb", espn_name)].add(nick)
                 nickname_count += 1
 
     print(f"  Added {nickname_count} nickname entries")
