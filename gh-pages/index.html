@@ -772,6 +772,8 @@ function CapperConsensusTracker() {
   const [loadError,setLoadError] = useState(null);
   const [lastLoaded,setLastLoaded] = useState(null);
   const [storageStatus,setStorageStatus] = useState('checking');
+  // Pipeline health: hardcoded date when pipeline was last verified working
+  const PIPELINE_VERIFIED_DATE = '2026-04-19';
   // fakeCappers: { [gameName]: { [side]: [{id, capper, sport, date}] } }
   const [fakeCappers, setFakeCappers] = useState({});
   // deletedPicks: { [gameName]: Set of pickKeys }
@@ -1183,6 +1185,25 @@ function CapperConsensusTracker() {
   const totalFakes = useMemo(() => Object.values(fakeCappers).reduce((s,g)=>s+Object.values(g).reduce((ss,arr)=>ss+arr.length,0),0), [fakeCappers]);
   const totalDeleted = useMemo(() => Object.values(deletedPicks).reduce((s,set)=>s+set.size,0), [deletedPicks]);
 
+  const pipelineWarning = useMemo(() => {
+    if (picks.length === 0) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    const dates = [...new Set(picks.map(p => p.date))].filter(Boolean).sort().reverse();
+    const latestDate = dates[0] || null;
+    const hasTodayPicks = dates.includes(today);
+    // Check if pipeline verified date is stale (more than 3 days old)
+    const verifiedMs = new Date(PIPELINE_VERIFIED_DATE + 'T00:00:00').getTime();
+    const daysSinceVerified = Math.floor((Date.now() - verifiedMs) / 86400000);
+    const pipelineStale = daysSinceVerified > 3;
+    if (!hasTodayPicks || pipelineStale) {
+      const msgs = [];
+      if (!hasTodayPicks) msgs.push(`No picks for today (${today}). Latest date in data: ${latestDate || 'none'}.`);
+      if (pipelineStale) msgs.push(`Pipeline last verified ${daysSinceVerified} days ago (${PIPELINE_VERIFIED_DATE}). May need attention.`);
+      return msgs;
+    }
+    return null;
+  }, [picks, PIPELINE_VERIFIED_DATE]);
+
   return (
     <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#FA4616 0%,#d63a0f 40%,#0021A5 100%)',fontFamily:"'Segoe UI',system-ui,sans-serif",color:'#fff',padding:'20px',overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       <div style={{textAlign:'center',marginBottom:'30px',padding:'20px',background:'rgba(0,33,165,0.3)',borderRadius:'16px',border:'2px solid rgba(0,33,165,0.5)'}}>
@@ -1210,6 +1231,16 @@ function CapperConsensusTracker() {
           {refreshMsg && <span style={{fontSize:'0.75rem',fontWeight:'600',color:refreshState==='success'?'#90EE90':'#FF6B6B'}}>{refreshMsg}</span>}
         </div>
       </div>
+
+      {pipelineWarning && (
+        <div style={{background:'rgba(255,50,50,0.25)',borderRadius:'12px',padding:'16px 20px',marginBottom:'16px',border:'2px solid rgba(255,80,80,0.6)',textAlign:'center'}}>
+          <span style={{fontSize:'1.1rem',fontWeight:'700',color:'#FFD700'}}>⚠️ PIPELINE ALERT</span>
+          {pipelineWarning.map((msg, i) => (
+            <div key={i} style={{color:'#fff',fontSize:'0.85rem',marginTop:'6px'}}>{msg}</div>
+          ))}
+          <div style={{color:'rgba(255,255,255,0.5)',fontSize:'0.75rem',marginTop:'8px'}}>Check Discord channel &amp; GitHub Actions if picks are missing.</div>
+        </div>
+      )}
 
       <div style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
         <div style={{display:'flex',gap:'16px',alignItems:'center',flexWrap:'wrap'}}>
