@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Box Score Patterns - Playoff Quarter Flow</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+const SHEET_ID = '1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k';
+const TAB = 'nba_schedule';
+
+function sheetCsvUrl(tab, range) {
+  let url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
+  if (range) url += `&range=${range}`;
+  return url;
+}
+
+// ── CSV Parser ──────────────────────────────────────────────────────────────
+
+function* csvRows(text) {
+  let current = '';
+  let inQuotes = false;
+  let row = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i+1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      row.push(current); current = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      row.push(current); current = '';
+      if (row.some(c => c.length > 0)) yield row;
+      row = [];
+      if (ch === '\r' && text[i+1] === '\n') i++;
+    } else {
+      current += ch;
+    }
+  }
+  row.push(current);
+  if (row.some(c => c.length > 0)) yield row;
+}
+
+function parseSheetCsv(text) {
+  const rows = [...csvRows(text)];
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(h => h.trim().toLowerCase());
+  return rows.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (r[i] || '').trim(); });
+    return obj;
+  });
+}
+
+// ── Data Parsing ────────────────────────────────────────────────────────────
+
+function parseSpread(spreadStr) {
+  // "Cleveland Cavaliers -8.5" -> { favTeam: "Cleveland Cavaliers", line: -8.5 }
+  const m = spreadStr.match(/^(.+?)\s+([+-]?\d+\.?\d*)$/);
+  if (!m) return { favTeam: '', line: 0 };
+  return { favTeam: m[1].trim(), line: parseFloat(m[2]) };
+}
+
+function parsePeriodScores(periodStr, awayTeam, homeTeam) {
+  // "Away Q1, Home Q1 | Away Q2, Home Q2 | ..."
+  if (!periodStr || !periodStr.trim()) return [];
+  const quarters = periodStr.split('|').map(q => q.trim());
+  return quarters.map(q => {
+    // "Toronto Raptors 31, Cleveland Cavaliers 35"
+    const parts = q.split(',').map(p => p.trim());
+    if (parts.length !== 2) return null;
+    const parseScore = (part) => {
+      const m = part.match(/(\d+)\s*$/);
+      return m ? parseInt(m[1]) : 0;
+    };
+    // Determine which part is away vs home by team name
+    const isFirstAway = parts[0].includes(awayTeam) || !parts[0].includes(homeTeam);
+    const away = parseScore(isFirstAway ? parts[0] : parts[1]);
+    const home = parseScore(isFirstAway ? parts[1] : parts[0]);
+    return { away, home };
+  }).filter(Boolean);
+}
+
+function parseTags(tagStr) {
+  if (!tagStr || !tagStr.trim()) return {};
+  const tags = tagStr.split(',').map(t => t.trim());
+  const result = {};
+  for (const t of tags) {
+    const roundMatch = t.match(/^round_(\d+)$/);
+    const gameMatch = t.match(/^game_(\d+)$/);
+    if (roundMatch) result.round = parseInt(roundMatch[1]);
+    if (gameMatch) result.seriesGame = parseInt(gameMatch[1]);
+  }
+  result.raw = tags;
+  return result;
+}
+
+function marginBucket(margin) {
+  const abs = Math.abs(margin);
+  if (abs === 0) return { symbol: '=', label: 'Tie', level: 0 };
+  if (abs <= 4) return { symbol: '+', label: 'Close', level: 1 };
+  if (abs <= 9) return { symbol: '++', label: 'Comfortable', level: 2 };
+  if (abs <= 16) return { symbol: '+++', label: 'Dominant', level: 3 };
+  return { symbol: '++++', label: 'Blowout', level: 4 };
+}
+
+function parseGame(row) {
+  const tags = parseTags(row.tags);
+  if (!tags.round) return null; // Not a playoff game
+
+  const spread = parseSpread(row.spread);
+  const quarters = parsePeriodScores(row.period_scores, row.away_team, row.home_team);
+  const favSide = spread.favTeam === row.home_team ? 'home' : 'away';
+  const totalLine = row.over_under ? parseFloat(row.over_under) : null;
+
+  // Build quarter data
+  let runAway = 0, runHome = 0;
+  const qData = quarters.map((q, i) => {
+    runAway += q.away;
+    runHome += q.home;
+    const margin = q.home - q.away; // positive = home won quarter
+    const winner = margin > 0 ? 'home' : margin < 0 ? 'away' : 'tie';
+    const favWon = winner === favSide ? 'fav' : winner === 'tie' ? 'tie' : 'dog';
+    const qTotal = q.away + q.home;
+    const runTotal = runAway + runHome;
+    const projectedTotal = totalLine ? Math.round(runTotal / (i + 1) * 4) : null;
+    return {
+      qNum: i + 1,
+      away: q.away,
+      home: q.home,
+      margin,
+      winner,
+      favWon,
+      bucket: marginBucket(margin),
+      runAway,
+      runHome,
+      runMargin: runHome - runAway, // positive = home leading
+      qTotal,
+      runTotal,
+      projectedTotal,
+      totalPace: totalLine ? (runTotal - (totalLine / 4 * (i + 1))) : null, // + means on pace for over
+    };
+  });
+
+  // Parse final score - format: "Team Name 91, Team Name 123"
+  let finalAway = 0, finalHome = 0;
+  if (row.score) {
+    const scoreParts = row.score.split(',').map(s => s.trim());
+    if (scoreParts.length === 2) {
+      const parseTeamScore = (part) => {
+        const m = part.match(/(\d+)\s*$/);
+        return m ? parseInt(m[1]) : 0;
+      };
+      const score1 = parseTeamScore(scoreParts[0]);
+      const score2 = parseTeamScore(scoreParts[1]);
+      const isFirstAway = scoreParts[0].includes(row.away_team);
+      finalAway = isFirstAway ? score1 : score2;
+      finalHome = isFirstAway ? score2 : score1;
+    }
+  }
+
+  const isLive = quarters.length > 0 && quarters.length < 4 && !row.score;
+  const isComplete = quarters.length >= 4 && row.score;
+  const isUpcoming = quarters.length === 0 && !row.score;
+
+  return {
+    date: row.game_date,
+    away: row.away_team,
+    home: row.home_team,
+    spread: spread.line,
+    favTeam: spread.favTeam,
+    favSide,
+    quarters: qData,
+    finalAway,
+    finalHome,
+    finalMargin: finalHome - finalAway,
+    finalTotal: finalAway + finalHome,
+    totalLine,
+    round: tags.round,
+    seriesGame: tags.seriesGame,
+    tags: tags.raw,
+    isLive,
+    isComplete,
+    isUpcoming,
+  };
+}
+
+// ── Pattern Matching ────────────────────────────────────────────────────────
+
+function findSimilarGames(targetGame, allGames, filters) {
+  if (!targetGame || targetGame.quarters.length === 0) return [];
+  const completedQs = targetGame.quarters.length;
+
+  return allGames.filter(g => {
+    if (g === targetGame) return false;
+    if (!g.isComplete) return false;
+    if (g.quarters.length < completedQs) return false;
+
+    // Match quarter flow pattern
+    for (let i = 0; i < completedQs; i++) {
+      const tq = targetGame.quarters[i];
+      const gq = g.quarters[i];
+      if (tq.favWon !== gq.favWon) return false;
+      // Optionally match margin bucket
+      if (filters.matchMargin && tq.bucket.level !== gq.bucket.level) return false;
+    }
+
+    // Spread range filter
+    if (filters.spreadRange) {
+      const [min, max] = filters.spreadRange;
+      const absSpread = Math.abs(g.spread);
+      if (absSpread < min || absSpread > max) return false;
+    }
+
+    return true;
+  });
+}
+
+function getNextQuarterStats(similarGames, afterQ) {
+  const nextQ = afterQ + 1;
+  if (nextQ > 4) return null;
+
+  const gamesWithNextQ = similarGames.filter(g => g.quarters.length >= nextQ);
+  if (gamesWithNextQ.length === 0) return null;
+
+  const favWins = gamesWithNextQ.filter(g => g.quarters[nextQ - 1].favWon === 'fav').length;
+  const dogWins = gamesWithNextQ.filter(g => g.quarters[nextQ - 1].favWon === 'dog').length;
+  const ties = gamesWithNextQ.length - favWins - dogWins;
+
+  return {
+    qNum: nextQ,
+    total: gamesWithNextQ.length,
+    favWins,
+    dogWins,
+    ties,
+    favPct: Math.round(favWins / gamesWithNextQ.length * 100),
+    dogPct: Math.round(dogWins / gamesWithNextQ.length * 100),
+  };
+}
+
+// ── Components ──────────────────────────────────────────────────────────────
+
+const FAV_COLOR = '#5B9BD5';
+const DOG_COLOR = '#FF6B6B';
+const TIE_COLOR = '#999';
+const LIVE_COLOR = '#FFD700';
+
+function QuarterBox({ q, favSide, away, home, isLive, isUpcoming, totalLine }) {
+  if (isUpcoming) {
+    return (
+      <div style={{
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: '10px',
+        padding: '12px 16px',
+        minWidth: '120px',
+        textAlign: 'center',
+        border: '1px dashed rgba(255,255,255,0.15)',
+      }}>
+        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: '700' }}>Q{q.qNum}</div>
+        <div style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,0.2)', marginTop: '4px' }}>???</div>
+      </div>
+    );
+  }
+
+  if (isLive) {
+    return (
+      <div style={{
+        background: 'rgba(255,215,0,0.15)',
+        borderRadius: '10px',
+        padding: '12px 16px',
+        minWidth: '120px',
+        textAlign: 'center',
+        border: '2px solid rgba(255,215,0,0.5)',
+        animation: 'pulse 2s infinite',
+      }}>
+        <div style={{ fontSize: '0.7rem', color: LIVE_COLOR, fontWeight: '700' }}>Q{q.qNum} LIVE</div>
+      </div>
+    );
+  }
+
+  const winColor = q.favWon === 'fav' ? FAV_COLOR : q.favWon === 'dog' ? DOG_COLOR : TIE_COLOR;
+  const runLeader = q.runMargin > 0 ? home : q.runMargin < 0 ? away : null;
+  const runLeaderSide = q.runMargin > 0 ? 'home' : 'away';
+  const runIsFav = runLeaderSide === favSide;
+
+  return (
+    <div style={{
+      background: 'rgba(0,33,165,0.3)',
+      borderRadius: '10px',
+      padding: '12px 16px',
+      minWidth: '120px',
+      textAlign: 'center',
+      border: `2px solid ${winColor}33`,
+    }}>
+      <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', marginBottom: '4px' }}>Q{q.qNum}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.85rem', marginBottom: '6px' }}>
+        <span style={{ color: 'rgba(255,255,255,0.6)' }}>{q.away}</span>
+        <span style={{ color: 'rgba(255,255,255,0.6)' }}>{q.home}</span>
+      </div>
+      <div style={{ fontSize: '0.8rem', fontWeight: '700', color: winColor, marginBottom: '2px' }}>
+        {q.favWon === 'tie' ? 'TIE' : q.favWon.toUpperCase()} {q.bucket.symbol}
+      </div>
+      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>
+        {q.margin === 0 ? 'Even' : (
+          <span>
+            <span style={{ color: (q.winner === favSide) ? FAV_COLOR : DOG_COLOR }}>
+              {q.winner === favSide ? 'Fav' : 'Dog'} +{Math.abs(q.margin)}
+            </span>
+            {' '}
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>
+              ({q.runMargin === 0 ? 'Tied' : `${runIsFav ? 'Fav' : 'Dog'} +${Math.abs(q.runMargin)}`})
+            </span>
+          </span>
+        )}
+      </div>
+      {totalLine && q.runTotal != null && (
+        <div style={{ fontSize: '0.6rem', marginTop: '3px', color: q.totalPace > 0 ? '#FF9B3B' : q.totalPace < 0 ? '#70AD47' : 'rgba(255,255,255,0.3)' }}>
+          {q.runTotal} pts ({q.totalPace > 0 ? '+' : ''}{q.totalPace.toFixed(1)} pace)
+        </div>
+      )}
+    </div>
+  );
+}
+
+const OVER_COLOR = '#FF9B3B';
+const UNDER_COLOR = '#70AD47';
+
+function TotalQuarterBox({ q, totalLine, isLive, isUpcoming }) {
+  if (isUpcoming) {
+    return (
+      <div style={{
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: '10px',
+        padding: '10px 16px',
+        minWidth: '120px',
+        textAlign: 'center',
+        border: '1px dashed rgba(255,255,255,0.1)',
+      }}>
+        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: '700' }}>Q{q.qNum}</div>
+        <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.15)', marginTop: '2px' }}>—</div>
+      </div>
+    );
+  }
+
+  if (isLive) {
+    return (
+      <div style={{
+        background: 'rgba(255,215,0,0.1)',
+        borderRadius: '10px',
+        padding: '10px 16px',
+        minWidth: '120px',
+        textAlign: 'center',
+        border: '1px solid rgba(255,215,0,0.3)',
+      }}>
+        <div style={{ fontSize: '0.7rem', color: LIVE_COLOR, fontWeight: '700' }}>Q{q.qNum}</div>
+      </div>
+    );
+  }
+
+  const paceColor = q.totalPace > 0 ? OVER_COLOR : q.totalPace < 0 ? UNDER_COLOR : 'rgba(255,255,255,0.4)';
+  const expectedPace = totalLine ? (totalLine / 4 * q.qNum) : null;
+
+  return (
+    <div style={{
+      background: 'rgba(0,33,165,0.2)',
+      borderRadius: '10px',
+      padding: '10px 16px',
+      minWidth: '120px',
+      textAlign: 'center',
+      border: `1px solid ${paceColor}33`,
+    }}>
+      <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', marginBottom: '2px' }}>Q{q.qNum}</div>
+      <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff' }}>{q.qTotal} pts</div>
+      <div style={{ fontSize: '0.75rem', fontWeight: '600', color: paceColor }}>
+        {q.runTotal} total
+      </div>
+      {totalLine && (
+        <div style={{ fontSize: '0.6rem', color: paceColor, marginTop: '2px' }}>
+          {q.totalPace > 0 ? '+' : ''}{q.totalPace.toFixed(1)} pace
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Connector() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      width: '32px',
+      flexShrink: 0,
+    }}>
+      <div style={{ width: '100%', height: '2px', background: 'rgba(255,255,255,0.15)' }} />
+      <div style={{
+        width: 0, height: 0,
+        borderTop: '5px solid transparent',
+        borderBottom: '5px solid transparent',
+        borderLeft: '6px solid rgba(255,255,255,0.2)',
+        flexShrink: 0,
+      }} />
+    </div>
+  );
+}
+
+function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const gameKey = `${game.date}|${game.away}|${game.home}`;
+
+  // Build quarter boxes
+  const completedQs = game.quarters.length;
+  const totalQs = 4;
+  const boxes = [];
+  for (let i = 0; i < totalQs; i++) {
+    if (i < completedQs) {
+      boxes.push({ q: game.quarters[i], isLive: false, isUpcoming: false });
+    } else if (i === completedQs && game.isLive) {
+      boxes.push({ q: { qNum: i + 1 }, isLive: true, isUpcoming: false });
+    } else {
+      boxes.push({ q: { qNum: i + 1 }, isLive: false, isUpcoming: true });
+    }
+  }
+
+  // Pattern matching for completed/live games
+  const similar = useMemo(() => {
+    if (completedQs === 0) return [];
+    return findSimilarGames(game, allGames, filters);
+  }, [game, allGames, filters]);
+
+  const nextQStats = useMemo(() => {
+    if (completedQs === 0 || completedQs >= 4) return null;
+    return getNextQuarterStats(similar, completedQs);
+  }, [similar, completedQs]);
+
+  // Stats for all remaining quarters
+  const remainingQStats = useMemo(() => {
+    if (completedQs >= 4) return [];
+    const stats = [];
+    for (let q = completedQs + 1; q <= 4; q++) {
+      const gamesWithQ = similar.filter(g => g.quarters.length >= q);
+      if (gamesWithQ.length === 0) continue;
+      const favWins = gamesWithQ.filter(g => g.quarters[q - 1].favWon === 'fav').length;
+      const dogWins = gamesWithQ.filter(g => g.quarters[q - 1].favWon === 'dog').length;
+      stats.push({
+        qNum: q,
+        total: gamesWithQ.length,
+        favWins,
+        dogWins,
+        favPct: Math.round(favWins / gamesWithQ.length * 100),
+        dogPct: Math.round(dogWins / gamesWithQ.length * 100),
+      });
+    }
+    return stats;
+  }, [similar, completedQs]);
+
+  const favLabel = game.favSide === 'home' ? game.home : game.away;
+  const dogLabel = game.favSide === 'home' ? game.away : game.home;
+  const spreadDisplay = Math.abs(game.spread);
+
+  return (
+    <div style={{
+      background: 'rgba(0,33,165,0.2)',
+      borderRadius: '14px',
+      padding: '20px',
+      border: game.isLive ? '2px solid rgba(255,215,0,0.4)' : isLinked ? '2px solid rgba(90,155,213,0.5)' : '1px solid rgba(255,255,255,0.1)',
+      position: 'relative',
+    }}>
+      {/* Link toggle */}
+      <button onClick={() => onToggleLink(gameKey)} style={{
+        position: 'absolute',
+        top: '8px',
+        left: '8px',
+        width: '24px',
+        height: '24px',
+        borderRadius: '6px',
+        border: isLinked ? '2px solid rgba(90,155,213,0.7)' : '1px solid rgba(255,255,255,0.25)',
+        background: isLinked ? 'rgba(90,155,213,0.3)' : 'rgba(255,255,255,0.07)',
+        color: isLinked ? FAV_COLOR : 'rgba(255,255,255,0.4)',
+        fontSize: '1rem',
+        fontWeight: '700',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        lineHeight: 1,
+        padding: 0,
+      }}>{isLinked ? '−' : '+'}</button>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap', gap: '8px', marginLeft: '32px' }}>
+        <div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+            {game.date} &bull; Round {game.round} Game {game.seriesGame}
+            {game.isLive && <span style={{ color: LIVE_COLOR, marginLeft: '8px', fontWeight: '700' }}>LIVE</span>}
+          </div>
+          <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#fff', marginTop: '2px' }}>
+            {game.away} @ {game.home}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+            <span style={{ color: FAV_COLOR }}>FAV</span> {favLabel} -{spreadDisplay} &bull; <span style={{ color: DOG_COLOR }}>DOG</span> {dogLabel} +{spreadDisplay}
+            {game.totalLine && <span> &bull; O/U {game.totalLine}</span>}
+          </div>
+        </div>
+        {game.isComplete && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>
+              {game.finalAway} - {game.finalHome}
+            </div>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: '700',
+              color: (game.finalMargin > 0 ? 'home' : 'away') === game.favSide ? FAV_COLOR : DOG_COLOR,
+            }}>
+              {(game.finalMargin > 0 ? 'home' : 'away') === game.favSide ? 'FAV' : 'DOG'} wins by {Math.abs(game.finalMargin)}
+              {Math.abs(game.finalMargin) > spreadDisplay ? ' (COVERS)' : ' (NO COVER)'}
+            </div>
+            {game.isComplete && (
+              <div style={{
+                fontSize: '0.7rem',
+                fontWeight: '600',
+                color: game.totalLine
+                  ? (game.finalTotal > game.totalLine ? '#FF9B3B' : game.finalTotal < game.totalLine ? '#70AD47' : 'rgba(255,255,255,0.5)')
+                  : 'rgba(255,255,255,0.5)',
+              }}>
+                Total: {game.finalTotal}{game.totalLine ? ` (${game.finalTotal > game.totalLine ? 'OVER' : game.finalTotal < game.totalLine ? 'UNDER' : 'PUSH'} by ${Math.abs(game.finalTotal - game.totalLine).toFixed(1)})` : ''}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Quarter Flow Boxes */}
+      <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', paddingBottom: '8px', WebkitOverflowScrolling: 'touch' }}>
+        {boxes.map((b, i) => (
+          <React.Fragment key={i}>
+            <QuarterBox
+              q={b.q}
+              favSide={game.favSide}
+              away={game.away}
+              home={game.home}
+              isLive={b.isLive}
+              isUpcoming={b.isUpcoming}
+              totalLine={game.totalLine}
+            />
+            {i < boxes.length - 1 && <Connector />}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Total Quarter Flow Boxes */}
+      {game.quarters.length > 0 && (
+        <>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginTop: '10px', marginBottom: '6px' }}>
+            TOTAL {game.totalLine ? `(O/U ${game.totalLine})` : ''}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', paddingBottom: '8px', WebkitOverflowScrolling: 'touch' }}>
+            {boxes.map((b, i) => (
+              <React.Fragment key={`t${i}`}>
+                <TotalQuarterBox
+                  q={b.q}
+                  totalLine={game.totalLine}
+                  isLive={b.isLive}
+                  isUpcoming={b.isUpcoming}
+                />
+                {i < boxes.length - 1 && <Connector />}
+              </React.Fragment>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Running Score Line */}
+      {game.quarters.length > 0 && (
+        <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>Running:</span>
+          {game.quarters.map((q, i) => {
+            const leader = q.runMargin > 0 ? game.home : q.runMargin < 0 ? game.away : 'Tied';
+            const leaderSide = q.runMargin > 0 ? 'home' : 'away';
+            const isFav = leaderSide === game.favSide;
+            return (
+              <span key={i}>
+                {q.runMargin === 0 ? 'Tied' : (
+                  <span style={{ color: isFav ? FAV_COLOR : DOG_COLOR }}>
+                    {isFav ? 'Fav' : 'Dog'} +{Math.abs(q.runMargin)}
+                  </span>
+                )}
+                {i < game.quarters.length - 1 && <span style={{ margin: '0 4px' }}>&rarr;</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pattern Matching Results */}
+      {(game.isLive || (game.isComplete && expanded)) && similar.length > 0 && remainingQStats.length > 0 && (
+        <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', fontWeight: '600' }}>
+            SIMILAR PATTERNS ({similar.length} games with same Q{game.quarters.map(q => q.qNum).join('+')} flow)
+          </div>
+          {remainingQStats.map(stat => (
+            <div key={stat.qNum} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', minWidth: '30px' }}>Q{stat.qNum}:</span>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <span style={{ fontSize: '0.8rem', color: FAV_COLOR, fontWeight: '600' }}>
+                  Fav wins {stat.favWins}/{stat.total} ({stat.favPct}%)
+                </span>
+                <span style={{ fontSize: '0.8rem', color: DOG_COLOR, fontWeight: '600' }}>
+                  Dog wins {stat.dogWins}/{stat.total} ({stat.dogPct}%)
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expand/collapse for completed games */}
+      {game.isComplete && similar.length > 0 && (
+        <button onClick={() => setExpanded(!expanded)} style={{
+          marginTop: '8px',
+          padding: '4px 12px',
+          background: 'rgba(255,255,255,0.07)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '6px',
+          color: 'rgba(255,255,255,0.5)',
+          fontSize: '0.7rem',
+          cursor: 'pointer',
+        }}>
+          {expanded ? 'Hide' : 'Show'} similar patterns ({similar.length})
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── App ─────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [rawGames, setRawGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterRound, setFilterRound] = useState('');
+  const [filterSeriesGame, setFilterSeriesGame] = useState('');
+  const [filterSpreadRange, setFilterSpreadRange] = useState('');
+  const [filterFavSide, setFilterFavSide] = useState('');
+  const [matchMargin, setMatchMargin] = useState(false);
+  const [linkedGameKeys, setLinkedGameKeys] = useState(new Set());
+
+  const toggleLink = (gameKey) => {
+    setLinkedGameKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(gameKey)) next.delete(gameKey); else next.add(gameKey);
+      return next;
+    });
+  };
+
+  const gameKey = (g) => `${g.date}|${g.away}|${g.home}`;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const bust = Math.floor(Date.now() / (60 * 1000));
+        const res = await fetch(sheetCsvUrl(TAB, 'A1:L10000') + '&v=' + bust);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = parseSheetCsv(await res.text());
+        const games = rows.map(parseGame).filter(Boolean);
+        setRawGames(games);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const filteredGames = useMemo(() => {
+    return rawGames.filter(g => {
+      if (filterRound && g.round !== parseInt(filterRound)) return false;
+      if (filterSeriesGame && g.seriesGame !== parseInt(filterSeriesGame)) return false;
+      if (filterFavSide && g.favSide !== filterFavSide) return false;
+      if (filterSpreadRange) {
+        const abs = Math.abs(g.spread);
+        const [min, max] = filterSpreadRange.split('-').map(Number);
+        if (abs < min || abs > max) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      // Live first, then upcoming, then by date desc
+      if (a.isLive && !b.isLive) return -1;
+      if (!a.isLive && b.isLive) return 1;
+      if (a.isUpcoming && !b.isUpcoming && !b.isLive) return -1;
+      if (!a.isUpcoming && !a.isLive && b.isUpcoming) return 1;
+      return b.date.localeCompare(a.date) || a.away.localeCompare(b.away);
+    });
+  }, [rawGames, filterRound, filterSeriesGame, filterSpreadRange, filterFavSide]);
+
+  const patternFilters = useMemo(() => ({
+    matchMargin,
+    spreadRange: filterSpreadRange ? filterSpreadRange.split('-').map(Number) : null,
+  }), [matchMargin, filterSpreadRange]);
+
+  const uniqueRounds = useMemo(() => [...new Set(rawGames.map(g => g.round))].sort(), [rawGames]);
+  const uniqueSeriesGames = useMemo(() => [...new Set(rawGames.map(g => g.seriesGame))].sort(), [rawGames]);
+
+  // Aggregate stats
+  const stats = useMemo(() => {
+    const completed = filteredGames.filter(g => g.isComplete);
+    if (completed.length === 0) return null;
+
+    const qStats = [1, 2, 3, 4].map(qNum => {
+      const games = completed.filter(g => g.quarters.length >= qNum);
+      const favWins = games.filter(g => g.quarters[qNum - 1].favWon === 'fav').length;
+      const dogWins = games.filter(g => g.quarters[qNum - 1].favWon === 'dog').length;
+      return {
+        qNum,
+        total: games.length,
+        favWins,
+        dogWins,
+        favPct: games.length > 0 ? Math.round(favWins / games.length * 100) : 0,
+      };
+    });
+
+    return { completed: completed.length, qStats };
+  }, [filteredGames]);
+
+  const selectStyle = {
+    padding: '8px 12px',
+    background: 'rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: '8px',
+    color: '#fff',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    minWidth: '100px',
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FA4616 0%, #d63a0f 40%, #0021A5 100%)', fontFamily: "'Segoe UI', system-ui, sans-serif", color: '#fff', padding: '20px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '24px', padding: '20px', background: 'rgba(0,33,165,0.3)', borderRadius: '16px', border: '2px solid rgba(0,33,165,0.5)' }}>
+        <h1 style={{ fontSize: '2.2rem', fontWeight: '800', background: 'linear-gradient(90deg, #fff, #0021A5, #fff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '6px' }}>
+          BOX SCORE PATTERNS
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginBottom: '10px' }}>
+          NBA Playoff Quarter Flow &bull; <a href="index.html" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Fade Finder</a> &bull; <a href="journal.html" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Picks Journal</a>
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+          <span style={{ color: FAV_COLOR }}>Blue = Favorite</span>
+          <span style={{ color: DOG_COLOR }}>Red = Underdog</span>
+          <span style={{ color: 'rgba(255,255,255,0.5)' }}>+ (1-4) &bull; ++ (5-9) &bull; +++ (10-16) &bull; ++++ (17+)</span>
+        </div>
+      </div>
+
+      {/* Quarter Summary */}
+      {stats && (
+        <div style={{ background: 'rgba(0,33,165,0.25)', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid rgba(0,33,165,0.4)' }}>
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Quarter Win Rates ({stats.completed} games)
+          </div>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            {stats.qStats.map(q => (
+              <div key={q.qNum} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>Q{q.qNum}:</span>
+                <span style={{ fontSize: '0.8rem', color: FAV_COLOR, fontWeight: '700' }}>Fav {q.favPct}%</span>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)' }}>|</span>
+                <span style={{ fontSize: '0.8rem', color: DOG_COLOR, fontWeight: '700' }}>Dog {100 - q.favPct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ background: 'rgba(0,33,165,0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(0,33,165,0.4)' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select value={filterRound} onChange={e => setFilterRound(e.target.value)} style={selectStyle}>
+            <option value="">All Rounds</option>
+            {uniqueRounds.map(r => <option key={r} value={r}>Round {r}</option>)}
+          </select>
+          <select value={filterSeriesGame} onChange={e => setFilterSeriesGame(e.target.value)} style={selectStyle}>
+            <option value="">All Games</option>
+            {uniqueSeriesGames.map(g => <option key={g} value={g}>Game {g}</option>)}
+          </select>
+          <select value={filterSpreadRange} onChange={e => setFilterSpreadRange(e.target.value)} style={selectStyle}>
+            <option value="">All Spreads</option>
+            <option value="0-3">0 to 3</option>
+            <option value="3-6">3 to 6</option>
+            <option value="6-10">6 to 10</option>
+            <option value="10-99">10+</option>
+          </select>
+          <select value={filterFavSide} onChange={e => setFilterFavSide(e.target.value)} style={selectStyle}>
+            <option value="">Fav Home/Away</option>
+            <option value="home">Home Favorite</option>
+            <option value="away">Away Favorite</option>
+          </select>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={matchMargin} onChange={e => setMatchMargin(e.target.checked)} style={{ cursor: 'pointer' }} />
+            Match margin size
+          </label>
+          {(filterRound || filterSeriesGame || filterSpreadRange || filterFavSide) && (
+            <button onClick={() => { setFilterRound(''); setFilterSeriesGame(''); setFilterSpreadRange(''); setFilterFavSide(''); }}
+              style={{ padding: '8px 16px', background: 'rgba(255,100,100,0.2)', border: '1px solid rgba(255,100,100,0.5)', borderRadius: '8px', color: '#FF6B6B', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}>
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#FFD700' }}>Loading playoff data...</div>}
+      {error && <div style={{ textAlign: 'center', padding: '40px', color: '#FF6B6B' }}>Error: {error}</div>}
+
+      {!loading && filteredGames.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(0,33,165,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>No playoff games found</div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
+            Tag games in the nba_schedule sheet with round_1,game_1 etc.
+          </div>
+        </div>
+      )}
+
+      {/* Linked Games Comparison */}
+      {linkedGameKeys.size > 1 && (() => {
+        const linked = filteredGames.filter(g => linkedGameKeys.has(gameKey(g)));
+        if (linked.length < 2) return null;
+        return (
+          <div style={{
+            background: 'rgba(0,33,165,0.25)',
+            borderRadius: '14px',
+            padding: '20px',
+            marginBottom: '24px',
+            border: '2px solid rgba(90,155,213,0.4)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: FAV_COLOR }}>
+                LINKED COMPARISON ({linked.length} games)
+              </div>
+              <button onClick={() => setLinkedGameKeys(new Set())} style={{
+                padding: '4px 12px',
+                background: 'rgba(255,100,100,0.2)',
+                border: '1px solid rgba(255,100,100,0.5)',
+                borderRadius: '6px',
+                color: '#FF6B6B',
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                fontWeight: '600',
+              }}>Unlink All</button>
+            </div>
+            {/* Spread Table */}
+            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: FAV_COLOR, marginBottom: '8px' }}>SPREAD</div>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '20px' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '700px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', width: '220px' }}>Game</th>
+                    {[1,2,3,4].map(q => (
+                      <th key={q} style={{ textAlign: 'center', padding: '6px 10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', width: '100px' }}>Q{q}</th>
+                    ))}
+                    <th style={{ textAlign: 'center', padding: '6px 10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', width: '80px' }}>Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linked.map(g => {
+                    const favLbl = g.favSide === 'home' ? g.home : g.away;
+                    const absSpread = Math.abs(g.spread);
+                    return (
+                      <tr key={gameKey(g)} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{favLbl} -{absSpread}</div>
+                        </td>
+                        {[0,1,2,3].map(qi => {
+                          const q = g.quarters[qi];
+                          if (!q) return <td key={qi} style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.2)' }}>—</td>;
+                          const winColor = q.favWon === 'fav' ? FAV_COLOR : q.favWon === 'dog' ? DOG_COLOR : TIE_COLOR;
+                          const runIsFav = (q.runMargin > 0 ? 'home' : 'away') === g.favSide;
+                          return (
+                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top' }}>
+                              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>{q.away}-{q.home}</div>
+                              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: winColor }}>
+                                {q.favWon === 'tie' ? 'TIE' : q.favWon.toUpperCase()} {q.bucket.symbol}
+                              </div>
+                              <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>
+                                {q.margin === 0 ? 'Even' : `${(q.winner === g.favSide ? 'Fav' : 'Dog')} +${Math.abs(q.margin)}`}
+                                {' '}({q.runMargin === 0 ? 'Tied' : `${runIsFav ? 'Fav' : 'Dog'} +${Math.abs(q.runMargin)}`})
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top' }}>
+                          {g.isComplete ? (
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff' }}>{g.finalAway}-{g.finalHome}</div>
+                              <div style={{
+                                fontSize: '0.65rem',
+                                fontWeight: '600',
+                                color: (g.finalMargin > 0 ? 'home' : 'away') === g.favSide ? FAV_COLOR : DOG_COLOR,
+                              }}>
+                                {(g.finalMargin > 0 ? 'home' : 'away') === g.favSide ? 'FAV' : 'DOG'} +{Math.abs(g.finalMargin)}
+                                {Math.abs(g.finalMargin) > absSpread ? ' COV' : ''}
+                              </div>
+                            </div>
+                          ) : <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total Table */}
+            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: OVER_COLOR, marginBottom: '8px' }}>TOTAL</div>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '700px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', width: '220px' }}>Game</th>
+                    {[1,2,3,4].map(q => (
+                      <th key={q} style={{ textAlign: 'center', padding: '6px 10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', width: '100px' }}>Q{q}</th>
+                    ))}
+                    <th style={{ textAlign: 'center', padding: '6px 10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', width: '80px' }}>Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linked.map(g => {
+                    const absSpread = Math.abs(g.spread);
+                    return (
+                      <tr key={`t-${gameKey(g)}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>O/U {g.totalLine || '—'}</div>
+                        </td>
+                        {[0,1,2,3].map(qi => {
+                          const q = g.quarters[qi];
+                          if (!q) return <td key={qi} style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.2)' }}>—</td>;
+                          const paceColor = q.totalPace != null ? (q.totalPace > 0 ? OVER_COLOR : q.totalPace < 0 ? UNDER_COLOR : 'rgba(255,255,255,0.4)') : 'rgba(255,255,255,0.5)';
+                          return (
+                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top' }}>
+                              <div style={{ fontSize: '0.8rem', color: '#fff' }}>{q.qTotal} pts</div>
+                              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>{q.runTotal} total</div>
+                              {g.totalLine && q.totalPace != null && (
+                                <div style={{ fontSize: '0.6rem', fontWeight: '600', color: paceColor }}>
+                                  {q.totalPace > 0 ? '+' : ''}{q.totalPace.toFixed(1)} pace
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top' }}>
+                          {g.isComplete ? (
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff' }}>{g.finalTotal}</div>
+                              {g.totalLine ? (
+                                <div style={{
+                                  fontSize: '0.65rem',
+                                  fontWeight: '600',
+                                  color: g.finalTotal > g.totalLine ? OVER_COLOR : g.finalTotal < g.totalLine ? UNDER_COLOR : 'rgba(255,255,255,0.4)',
+                                }}>
+                                  {g.finalTotal > g.totalLine ? 'OVER' : g.finalTotal < g.totalLine ? 'UNDER' : 'PUSH'} {Math.abs(g.finalTotal - g.totalLine).toFixed(1)}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Game Cards */}
+      {filteredGames.map(g => (
+        <div key={gameKey(g)} style={{ marginBottom: '16px' }}>
+          <GameCard game={g} allGames={rawGames} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
+        </div>
+      ))}
+
+      {/* Footer */}
+      <div style={{ textAlign: 'center', marginTop: '40px', padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
+        Box Score Patterns &bull; Playoff games only &bull; Data from nba_schedule
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
