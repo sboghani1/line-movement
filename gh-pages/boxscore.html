@@ -892,6 +892,9 @@ function App() {
               }}>Unlink All</button>
             </div>
             {/* Spread Table */}
+            {(() => {
+              const refGame = linked[0]; // first linked game is the reference
+              return (<>
             <div style={{ fontSize: '0.75rem', fontWeight: '700', color: FAV_COLOR, marginBottom: '8px' }}>SPREAD</div>
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '20px' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '700px' }}>
@@ -905,7 +908,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linked.map(g => {
+                  {linked.map((g, gi) => {
                     const favLbl = g.favSide === 'home' ? g.home : g.away;
                     const absSpread = Math.abs(g.spread);
                     return (
@@ -920,8 +923,16 @@ function App() {
                           if (!q) return <td key={qi} style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.2)' }}>—</td>;
                           const winColor = q.favWon === 'fav' ? FAV_COLOR : q.favWon === 'dog' ? DOG_COLOR : TIE_COLOR;
                           const runIsFav = (q.runMargin > 0 ? 'home' : 'away') === g.favSide;
+                          // Compare to first game's quarter
+                          let borderColor = 'transparent';
+                          if (gi > 0 && refGame.quarters[qi]) {
+                            const refQ = refGame.quarters[qi];
+                            if (q.favWon !== 'tie' && refQ.favWon !== 'tie') {
+                              borderColor = q.favWon === refQ.favWon ? '#70AD47' : '#FFD700';
+                            }
+                          }
                           return (
-                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top' }}>
+                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top', border: gi > 0 && borderColor !== 'transparent' ? `2px solid ${borderColor}` : '1px solid transparent', borderRadius: '6px' }}>
                               <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>{q.away}-{q.home}</div>
                               <div style={{ fontSize: '0.75rem', fontWeight: '700', color: winColor }}>
                                 {q.favWon === 'tie' ? 'TIE' : q.favWon.toUpperCase()} {q.bucket.symbol}
@@ -954,8 +965,12 @@ function App() {
                 </tbody>
               </table>
             </div>
+            </>);
+            })()}
 
-            {/* Total Table */}
+            {(() => {
+              const refGame = linked[0];
+              return (<>
             <div style={{ fontSize: '0.75rem', fontWeight: '700', color: OVER_COLOR, marginBottom: '8px' }}>TOTAL</div>
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '700px' }}>
@@ -969,7 +984,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linked.map(g => {
+                  {linked.map((g, gi) => {
                     const absSpread = Math.abs(g.spread);
                     return (
                       <tr key={`t-${gameKey(g)}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -982,8 +997,17 @@ function App() {
                           const q = g.quarters[qi];
                           if (!q) return <td key={qi} style={{ textAlign: 'center', padding: '8px', color: 'rgba(255,255,255,0.2)' }}>—</td>;
                           const paceColor = q.totalPace != null ? (q.totalPace > 0 ? OVER_COLOR : q.totalPace < 0 ? UNDER_COLOR : 'rgba(255,255,255,0.4)') : 'rgba(255,255,255,0.5)';
+                          // Compare pace direction to first game
+                          let borderColor = 'transparent';
+                          if (gi > 0 && refGame.quarters[qi] && q.totalPace != null && refGame.quarters[qi].totalPace != null) {
+                            const refPace = refGame.quarters[qi].totalPace;
+                            const sameSide = (q.totalPace > 0 && refPace > 0) || (q.totalPace < 0 && refPace < 0);
+                            if (q.totalPace !== 0 && refPace !== 0) {
+                              borderColor = sameSide ? '#70AD47' : '#FFD700';
+                            }
+                          }
                           return (
-                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top' }}>
+                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top', border: gi > 0 && borderColor !== 'transparent' ? `2px solid ${borderColor}` : '1px solid transparent', borderRadius: '6px' }}>
                               <div style={{ fontSize: '0.8rem', color: '#fff' }}>{q.qTotal} pts</div>
                               <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>{q.runTotal} total</div>
                               {g.totalLine && q.totalPace != null && (
@@ -1016,6 +1040,8 @@ function App() {
                 </tbody>
               </table>
             </div>
+            </>);
+            })()}
           </div>
         );
       })()}
