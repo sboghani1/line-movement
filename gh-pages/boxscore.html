@@ -936,7 +936,7 @@ function App() {
                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
                           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
                           <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{favLbl} -{absSpread}</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{favLbl} -{absSpread}</div>
                         </td>
                         {[0,1,2,3].map(qi => {
                           const q = g.quarters[qi];
@@ -1013,7 +1013,7 @@ function App() {
                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
                           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
                           <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>O/U {g.totalLine || '—'}</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>O/U {g.totalLine || '—'}</div>
                         </td>
                         {[0,1,2,3].map(qi => {
                           const q = g.quarters[qi];
