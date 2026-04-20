@@ -517,6 +517,19 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
             <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>
               {game.finalAway} - {game.finalHome}
             </div>
+            {game.totalLine && (() => {
+              const half = game.totalLine / 2;
+              const halfSpread = spreadDisplay / 2;
+              const vegasFav = (half + halfSpread).toFixed(1);
+              const vegasDog = (half - halfSpread).toFixed(1);
+              const vegasAway = game.favSide === 'away' ? vegasFav : vegasDog;
+              const vegasHome = game.favSide === 'home' ? vegasFav : vegasDog;
+              return (
+                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>
+                  Vegas: {vegasAway} - {vegasHome}
+                </div>
+              );
+            })()}
             <div style={{
               fontSize: '0.75rem',
               fontWeight: '700',
