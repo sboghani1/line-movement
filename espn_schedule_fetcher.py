@@ -30,6 +30,7 @@ from google.oauth2.service_account import Credentials
 
 from activity_logger import log_activity
 from sheets_utils import sheets_call
+from tag_nba_playoffs import tag_playoff_games
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
@@ -520,6 +521,8 @@ def run_sport(
         {"games_fetched": len(games), "details": ", ".join(changes) if changes else "no changes"},
     )
 
+    return new_count
+
 
 def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_limit: Optional[int] = None):
     eastern = ZoneInfo("America/New_York")
@@ -541,9 +544,17 @@ def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_l
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
 
         labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL", "nfl": "🏈 NFL", "cfb": "🏈 College Football", "mlb": "⚾ MLB"}
+        nba_new = 0
         for s in sports:
             print(f"\n{labels[s]}...")
-            run_sport(spreadsheet, s, date_str, formatted_date, timestamp, score_limit=score_limit)
+            new_count = run_sport(spreadsheet, s, date_str, formatted_date, timestamp, score_limit=score_limit)
+            if s == "nba":
+                nba_new = new_count
+
+        # Tag NBA playoff games after schedule fetch (only if new games were added)
+        if "nba" in sports and nba_new > 0:
+            print(f"\n🏀 Tagging NBA playoff games...")
+            tag_playoff_games(spreadsheet)
 
         print(f"\n✅ Done!")
 

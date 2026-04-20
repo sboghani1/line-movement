@@ -96,16 +96,19 @@ def compute_tags(rows, start_date):
     return results
 
 
-def main():
-    args = parse_args()
-    start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
+def tag_playoff_games(spreadsheet, start_date_str=DEFAULT_PLAYOFF_START, dry_run=False, validate_only=False):
+    """Tag playoff games in nba_schedule. Can be called standalone or from another script.
 
-    print(f"Connecting to Google Sheets...")
-    gc = get_gspread_client()
-    spreadsheet = gc.open_by_key(GOOGLE_SHEET_ID)
+    Args:
+        spreadsheet: gspread Spreadsheet object (already authenticated)
+        start_date_str: playoff start date as YYYY-MM-DD string
+        dry_run: preview without writing
+        validate_only: only report mismatches
+    """
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     worksheet = sheets_read(spreadsheet.worksheet, WORKSHEET_NAME)
 
-    print(f"Reading {WORKSHEET_NAME}...")
+    print(f"Reading {WORKSHEET_NAME} for playoff tags...")
     all_values = sheets_read(worksheet.get_all_values)
 
     if not all_values:
@@ -113,7 +116,6 @@ def main():
         return
 
     # Parse rows (skip header row)
-    header = all_values[0]
     rows = []
     for i, row in enumerate(all_values[1:], start=2):  # row 2 in sheet = index 1
         # Pad row to ensure tags column exists
@@ -141,7 +143,7 @@ def main():
     mismatched = [(rn, tag, ex) for rn, tag, ex in results if ex != "" and ex != tag]
     to_write = missing + mismatched
 
-    print(f"\nResults:")
+    print(f"\nPlayoff tag results:")
     print(f"  Already correct: {len(correct)}")
     print(f"  Missing (empty): {len(missing)}")
     print(f"  Mismatched:      {len(mismatched)}")
@@ -151,7 +153,7 @@ def main():
         for rn, tag, ex in mismatched:
             print(f"  Row {rn}: existing='{ex}' → computed='{tag}'")
 
-    if args.validate_only:
+    if validate_only:
         if not mismatched and not missing:
             print("\n✅ All playoff tags are correct.")
         return
@@ -168,23 +170,30 @@ def main():
     if len(to_write) > 20:
         print(f"  ... and {len(to_write) - 20} more")
 
-    if args.dry_run:
+    if dry_run:
         print("\n(dry run — no changes written)")
         return
 
-    # Write tags via batch_update
-    # Column L = column index 12 (1-based) → gspread uses A1 notation
-    col_letter = "L"
+    # Write tags via batch_update (column L)
     batch = []
     for rn, tag, _ in to_write:
         batch.append({
-            "range": f"{col_letter}{rn}",
+            "range": f"L{rn}",
             "values": [[tag]],
         })
 
     print(f"\nWriting {len(batch)} tags...")
     sheets_write(worksheet.batch_update, batch, value_input_option="USER_ENTERED")
-    print("✅ Done.")
+    print("✅ Playoff tags updated.")
+
+
+def main():
+    args = parse_args()
+    print(f"Connecting to Google Sheets...")
+    gc = get_gspread_client()
+    spreadsheet = gc.open_by_key(GOOGLE_SHEET_ID)
+    tag_playoff_games(spreadsheet, start_date_str=args.start_date,
+                      dry_run=args.dry_run, validate_only=args.validate_only)
 
 
 if __name__ == "__main__":
