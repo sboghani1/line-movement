@@ -23,7 +23,7 @@ const SCHEDULE_TABS = ['nba_schedule', 'nhl_schedule', 'mlb_schedule', 'cbb_sche
 const SPORT_MAP = { nba_schedule: 'NBA', nhl_schedule: 'NHL', mlb_schedule: 'MLB', cbb_schedule: 'CBB' };
 
 const DEFAULT_SOURCES = ['me'];
-const DEFAULT_TAGS = ['national_tv', 'back_to_back', 'revenge_game', 'injury_return'];
+const DEFAULT_TAGS = [];
 const DEFAULT_CONFIDENCE = ['lean', 'like', 'love', 'lock'];
 const PHASES = ['pregame', 'live', 'postgame'];
 const RESULTS = ['W', 'L', 'P'];
@@ -446,6 +446,9 @@ function App() {
   const [filterConfidence, setFilterConfidence] = useState('');
   const [filterPlayoff, setFilterPlayoff] = useState('');
   const [filterTags, setFilterTags] = useState(new Set());
+  const [tagMatchAll, setTagMatchAll] = useState(true);
+  const [pauseRefresh, setPauseRefresh] = useState(false);
+  const [frozenGames, setFrozenGames] = useState(null);
   const [showPatterns, setShowPatterns] = useState(true);
 
   // Load data
@@ -503,17 +506,32 @@ function App() {
       if (filterPlayoff === 'FALSE' && e.is_playoff === 'TRUE') return false;
       if (filterTags.size > 0) {
         const entryTags = (e.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-        if (![...filterTags].every(ft => entryTags.includes(ft))) return false;
+        const match = tagMatchAll
+          ? [...filterTags].every(ft => entryTags.includes(ft))
+          : [...filterTags].some(ft => entryTags.includes(ft));
+        if (!match) return false;
       }
       return true;
     });
-  }, [entries, filterSport, filterSource, filterConfidence, filterPlayoff, filterTags]);
+  }, [entries, filterSport, filterSource, filterConfidence, filterPlayoff, filterTags, tagMatchAll]);
 
   // Group by game
   const games = useMemo(() => {
     const g = groupByGame(filteredEntries);
     return g.sort((a, b) => b.date.localeCompare(a.date));
   }, [filteredEntries]);
+
+  // Freeze/unfreeze timeline when pause toggle changes
+  const displayGames = useMemo(() => {
+    if (pauseRefresh && frozenGames !== null) return frozenGames;
+    return games;
+  }, [pauseRefresh, frozenGames, games]);
+
+  // Snapshot games when pausing, apply latest when unpausing
+  useEffect(() => {
+    if (pauseRefresh && frozenGames === null) setFrozenGames(games);
+    if (!pauseRefresh) setFrozenGames(null);
+  }, [pauseRefresh]);
 
   // Pattern matching
   const patterns = useMemo(() => {
@@ -595,9 +613,43 @@ function App() {
             </button>
           )}
         </div>
-        {uniqueTags.length > 0 && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>Tags:</span>
+        {uniqueTags.length > 0 && (<>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Tags:</span>
+            <div style={{ display: 'inline-flex', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.25)' }}>
+              <button onClick={() => setTagMatchAll(true)} style={{
+                padding: '3px 10px',
+                border: 'none',
+                background: tagMatchAll ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.05)',
+                color: tagMatchAll ? '#FFD700' : 'rgba(255,255,255,0.4)',
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                fontWeight: tagMatchAll ? '700' : '400',
+              }}>Match All</button>
+              <button onClick={() => setTagMatchAll(false)} style={{
+                padding: '3px 10px',
+                border: 'none',
+                borderLeft: '1px solid rgba(255,255,255,0.15)',
+                background: !tagMatchAll ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.05)',
+                color: !tagMatchAll ? '#FFD700' : 'rgba(255,255,255,0.4)',
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                fontWeight: !tagMatchAll ? '700' : '400',
+              }}>Match Any</button>
+            </div>
+            <button onClick={() => setPauseRefresh(prev => !prev)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '8px',
+              border: pauseRefresh ? '1px solid rgba(255,150,50,0.7)' : '1px solid rgba(255,255,255,0.25)',
+              background: pauseRefresh ? 'rgba(255,150,50,0.25)' : 'rgba(255,255,255,0.05)',
+              color: pauseRefresh ? '#FFA040' : 'rgba(255,255,255,0.4)',
+              fontSize: '0.7rem',
+              cursor: 'pointer',
+              fontWeight: pauseRefresh ? '700' : '400',
+            }}>{pauseRefresh ? 'Do Not Apply Tags' : 'Apply Tags'}</button>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', alignItems: 'center' }}>
             {uniqueTags.map(t => {
               const active = filterTags.has(t);
               return (
@@ -621,7 +673,7 @@ function App() {
               );
             })}
           </div>
-        )}
+        </>)}
       </div>
 
       {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#FFD700' }}>Loading journal data...</div>}
@@ -668,11 +720,11 @@ function App() {
       )}
 
       {/* Journal Timeline */}
-      {!loading && games.length > 0 && (
+      {!loading && displayGames.length > 0 && (
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px' }}>Journal Timeline</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px' }}>Journal Timeline{pauseRefresh && <span style={{ fontSize: '0.75rem', color: '#FFA040', marginLeft: '8px', fontWeight: '400' }}>( tags not applied )</span>}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {games.map(g => <JournalEntry key={`${g.date}|${g.game}`} game={g} scheduleMap={schedules} filterTags={filterTags} onToggleTag={tag => {
+            {displayGames.map(g => <JournalEntry key={`${g.date}|${g.game}`} game={g} scheduleMap={schedules} filterTags={filterTags} onToggleTag={tag => {
               setFilterTags(prev => {
                 const next = new Set(prev);
                 if (next.has(tag)) next.delete(tag); else next.add(tag);
