@@ -52,6 +52,7 @@ FIELDNAMES = [
     "venue",
     "score",
     "period_scores",
+    "tags",
 ]
 
 SPORT_WORKSHEETS = {
@@ -459,6 +460,7 @@ def write_games_to_sheet(
             game["venue"],
             "",  # score — filled in by update_scores_for_sheet once game completes
             "",  # period_scores — filled in by update_scores_for_sheet once game completes
+            "",  # tags
         ])
         existing_games[key] = {
             "row_idx": -1,
