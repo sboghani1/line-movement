@@ -256,7 +256,7 @@ const DOG_COLOR = '#FF6B6B';
 const TIE_COLOR = '#999';
 const LIVE_COLOR = '#FFD700';
 
-function QuarterBox({ q, favSide, away, home, isLive, isUpcoming, totalLine }) {
+function QuarterBox({ q, favSide, away, home, isLive, isUpcoming }) {
   if (isUpcoming) {
     return (
       <div style={{
@@ -324,11 +324,6 @@ function QuarterBox({ q, favSide, away, home, isLive, isUpcoming, totalLine }) {
           </span>
         )}
       </div>
-      {totalLine && q.runTotal != null && (
-        <div style={{ fontSize: '0.6rem', marginTop: '3px', color: q.totalPace > 0 ? '#FF9B3B' : q.totalPace < 0 ? '#70AD47' : 'rgba(255,255,255,0.3)' }}>
-          {q.runTotal} pts ({q.totalPace > 0 ? '+' : ''}{q.totalPace.toFixed(1)} pace)
-        </div>
-      )}
     </div>
   );
 }
@@ -564,7 +559,6 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
               home={game.home}
               isLive={b.isLive}
               isUpcoming={b.isUpcoming}
-              totalLine={game.totalLine}
             />
             {i < boxes.length - 1 && <Connector />}
           </React.Fragment>
