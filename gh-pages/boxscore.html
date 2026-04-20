@@ -661,7 +661,27 @@ function App() {
   const [filterSpreadRange, setFilterSpreadRange] = useState('');
   const [filterFavSide, setFilterFavSide] = useState('');
   const [matchMargin, setMatchMargin] = useState(false);
-  const [linkedGameKeys, setLinkedGameKeys] = useState(new Set());
+  const [linkedGameKeys, setLinkedGameKeys] = useState(() => {
+    // Read linked games from URL query params on initial load
+    const params = new URLSearchParams(window.location.search);
+    const linkedParam = params.get('linked');
+    if (linkedParam) {
+      return new Set(linkedParam.split(';').map(s => decodeURIComponent(s)).filter(Boolean));
+    }
+    return new Set();
+  });
+
+  // Sync linked games to URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (linkedGameKeys.size > 0) {
+      params.set('linked', [...linkedGameKeys].map(k => encodeURIComponent(k)).join(';'));
+    } else {
+      params.delete('linked');
+    }
+    const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [linkedGameKeys]);
 
   const toggleLink = (gameKey) => {
     setLinkedGameKeys(prev => {
@@ -932,7 +952,8 @@ function App() {
                             }
                           }
                           return (
-                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top', border: gi > 0 && borderColor !== 'transparent' ? `2px solid ${borderColor}` : '1px solid transparent', borderRadius: '6px' }}>
+                            <td key={qi} style={{ textAlign: 'center', padding: '4px', verticalAlign: 'top' }}>
+                              <div style={{ padding: '6px', borderRadius: '6px', border: gi > 0 && borderColor !== 'transparent' ? `2px solid ${borderColor}` : '2px solid transparent' }}>
                               <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>{q.away}-{q.home}</div>
                               <div style={{ fontSize: '0.75rem', fontWeight: '700', color: winColor }}>
                                 {q.favWon === 'tie' ? 'TIE' : q.favWon.toUpperCase()} {q.bucket.symbol}
@@ -940,6 +961,7 @@ function App() {
                               <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>
                                 {q.margin === 0 ? 'Even' : `${(q.winner === g.favSide ? 'Fav' : 'Dog')} +${Math.abs(q.margin)}`}
                                 {' '}({q.runMargin === 0 ? 'Tied' : `${runIsFav ? 'Fav' : 'Dog'} +${Math.abs(q.runMargin)}`})
+                              </div>
                               </div>
                             </td>
                           );
@@ -1007,7 +1029,8 @@ function App() {
                             }
                           }
                           return (
-                            <td key={qi} style={{ textAlign: 'center', padding: '8px', verticalAlign: 'top', border: gi > 0 && borderColor !== 'transparent' ? `2px solid ${borderColor}` : '1px solid transparent', borderRadius: '6px' }}>
+                            <td key={qi} style={{ textAlign: 'center', padding: '4px', verticalAlign: 'top' }}>
+                              <div style={{ padding: '6px', borderRadius: '6px', border: gi > 0 && borderColor !== 'transparent' ? `2px solid ${borderColor}` : '2px solid transparent' }}>
                               <div style={{ fontSize: '0.8rem', color: '#fff' }}>{q.qTotal} pts</div>
                               <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>{q.runTotal} total</div>
                               {g.totalLine && q.totalPace != null && (
@@ -1015,6 +1038,7 @@ function App() {
                                   {q.totalPace > 0 ? '+' : ''}{q.totalPace.toFixed(1)} pace
                                 </div>
                               )}
+                              </div>
                             </td>
                           );
                         })}
