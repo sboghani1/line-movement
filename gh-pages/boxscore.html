@@ -523,7 +523,7 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
               color: (game.finalMargin > 0 ? 'home' : 'away') === game.favSide ? FAV_COLOR : DOG_COLOR,
             }}>
               {(game.finalMargin > 0 ? 'home' : 'away') === game.favSide ? 'FAV' : 'DOG'} wins by {Math.abs(game.finalMargin)}
-              {Math.abs(game.finalMargin) > spreadDisplay ? ' (COVERS)' : ' (NO COVER)'}
+              {Math.abs(game.finalMargin) > spreadDisplay ? ` (COVERS -${spreadDisplay})` : ` (NO COVER -${spreadDisplay})`}
             </div>
             {game.isComplete && (
               <div style={{
@@ -670,9 +670,37 @@ function App() {
     const load = async () => {
       try {
         const bust = Math.floor(Date.now() / (60 * 1000));
-        const res = await fetch(sheetCsvUrl(TAB, 'A1:L10000') + '&v=' + bust);
+        // Fetch full sheet (may have stale over_under due to Google cache)
+        const res = await fetch(sheetCsvUrl(TAB) + '&v=' + bust);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const rows = parseSheetCsv(await res.text());
+
+        // Patch: fetch last 200 rows with range to bypass cache for over_under
+        try {
+          const totalRows = rows.length + 1; // +1 for header
+          const startRow = Math.max(2, totalRows - 200);
+          const patchRes = await fetch(sheetCsvUrl(TAB, `A1:L1`) + '&v=' + bust);
+          const patchRes2 = await fetch(sheetCsvUrl(TAB, `A${startRow}:L${totalRows + 50}`) + '&v=' + bust);
+          if (patchRes.ok && patchRes2.ok) {
+            const headerText = await patchRes.text();
+            const dataText = await patchRes2.text();
+            const patchRows = parseSheetCsv(headerText + '\n' + dataText);
+            // Build lookup by date+away+home
+            const patchMap = {};
+            for (const pr of patchRows) {
+              const key = `${pr.game_date}|${pr.away_team}|${pr.home_team}`;
+              patchMap[key] = pr;
+            }
+            // Patch over_under into main rows
+            for (const row of rows) {
+              const key = `${row.game_date}|${row.away_team}|${row.home_team}`;
+              if (patchMap[key] && patchMap[key].over_under && !row.over_under) {
+                row.over_under = patchMap[key].over_under;
+              }
+            }
+          }
+        } catch (e) { console.warn('Patch fetch failed:', e); }
+
         const games = rows.map(parseGame).filter(Boolean);
         setRawGames(games);
       } catch (e) {
