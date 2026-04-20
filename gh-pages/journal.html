@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Picks Journal - Pattern Finder</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useMemo, useEffect, useCallback } = React;
+
+const SHEET_ID = '1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k';
+const JOURNAL_TAB = 'picks_journal';
+const SCHEDULE_TABS = ['nba_schedule', 'nhl_schedule', 'mlb_schedule', 'cbb_schedule'];
+const SPORT_MAP = { nba_schedule: 'NBA', nhl_schedule: 'NHL', mlb_schedule: 'MLB', cbb_schedule: 'CBB' };
+
+const DEFAULT_SOURCES = ['me'];
+const DEFAULT_TAGS = ['national_tv', 'back_to_back', 'revenge_game', 'injury_return'];
+const DEFAULT_CONFIDENCE = ['lean', 'like', 'love', 'lock'];
+const PHASES = ['pregame', 'live', 'postgame'];
+const RESULTS = ['W', 'L', 'P'];
+
+const CONFIDENCE_COLORS = { lean: '#999', like: '#5B9BD5', love: '#70AD47', lock: '#FFD700' };
+const RESULT_COLORS = { W: '#70AD47', L: '#FF6B6B', P: '#999' };
+
+function sheetCsvUrl(tab) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
+}
+
+function* csvRows(text) {
+  const lines = [];
+  let current = '';
+  let inQuotes = false;
+  let row = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i+1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      row.push(current); current = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      row.push(current); current = '';
+      if (row.some(c => c.length > 0)) yield row;
+      row = [];
+      if (ch === '\r' && text[i+1] === '\n') i++;
+    } else {
+      current += ch;
+    }
+  }
+  row.push(current);
+  if (row.some(c => c.length > 0)) yield row;
+}
+
+function parseSheetCsv(text, isJournal) {
+  const rows = [...csvRows(text)];
+  if (rows.length < 2) return [];
+  // Clean headers — strip "DO NOT EDIT ANYTHING" prefix from first header
+  const headers = rows[0].map((h, i) => {
+    let clean = h.trim().toLowerCase();
+    if (i === 0) clean = clean.replace(/^do not edit anything\s*/i, '');
+    return clean;
+  }).filter(h => h.length > 0);
+  return rows.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (r[i] || '').trim(); });
+    if (isJournal) {
+      // Normalize is_playoff: Y/TRUE -> TRUE
+      if (obj.is_playoff) obj.is_playoff = /^(y|yes|true|1)$/i.test(obj.is_playoff) ? 'TRUE' : 'FALSE';
+      // Parse confidence: "3_love" -> "love", plain "love" stays
+      if (obj.confidence) {
+        const confMatch = obj.confidence.match(/(?:\d+_)?(\w+)$/);
+        if (confMatch) obj.confidence_raw = obj.confidence, obj.confidence = confMatch[1].toLowerCase();
+      }
+    }
+    return obj;
+  }).filter(r => r.date);
+}
+
+async function fetchTab(tab, isJournal) {
+  const bust = Math.floor(Date.now() / (60 * 1000));
+  const res = await fetch(sheetCsvUrl(tab) + '&v=' + bust);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${tab}`);
+  return parseSheetCsv(await res.text(), isJournal);
+}
+
+// ── Pattern Engine ──────────────────────────────────────────────────────────
+
+function groupByGame(entries) {
+  const games = {};
+  for (const e of entries) {
+    const key = `${e.date}|${e.game}`;
+    if (!games[key]) games[key] = { date: e.date, game: e.game, sport: e.sport, entries: [] };
+    games[key].entries.push(e);
+  }
+  return Object.values(games);
+}
+
+function getGameSide(entry) {
+  // normalize to "fav" or "dog" or "over" or "under" based on side text
+  const side = (entry.side || '').toLowerCase();
+  if (/over|o\s?\d/i.test(side)) return 'over';
+  if (/under|u\s?\d/i.test(side)) return 'under';
+  const lineMatch = side.match(/([+-]?\d+\.?\d*)/);
+  if (lineMatch) {
+    const num = parseFloat(lineMatch[1]);
+    if (num < 0) return 'fav';
+    if (num > 0) return 'dog';
+  }
+  if (/ml/i.test(side)) return 'ml';
+  return 'unknown';
+}
+
+function findPatterns(entries, filters) {
+  const games = groupByGame(entries);
+  const patterns = [];
+
+  // Only run patterns if we have filters to match against
+  const { source, confidence, sport, is_playoff, tags } = filters;
+
+  // Pattern 1: Source + Confidence combos
+  const sources = [...new Set(entries.map(e => e.source))].filter(Boolean);
+  for (const src of sources) {
+    for (const conf of DEFAULT_CONFIDENCE) {
+      const matching = games.filter(g => {
+        const srcEntry = g.entries.find(e => e.source === src && e.confidence === conf);
+        return srcEntry && srcEntry.result;
+      });
+      if (matching.length >= 3) {
+        const wins = matching.filter(g => g.entries.find(e => e.source === src && e.confidence === conf && e.result === 'W')).length;
+        const losses = matching.filter(g => g.entries.find(e => e.source === src && e.confidence === conf && e.result === 'L')).length;
+        const pushes = matching.filter(g => g.entries.find(e => e.source === src && e.confidence === conf && e.result === 'P')).length;
+        patterns.push({
+          type: 'source_confidence',
+          label: `${src} ${conf.toUpperCase()} picks`,
+          record: { wins, losses, pushes },
+          total: wins + losses,
+          pct: Math.round(wins / (wins + losses) * 100),
+          games: matching,
+          relevance: 0,
+        });
+      }
+    }
+  }
+
+  // Pattern 2: Source agreement (two sources on same side)
+  for (let i = 0; i < sources.length; i++) {
+    for (let j = i + 1; j < sources.length; j++) {
+      const s1 = sources[i], s2 = sources[j];
+      const agreeing = games.filter(g => {
+        const e1 = g.entries.find(e => e.source === s1);
+        const e2 = g.entries.find(e => e.source === s2);
+        if (!e1 || !e2 || !e1.result) return false;
+        return getGameSide(e1) === getGameSide(e2) && getGameSide(e1) !== 'unknown';
+      });
+      if (agreeing.length >= 3) {
+        const wins = agreeing.filter(g => g.entries.find(e => e.source === s1 && e.result === 'W')).length;
+        const losses = agreeing.filter(g => g.entries.find(e => e.source === s1 && e.result === 'L')).length;
+        patterns.push({
+          type: 'agreement',
+          label: `${s1} + ${s2} agree`,
+          record: { wins, losses, pushes: agreeing.length - wins - losses },
+          total: wins + losses,
+          pct: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0,
+          games: agreeing,
+          relevance: 0,
+        });
+      }
+    }
+  }
+
+  // Pattern 3: Source disagreement (two sources on opposite sides)
+  for (let i = 0; i < sources.length; i++) {
+    for (let j = i + 1; j < sources.length; j++) {
+      const s1 = sources[i], s2 = sources[j];
+      const disagreeing = games.filter(g => {
+        const e1 = g.entries.find(e => e.source === s1);
+        const e2 = g.entries.find(e => e.source === s2);
+        if (!e1 || !e2 || !e1.result) return false;
+        const side1 = getGameSide(e1), side2 = getGameSide(e2);
+        return side1 !== 'unknown' && side2 !== 'unknown' && side1 !== side2;
+      });
+      if (disagreeing.length >= 3) {
+        // Track from s1's perspective
+        const wins = disagreeing.filter(g => g.entries.find(e => e.source === s1 && e.result === 'W')).length;
+        const losses = disagreeing.filter(g => g.entries.find(e => e.source === s1 && e.result === 'L')).length;
+        patterns.push({
+          type: 'disagreement',
+          label: `${s1} vs ${s2} (${s1}'s side)`,
+          record: { wins, losses, pushes: disagreeing.length - wins - losses },
+          total: wins + losses,
+          pct: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0,
+          games: disagreeing,
+          relevance: 0,
+        });
+      }
+    }
+  }
+
+  // Pattern 4: Playoff context
+  const playoffGames = games.filter(g => g.entries.some(e => e.is_playoff === 'TRUE' && e.result));
+  if (playoffGames.length >= 3) {
+    // By round
+    const rounds = [...new Set(entries.filter(e => e.playoff_round).map(e => e.playoff_round))];
+    for (const round of rounds) {
+      const roundGames = games.filter(g => g.entries.some(e => e.playoff_round === round && e.source === 'me' && e.result));
+      if (roundGames.length >= 2) {
+        const wins = roundGames.filter(g => g.entries.find(e => e.source === 'me' && e.result === 'W')).length;
+        const losses = roundGames.filter(g => g.entries.find(e => e.source === 'me' && e.result === 'L')).length;
+        patterns.push({
+          type: 'playoff_round',
+          label: `My picks in Playoff Round ${round}`,
+          record: { wins, losses, pushes: roundGames.length - wins - losses },
+          total: wins + losses,
+          pct: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0,
+          games: roundGames,
+          relevance: 0,
+        });
+      }
+    }
+    // By series game
+    const seriesGames = [...new Set(entries.filter(e => e.series_game).map(e => e.series_game))];
+    for (const sg of seriesGames) {
+      const sgGames = games.filter(g => g.entries.some(e => e.series_game === sg && e.source === 'me' && e.result));
+      if (sgGames.length >= 2) {
+        const wins = sgGames.filter(g => g.entries.find(e => e.source === 'me' && e.result === 'W')).length;
+        const losses = sgGames.filter(g => g.entries.find(e => e.source === 'me' && e.result === 'L')).length;
+        patterns.push({
+          type: 'series_game',
+          label: `My picks in Game ${sg} of series`,
+          record: { wins, losses, pushes: sgGames.length - wins - losses },
+          total: wins + losses,
+          pct: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0,
+          games: sgGames,
+          relevance: 0,
+        });
+      }
+    }
+  }
+
+  // Pattern 5: Tag-based patterns
+  const allTags = [...new Set(entries.flatMap(e => (e.tags || '').split(',').map(t => t.trim())).filter(Boolean))];
+  for (const tag of allTags) {
+    const tagGames = games.filter(g => g.entries.some(e => (e.tags || '').split(',').map(t => t.trim()).includes(tag) && e.source === 'me' && e.result));
+    if (tagGames.length >= 3) {
+      const wins = tagGames.filter(g => g.entries.find(e => e.source === 'me' && e.result === 'W')).length;
+      const losses = tagGames.filter(g => g.entries.find(e => e.source === 'me' && e.result === 'L')).length;
+      patterns.push({
+        type: 'tag',
+        label: `My picks tagged ${tag}`,
+        record: { wins, losses, pushes: tagGames.length - wins - losses },
+        total: wins + losses,
+        pct: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0,
+        games: tagGames,
+        relevance: 0,
+      });
+    }
+  }
+
+  // Score relevance to current filters
+  for (const p of patterns) {
+    let rel = 0;
+    if (source && p.label.toLowerCase().includes(source.toLowerCase())) rel += 3;
+    if (confidence && p.label.toLowerCase().includes(confidence.toLowerCase())) rel += 2;
+    if (sport) {
+      const sportGames = p.games.filter(g => g.sport === sport);
+      if (sportGames.length > 0) rel += 1;
+    }
+    if (is_playoff === 'TRUE' && (p.type === 'playoff_round' || p.type === 'series_game')) rel += 2;
+    if (tags) {
+      const filterTags = tags.split(',').map(t => t.trim());
+      for (const ft of filterTags) {
+        if (p.label.includes(ft)) rel += 1;
+      }
+    }
+    p.relevance = rel;
+  }
+
+  return patterns
+    .filter(p => p.total >= 2)
+    .sort((a, b) => b.relevance - a.relevance || Math.abs(b.pct - 50) - Math.abs(a.pct - 50));
+}
+
+// ── Components ──────────────────────────────────────────────────────────────
+
+function PatternCard({ pattern, index, total }) {
+  const pctColor = pattern.pct >= 60 ? '#70AD47' : pattern.pct <= 40 ? '#FF6B6B' : '#FFD700';
+  const typeIcon = { source_confidence: '', agreement: '', disagreement: '', playoff_round: '', series_game: '', tag: '' }[pattern.type] || '';
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{
+        background: 'rgba(0,33,165,0.3)',
+        borderRadius: '12px',
+        padding: '16px',
+        border: pattern.relevance > 2 ? '2px solid rgba(255,215,0,0.6)' : '1px solid rgba(255,255,255,0.15)',
+        minWidth: '220px',
+      }}>
+        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {typeIcon} {pattern.type.replace(/_/g, ' ')}
+        </div>
+        <div style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '8px', color: '#fff' }}>
+          {pattern.label}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          <span style={{ fontSize: '1.8rem', fontWeight: '800', color: pctColor }}>{pattern.pct}%</span>
+          <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)' }}>
+            {pattern.record.wins}-{pattern.record.losses}{pattern.record.pushes > 0 ? `-${pattern.record.pushes}` : ''}
+          </span>
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+          {pattern.total + (pattern.record.pushes || 0)} games
+        </div>
+      </div>
+      {index < total - 1 && (
+        <div style={{
+          position: 'absolute',
+          right: '-24px',
+          top: '50%',
+          width: '24px',
+          height: '2px',
+          background: 'rgba(255,255,255,0.15)',
+        }} />
+      )}
+    </div>
+  );
+}
+
+function PatternRow({ patterns, title }) {
+  if (!patterns.length) return null;
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+        {title}
+      </div>
+      <div style={{ display: 'flex', gap: '24px', overflowX: 'auto', paddingBottom: '8px', WebkitOverflowScrolling: 'touch' }}>
+        {patterns.map((p, i) => <PatternCard key={`${p.type}-${p.label}`} pattern={p} index={i} total={patterns.length} />)}
+      </div>
+    </div>
+  );
+}
+
+function JournalEntry({ game, scheduleMap, filterTags, onToggleTag }) {
+  const myEntry = game.entries.find(e => e.source === 'me');
+  const others = game.entries.filter(e => e.source !== 'me');
+  const schedKey = `${game.sport}|${game.game}`;
+  const sched = scheduleMap[schedKey];
+
+  return (
+    <div style={{
+      background: 'rgba(0,33,165,0.2)',
+      borderRadius: '12px',
+      padding: '16px',
+      border: '1px solid rgba(255,255,255,0.1)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+        <div>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{game.date} &bull; {game.sport}</span>
+          <div style={{ fontSize: '1rem', fontWeight: '700', color: '#fff' }}>{game.game}</div>
+          {sched && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Spread: {sched.spread} | O/U: {sched.over_under}</span>}
+        </div>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          {game.entries[0]?.is_playoff === 'TRUE' && (
+            <span style={{ background: 'rgba(255,215,0,0.2)', color: '#FFD700', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+              PLAYOFF{game.entries[0]?.playoff_round ? ` R${game.entries[0].playoff_round}` : ''}{game.entries[0]?.series_game ? ` G${game.entries[0].series_game}` : ''}
+            </span>
+          )}
+          {(game.entries[0]?.tags || '').split(',').filter(Boolean).map(t => {
+            const tag = t.trim();
+            const active = filterTags.has(tag);
+            return (
+              <button key={tag} onClick={() => onToggleTag(tag)} style={{
+                background: active ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.1)',
+                color: active ? '#FFD700' : 'rgba(255,255,255,0.6)',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '0.7rem',
+                border: active ? '1px solid rgba(255,215,0,0.5)' : '1px solid transparent',
+                cursor: 'pointer',
+                fontWeight: active ? '700' : '400',
+              }}>{tag}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        {game.entries.map((e, i) => (
+          <div key={i} style={{
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            minWidth: '160px',
+            borderLeft: `3px solid ${CONFIDENCE_COLORS[e.confidence] || '#666'}`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff' }}>{e.source}</span>
+              {e.result && (
+                <span style={{
+                  background: `${RESULT_COLORS[e.result]}22`,
+                  color: RESULT_COLORS[e.result],
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                }}>{e.result}</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)' }}>{e.side}</div>
+            <div style={{ fontSize: '0.7rem', color: CONFIDENCE_COLORS[e.confidence] || '#666', fontWeight: '600', textTransform: 'uppercase', marginTop: '2px' }}>
+              {e.confidence_raw || e.confidence}
+            </div>
+            {e.phase !== 'pregame' && (
+              <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{e.phase}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {myEntry?.reflection && (
+        <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+          {myEntry.reflection}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── App ─────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [entries, setEntries] = useState([]);
+  const [schedules, setSchedules] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterSport, setFilterSport] = useState('');
+  const [filterSource, setFilterSource] = useState('');
+  const [filterConfidence, setFilterConfidence] = useState('');
+  const [filterPlayoff, setFilterPlayoff] = useState('');
+  const [filterTags, setFilterTags] = useState(new Set());
+  const [showPatterns, setShowPatterns] = useState(true);
+
+  // Load data
+  useEffect(() => {
+    const load = async () => {
+      try {
+        // Load journal entries
+        const journalData = await fetchTab(JOURNAL_TAB, true);
+        setEntries(journalData);
+
+        // Load schedules for context
+        const schedMap = {};
+        for (const tab of SCHEDULE_TABS) {
+          try {
+            const rows = await fetchTab(tab);
+            const sport = SPORT_MAP[tab];
+            for (const r of rows) {
+              const game = `${r.away_team} @ ${r.home_team}`;
+              schedMap[`${sport}|${game}`] = r;
+            }
+          } catch (e) {
+            console.warn(`Failed to load ${tab}:`, e);
+          }
+        }
+        setSchedules(schedMap);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Derived data
+  const uniqueSources = useMemo(() => {
+    const s = [...new Set(entries.map(e => e.source).filter(Boolean))];
+    return [...new Set([...DEFAULT_SOURCES, ...s])];
+  }, [entries]);
+
+  const uniqueTags = useMemo(() => {
+    const t = [...new Set(entries.flatMap(e => (e.tags || '').split(',').map(t => t.trim())).filter(Boolean))];
+    return [...new Set([...DEFAULT_TAGS, ...t])];
+  }, [entries]);
+
+  const uniqueSports = useMemo(() => [...new Set(entries.map(e => e.sport).filter(Boolean))], [entries]);
+
+  // Filter entries
+  const filteredEntries = useMemo(() => {
+    return entries.filter(e => {
+      if (filterSport && e.sport !== filterSport) return false;
+      if (filterSource && e.source !== filterSource) return false;
+      if (filterConfidence && e.confidence !== filterConfidence) return false;
+      if (filterPlayoff === 'TRUE' && e.is_playoff !== 'TRUE') return false;
+      if (filterPlayoff === 'FALSE' && e.is_playoff === 'TRUE') return false;
+      if (filterTags.size > 0) {
+        const entryTags = (e.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+        if (![...filterTags].every(ft => entryTags.includes(ft))) return false;
+      }
+      return true;
+    });
+  }, [entries, filterSport, filterSource, filterConfidence, filterPlayoff, filterTags]);
+
+  // Group by game
+  const games = useMemo(() => {
+    const g = groupByGame(filteredEntries);
+    return g.sort((a, b) => b.date.localeCompare(a.date));
+  }, [filteredEntries]);
+
+  // Pattern matching
+  const patterns = useMemo(() => {
+    return findPatterns(entries, {
+      source: filterSource,
+      confidence: filterConfidence,
+      sport: filterSport,
+      is_playoff: filterPlayoff,
+      tags: [...filterTags].join(','),
+    });
+  }, [entries, filterSource, filterConfidence, filterSport, filterPlayoff, filterTags]);
+
+  const consensusPatterns = useMemo(() => patterns.filter(p => p.type === 'agreement' || p.type === 'disagreement'), [patterns]);
+  const sourcePatterns = useMemo(() => patterns.filter(p => p.type === 'source_confidence'), [patterns]);
+  const contextPatterns = useMemo(() => patterns.filter(p => p.type === 'playoff_round' || p.type === 'series_game' || p.type === 'tag'), [patterns]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const myEntries = filteredEntries.filter(e => e.source === 'me' && e.result);
+    const wins = myEntries.filter(e => e.result === 'W').length;
+    const losses = myEntries.filter(e => e.result === 'L').length;
+    const pushes = myEntries.filter(e => e.result === 'P').length;
+    return { wins, losses, pushes, total: wins + losses, pct: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0 };
+  }, [filteredEntries]);
+
+  const selectStyle = {
+    padding: '8px 12px',
+    background: 'rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: '8px',
+    color: '#fff',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    minWidth: '100px',
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FA4616 0%, #d63a0f 40%, #0021A5 100%)', fontFamily: "'Segoe UI', system-ui, sans-serif", color: '#fff', padding: '20px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '24px', padding: '20px', background: 'rgba(0,33,165,0.3)', borderRadius: '16px', border: '2px solid rgba(0,33,165,0.5)' }}>
+        <h1 style={{ fontSize: '2.2rem', fontWeight: '800', background: 'linear-gradient(90deg, #fff, #0021A5, #fff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '6px' }}>
+          PICKS JOURNAL
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginBottom: '10px' }}>
+          Pattern Finder &bull; <a href="index.html" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Back to Fade Finder</a>
+        </p>
+        {stats.total > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', fontSize: '0.9rem' }}>
+            <span>My Record: <strong style={{ color: stats.pct >= 55 ? '#70AD47' : stats.pct <= 45 ? '#FF6B6B' : '#FFD700' }}>{stats.wins}-{stats.losses}{stats.pushes > 0 ? `-${stats.pushes}` : ''} ({stats.pct}%)</strong></span>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>{games.length} games logged</span>
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div style={{ background: 'rgba(0,33,165,0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(0,33,165,0.4)' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select value={filterSport} onChange={e => setFilterSport(e.target.value)} style={selectStyle}>
+            <option value="">All Sports</option>
+            {uniqueSports.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={filterSource} onChange={e => setFilterSource(e.target.value)} style={selectStyle}>
+            <option value="">All Sources</option>
+            {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={filterConfidence} onChange={e => setFilterConfidence(e.target.value)} style={selectStyle}>
+            <option value="">All Confidence</option>
+            {DEFAULT_CONFIDENCE.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterPlayoff} onChange={e => setFilterPlayoff(e.target.value)} style={selectStyle}>
+            <option value="">All Games</option>
+            <option value="TRUE">Playoffs Only</option>
+            <option value="FALSE">Regular Season</option>
+          </select>
+          {(filterSport || filterSource || filterConfidence || filterPlayoff || filterTags.size > 0) && (
+            <button onClick={() => { setFilterSport(''); setFilterSource(''); setFilterConfidence(''); setFilterPlayoff(''); setFilterTags(new Set()); }}
+              style={{ padding: '8px 16px', background: 'rgba(255,100,100,0.2)', border: '1px solid rgba(255,100,100,0.5)', borderRadius: '8px', color: '#FF6B6B', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}>
+              Clear Filters
+            </button>
+          )}
+        </div>
+        {uniqueTags.length > 0 && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>Tags:</span>
+            {uniqueTags.map(t => {
+              const active = filterTags.has(t);
+              return (
+                <button key={t} onClick={() => {
+                  setFilterTags(prev => {
+                    const next = new Set(prev);
+                    if (next.has(t)) next.delete(t); else next.add(t);
+                    return next;
+                  });
+                }} style={{
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  border: active ? '1px solid rgba(255,215,0,0.7)' : '1px solid rgba(255,255,255,0.2)',
+                  background: active ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.07)',
+                  color: active ? '#FFD700' : 'rgba(255,255,255,0.6)',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  fontWeight: active ? '700' : '400',
+                  transition: 'all 0.15s',
+                }}>{t}</button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#FFD700' }}>Loading journal data...</div>}
+      {error && <div style={{ textAlign: 'center', padding: '40px', color: '#FF6B6B' }}>Error: {error}</div>}
+
+      {!loading && !error && entries.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(0,33,165,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>No journal entries yet</div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
+            Add entries to the <strong>picks_journal</strong> tab in the Google Sheet to get started.
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', marginTop: '12px' }}>
+            Columns: date, sport, game, phase, source, side, confidence, is_playoff, playoff_round, series_game, result, tags
+          </div>
+        </div>
+      )}
+
+      {/* Patterns Section */}
+      {!loading && entries.length > 0 && showPatterns && (
+        <div style={{ background: 'rgba(0,33,165,0.2)', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Pattern Matches</h2>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{patterns.length} patterns found</span>
+          </div>
+
+          {patterns.length === 0 && (
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', textAlign: 'center', padding: '20px' }}>
+              Not enough data yet. Patterns appear after 3+ games with the same attributes.
+            </div>
+          )}
+
+          <PatternRow patterns={consensusPatterns.slice(0, 6)} title="Consensus Patterns" />
+          <PatternRow patterns={sourcePatterns.slice(0, 6)} title="Source Performance" />
+          <PatternRow patterns={contextPatterns.slice(0, 6)} title="Game Context" />
+        </div>
+      )}
+
+      {/* Toggle patterns */}
+      {!loading && entries.length > 0 && (
+        <button onClick={() => setShowPatterns(!showPatterns)}
+          style={{ display: 'block', margin: '0 auto 20px', padding: '6px 16px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', cursor: 'pointer' }}>
+          {showPatterns ? 'Hide' : 'Show'} Patterns
+        </button>
+      )}
+
+      {/* Journal Timeline */}
+      {!loading && games.length > 0 && (
+        <div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px' }}>Journal Timeline</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {games.map(g => <JournalEntry key={`${g.date}|${g.game}`} game={g} scheduleMap={schedules} filterTags={filterTags} onToggleTag={tag => {
+              setFilterTags(prev => {
+                const next = new Set(prev);
+                if (next.has(tag)) next.delete(tag); else next.add(tag);
+                return next;
+              });
+            }} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{ textAlign: 'center', marginTop: '40px', padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
+        Picks Journal &bull; Data from Google Sheets &bull; Pattern matching requires 3+ resolved games
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
