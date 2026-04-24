@@ -754,7 +754,6 @@ function App() {
         } catch (e) { console.warn('Patch fetch failed:', e); }
 
         const games = rows.map(parseGame).filter(Boolean);
-        console.log(`Loaded ${rows.length} rows, ${games.length} playoff games, ${rows.filter(r => r.tags && r.tags.includes('round_')).length} with round_ tag`);
         setRawGames(games);
       } catch (e) {
         setError(e.message);
