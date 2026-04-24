@@ -41,12 +41,13 @@ def matchup_key(team_a, team_b):
     return tuple(sorted([team_a, team_b]))
 
 
-def compute_tags(rows, start_date):
-    """Compute playoff tags for rows on or after start_date.
+def compute_tags(rows, start_date, end_date=None):
+    """Compute playoff tags for rows on or after start_date (and before end_date if given).
 
     Args:
         rows: list of dicts with keys: row_num (1-based sheet row), game_date, away_team, home_team, tags
         start_date: datetime.date for playoff start
+        end_date: optional datetime.date upper bound (exclusive) for season isolation
 
     Returns:
         list of (row_num, computed_tag, existing_tag) for playoff rows
@@ -58,7 +59,7 @@ def compute_tags(rows, start_date):
             gd = datetime.strptime(r["game_date"], "%Y-%m-%d").date()
         except (ValueError, KeyError):
             continue
-        if gd >= start_date:
+        if gd >= start_date and (end_date is None or gd <= end_date):
             playoff_rows.append({**r, "_parsed_date": gd})
 
     playoff_rows.sort(key=lambda r: r["_parsed_date"])
@@ -96,16 +97,18 @@ def compute_tags(rows, start_date):
     return results
 
 
-def tag_playoff_games(spreadsheet, start_date_str=DEFAULT_PLAYOFF_START, dry_run=False, validate_only=False):
+def tag_playoff_games(spreadsheet, start_date_str=DEFAULT_PLAYOFF_START, end_date_str=None, dry_run=False, validate_only=False):
     """Tag playoff games in nba_schedule. Can be called standalone or from another script.
 
     Args:
         spreadsheet: gspread Spreadsheet object (already authenticated)
         start_date_str: playoff start date as YYYY-MM-DD string
+        end_date_str: optional end date as YYYY-MM-DD string (inclusive) for season isolation
         dry_run: preview without writing
         validate_only: only report mismatches
     """
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else None
     worksheet = sheets_read(spreadsheet.worksheet, WORKSHEET_NAME)
 
     print(f"Reading {WORKSHEET_NAME} for playoff tags...")
@@ -129,8 +132,8 @@ def tag_playoff_games(spreadsheet, start_date_str=DEFAULT_PLAYOFF_START, dry_run
             "tags": row[TAGS_COL_INDEX],  # column L
         })
 
-    print(f"Found {len(rows)} data rows. Playoff start: {start_date}")
-    results = compute_tags(rows, start_date)
+    print(f"Found {len(rows)} data rows. Playoff start: {start_date}" + (f", end: {end_date}" if end_date else ""))
+    results = compute_tags(rows, start_date, end_date)
     print(f"Found {len(results)} playoff games.")
 
     if not results:
