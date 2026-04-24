@@ -672,6 +672,7 @@ function App() {
     }
     return DEFAULT_MARGIN_THRESHOLDS;
   });
+  const [atsDetail, setAtsDetail] = useState(null); // { label, details[] }
   const [linkedGameKeys, setLinkedGameKeys] = useState(() => {
     // Read linked games from URL query params on initial load
     const params = new URLSearchParams(window.location.search);
@@ -979,11 +980,18 @@ function App() {
                 }
                 const record = `${w}-${l}${p ? `-${p}` : ''}`;
                 const tooltip = details.join('\n');
-                return { record, tooltip };
+                return { record, tooltip, details };
               };
               const thStyle = { padding: '2px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' };
               const tdStyle = { padding: '1px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textAlign: 'center' };
               const tdLabelStyle = { ...tdStyle, textAlign: 'left', fontWeight: '600' };
+              const recordSpan = (ats, cellLabel) => (
+                <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'pointer' : 'default', textDecoration: ats.tooltip ? 'underline dotted' : 'none' }}
+                  title={ats.tooltip}
+                  onClick={() => ats.details.length > 0 && setAtsDetail(prev => prev && prev.label === cellLabel ? null : { label: cellLabel, details: ats.details })}>
+                  ({ats.record})
+                </span>
+              );
               return (
                 <table style={{ borderCollapse: 'collapse', marginTop: '8px', width: '100%' }}>
                   <thead>
@@ -997,8 +1005,8 @@ function App() {
                     {spreadBuckets.map(([min, max, label]) => (
                       <tr key={label}>
                         <td style={tdLabelStyle}>{label}</td>
-                        {rounds.map(r => { const ats = atsFor(r, min, max); return <td key={r} style={tdStyle}>{countFor(r, min, max)} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })}
-                        {(() => { const ats = atsFor(null, min, max); return <td style={{ ...tdStyle, fontWeight: '600' }}>{countFor(null, min, max)} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })()}
+                        {rounds.map(r => { const ats = atsFor(r, min, max); return <td key={r} style={tdStyle}>{countFor(r, min, max)} {recordSpan(ats, `R${r} ${label}`)}</td>; })}
+                        {(() => { const ats = atsFor(null, min, max); return <td style={{ ...tdStyle, fontWeight: '600' }}>{countFor(null, min, max)} {recordSpan(ats, `All ${label}`)}</td>; })()}
                       </tr>
                     ))}
                     {countNoLine(null) > 0 && (
@@ -1010,13 +1018,26 @@ function App() {
                     )}
                     <tr style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                       <td style={{ ...tdLabelStyle, fontWeight: '700' }}>Total</td>
-                      {rounds.map(r => { const ats = atsFor(r, 0, Infinity); return <td key={r} style={{ ...tdStyle, fontWeight: '700' }}>{filteredGames.filter(g => g.round === r).length} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })}
-                      {(() => { const ats = atsFor(null, 0, Infinity); return <td style={{ ...tdStyle, fontWeight: '700' }}>{filteredGames.length} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })()}
+                      {rounds.map(r => { const ats = atsFor(r, 0, Infinity); return <td key={r} style={{ ...tdStyle, fontWeight: '700' }}>{filteredGames.filter(g => g.round === r).length} {recordSpan(ats, `R${r} All`)}</td>; })}
+                      {(() => { const ats = atsFor(null, 0, Infinity); return <td style={{ ...tdStyle, fontWeight: '700' }}>{filteredGames.length} {recordSpan(ats, 'All')}</td>; })()}
                     </tr>
                   </tbody>
                 </table>
               );
             })()}
+            {atsDetail && (
+              <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{atsDetail.label}</span>
+                  <button onClick={() => setAtsDetail(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', cursor: 'pointer', padding: '0 4px' }}>&#x2715;</button>
+                </div>
+                {atsDetail.details.map((d, i) => {
+                  const isLoss = d.startsWith('L');
+                  const isPush = d.startsWith('P');
+                  return <div key={i} style={{ fontSize: '0.7rem', color: isLoss ? DOG_COLOR : isPush ? 'rgba(255,255,255,0.4)' : FAV_COLOR, fontFamily: 'monospace', lineHeight: '1.5' }}>{d}</div>;
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
