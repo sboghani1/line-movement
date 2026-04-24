@@ -106,12 +106,14 @@ function parseTags(tagStr) {
   return result;
 }
 
-function marginBucket(margin) {
+const DEFAULT_MARGIN_THRESHOLDS = [4, 9, 16];
+
+function marginBucket(margin, thresholds = DEFAULT_MARGIN_THRESHOLDS) {
   const abs = Math.abs(margin);
   if (abs === 0) return { symbol: '=', label: 'Tie', level: 0 };
-  if (abs <= 4) return { symbol: '+', label: 'Close', level: 1 };
-  if (abs <= 9) return { symbol: '++', label: 'Comfortable', level: 2 };
-  if (abs <= 16) return { symbol: '+++', label: 'Dominant', level: 3 };
+  if (abs <= thresholds[0]) return { symbol: '+', label: 'Close', level: 1 };
+  if (abs <= thresholds[1]) return { symbol: '++', label: 'Comfortable', level: 2 };
+  if (abs <= thresholds[2]) return { symbol: '+++', label: 'Dominant', level: 3 };
   return { symbol: '++++', label: 'Blowout', level: 4 };
 }
 
@@ -661,6 +663,15 @@ function App() {
   const [filterSpreadRange, setFilterSpreadRange] = useState('');
   const [filterFavSide, setFilterFavSide] = useState('');
   const [matchMargin, setMatchMargin] = useState(false);
+  const [marginThresholds, setMarginThresholds] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mt = params.get('mt');
+    if (mt) {
+      const vals = mt.split(',').map(Number);
+      if (vals.length === 3 && vals.every(v => v > 0) && vals[0] < vals[1] && vals[1] < vals[2]) return vals;
+    }
+    return DEFAULT_MARGIN_THRESHOLDS;
+  });
   const [linkedGameKeys, setLinkedGameKeys] = useState(() => {
     // Read linked games from URL query params on initial load
     const params = new URLSearchParams(window.location.search);
@@ -682,6 +693,19 @@ function App() {
     const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
   }, [linkedGameKeys]);
+
+  // Sync margin thresholds to URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isDefault = marginThresholds.every((v, i) => v === DEFAULT_MARGIN_THRESHOLDS[i]);
+    if (isDefault) {
+      params.delete('mt');
+    } else {
+      params.set('mt', marginThresholds.join(','));
+    }
+    const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [marginThresholds]);
 
   const toggleLink = (gameKey) => {
     setLinkedGameKeys(prev => {
@@ -729,6 +753,7 @@ function App() {
         } catch (e) { console.warn('Patch fetch failed:', e); }
 
         const games = rows.map(parseGame).filter(Boolean);
+        console.log(`Loaded ${rows.length} rows, ${games.length} playoff games, ${rows.filter(r => r.tags && r.tags.includes('round_')).length} with round_ tag`);
         setRawGames(games);
       } catch (e) {
         setError(e.message);
@@ -739,8 +764,19 @@ function App() {
     load();
   }, []);
 
+  // Re-bucket quarters when margin thresholds change
+  const games = useMemo(() => {
+    return rawGames.map(g => ({
+      ...g,
+      quarters: g.quarters.map(q => ({
+        ...q,
+        bucket: marginBucket(q.margin, marginThresholds),
+      })),
+    }));
+  }, [rawGames, marginThresholds]);
+
   const filteredGames = useMemo(() => {
-    return rawGames.filter(g => {
+    return games.filter(g => {
       if (filterRound && g.round !== parseInt(filterRound)) return false;
       if (filterSeriesGame && g.seriesGame !== parseInt(filterSeriesGame)) return false;
       if (filterFavSide && g.favSide !== filterFavSide) return false;
@@ -758,15 +794,15 @@ function App() {
       if (!a.isUpcoming && !a.isLive && b.isUpcoming) return 1;
       return b.date.localeCompare(a.date) || a.away.localeCompare(b.away);
     });
-  }, [rawGames, filterRound, filterSeriesGame, filterSpreadRange, filterFavSide]);
+  }, [games, filterRound, filterSeriesGame, filterSpreadRange, filterFavSide]);
 
   const patternFilters = useMemo(() => ({
     matchMargin,
     spreadRange: filterSpreadRange ? filterSpreadRange.split('-').map(Number) : null,
   }), [matchMargin, filterSpreadRange]);
 
-  const uniqueRounds = useMemo(() => [...new Set(rawGames.map(g => g.round))].sort(), [rawGames]);
-  const uniqueSeriesGames = useMemo(() => [...new Set(rawGames.map(g => g.seriesGame))].sort(), [rawGames]);
+  const uniqueRounds = useMemo(() => [...new Set(games.map(g => g.round))].sort(), [games]);
+  const uniqueSeriesGames = useMemo(() => [...new Set(games.map(g => g.seriesGame))].sort(), [games]);
 
   // Aggregate stats
   const stats = useMemo(() => {
@@ -870,6 +906,119 @@ function App() {
             </button>
           )}
         </div>
+        {/* Margin bucket thresholds */}
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Margin Ranges:</span>
+          {[
+            { symbol: '+', label: 'Close', idx: 0, from: 1 },
+            { symbol: '++', label: 'Comfortable', idx: 1, from: null },
+            { symbol: '+++', label: 'Dominant', idx: 2, from: null },
+            { symbol: '++++', label: 'Blowout', idx: null, from: null },
+          ].map((bucket, i) => {
+            const low = i === 0 ? 1 : marginThresholds[i - 1] + 1;
+            const high = bucket.idx !== null ? marginThresholds[bucket.idx] : null;
+            const adjustThreshold = (idx, delta) => {
+              setMarginThresholds(prev => {
+                const next = [...prev];
+                const newVal = next[idx] + delta;
+                const min = idx === 0 ? 1 : next[idx - 1] + 1;
+                const max = idx === 2 ? 50 : next[idx + 1] - 1;
+                if (newVal < min || newVal > max) return prev;
+                next[idx] = newVal;
+                return next;
+              });
+            };
+            const btnStyle = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', cursor: 'pointer', padding: '0 2px', lineHeight: 1 };
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                <span style={{ fontWeight: '700', color: 'rgba(255,215,0,0.7)', minWidth: '36px' }}>{bucket.symbol}</span>
+                <span>{low}–{high || '+'}</span>
+                {bucket.idx !== null && (
+                  <span style={{ display: 'flex', flexDirection: 'column' }}>
+                    <button style={btnStyle} onClick={() => adjustThreshold(bucket.idx, 1)}>&#9650;</button>
+                    <button style={btnStyle} onClick={() => adjustThreshold(bucket.idx, -1)}>&#9660;</button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {!loading && games.length > 0 && (
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div>{(filterRound || filterSeriesGame || filterSpreadRange || filterFavSide)
+              ? `Showing ${filteredGames.length} of ${games.length} games (${games.length - filteredGames.length} excluded)`
+              : `${games.length} games`}</div>
+            {(() => {
+              const spreadBuckets = [
+                [0.5, 3, '0–3'], [3.5, 5.5, '3.5–5.5'], [6, 9.5, '6–9.5'],
+                [10, 13.5, '10–13.5'], [14, 16.5, '14–16.5'], [17, Infinity, '17+'],
+              ];
+              const rounds = [1, 2, 3, 4];
+              const countFor = (r, min, max) => filteredGames.filter(g => (r === null || g.round === r) && (() => { const s = Math.abs(g.spread); return s >= min && s <= max; })()).length;
+              const countNoLine = (r) => filteredGames.filter(g => (r === null || g.round === r) && g.spread === 0).length;
+              const atsFor = (r, min, max) => {
+                const subset = filteredGames.filter(g => g.isComplete && g.spread !== 0 && (r === null || g.round === r) && (() => { const s = Math.abs(g.spread); return s >= min && s <= max; })());
+                let w = 0, l = 0, p = 0;
+                const details = [];
+                const shortName = (name) => {
+                  const teams = {'Trail Blazers':1,'76ers':1,'Blue Jays':1,'Red Sox':1,'White Sox':1};
+                  const parts = name.split(' ');
+                  if (parts.length >= 3) {
+                    const last2 = parts.slice(-2).join(' ');
+                    if (teams[last2]) return last2;
+                  }
+                  return parts[parts.length - 1];
+                };
+                for (const g of subset) {
+                  const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
+                  const line = Math.abs(g.spread);
+                  const favTeam = g.favSide === 'home' ? g.home : g.away;
+                  const result = favMargin + line > 0 ? 'W' : favMargin + line < 0 ? 'L' : 'P';
+                  if (result === 'W') w++; else if (result === 'L') l++; else p++;
+                  details.push(`${result} ${g.date} ${shortName(g.away)} ${g.finalAway} @ ${shortName(g.home)} ${g.finalHome} (${shortName(favTeam)} -${line})`);
+                }
+                const record = `${w}-${l}${p ? `-${p}` : ''}`;
+                const tooltip = details.join('\n');
+                return { record, tooltip };
+              };
+              const thStyle = { padding: '2px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' };
+              const tdStyle = { padding: '1px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textAlign: 'center' };
+              const tdLabelStyle = { ...tdStyle, textAlign: 'left', fontWeight: '600' };
+              return (
+                <table style={{ borderCollapse: 'collapse', marginTop: '8px', width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thStyle, textAlign: 'left' }}>Spread</th>
+                      {rounds.map(r => <th key={r} style={thStyle}>R{r}</th>)}
+                      <th style={thStyle}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {spreadBuckets.map(([min, max, label]) => (
+                      <tr key={label}>
+                        <td style={tdLabelStyle}>{label}</td>
+                        {rounds.map(r => { const ats = atsFor(r, min, max); return <td key={r} style={tdStyle}>{countFor(r, min, max)} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })}
+                        {(() => { const ats = atsFor(null, min, max); return <td style={{ ...tdStyle, fontWeight: '600' }}>{countFor(null, min, max)} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })()}
+                      </tr>
+                    ))}
+                    {countNoLine(null) > 0 && (
+                      <tr>
+                        <td style={tdLabelStyle}>No line</td>
+                        {rounds.map(r => <td key={r} style={tdStyle}>{countNoLine(r)}</td>)}
+                        <td style={{ ...tdStyle, fontWeight: '600' }}>{countNoLine(null)}</td>
+                      </tr>
+                    )}
+                    <tr style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <td style={{ ...tdLabelStyle, fontWeight: '700' }}>Total</td>
+                      {rounds.map(r => { const ats = atsFor(r, 0, Infinity); return <td key={r} style={{ ...tdStyle, fontWeight: '700' }}>{filteredGames.filter(g => g.round === r).length} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })}
+                      {(() => { const ats = atsFor(null, 0, Infinity); return <td style={{ ...tdStyle, fontWeight: '700' }}>{filteredGames.length} <span style={{ color: 'rgba(255,255,255,0.3)', cursor: ats.tooltip ? 'help' : 'default' }} title={ats.tooltip}>({ats.record})</span></td>; })()}
+                    </tr>
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#FFD700' }}>Loading playoff data...</div>}
@@ -934,9 +1083,27 @@ function App() {
                     return (
                       <tr key={gameKey(g)} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
-                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{favLbl} -{absSpread}</div>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                            {gi > 0 && (
+                              <button onClick={() => toggleLink(gameKey(g))} style={{
+                                background: 'rgba(255,100,100,0.15)',
+                                border: '1px solid rgba(255,100,100,0.4)',
+                                borderRadius: '4px',
+                                color: '#FF6B6B',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                padding: '2px 4px',
+                                lineHeight: 1,
+                                flexShrink: 0,
+                                marginTop: '2px',
+                              }}>&#x2715;</button>
+                            )}
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{favLbl} -{absSpread}</div>
+                            </div>
+                          </div>
                         </td>
                         {[0,1,2,3].map(qi => {
                           const q = g.quarters[qi];
@@ -1011,9 +1178,27 @@ function App() {
                     return (
                       <tr key={`t-${gameKey(g)}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                         <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
-                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>O/U {g.totalLine || '—'}</div>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                            {gi > 0 && (
+                              <button onClick={() => toggleLink(gameKey(g))} style={{
+                                background: 'rgba(255,100,100,0.15)',
+                                border: '1px solid rgba(255,100,100,0.4)',
+                                borderRadius: '4px',
+                                color: '#FF6B6B',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                padding: '2px 4px',
+                                lineHeight: 1,
+                                flexShrink: 0,
+                                marginTop: '2px',
+                              }}>&#x2715;</button>
+                            )}
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{g.date} R{g.round}G{g.seriesGame}</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{g.away} @ {g.home}</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>O/U {g.totalLine || '—'}</div>
+                            </div>
+                          </div>
                         </td>
                         {[0,1,2,3].map(qi => {
                           const q = g.quarters[qi];
@@ -1073,7 +1258,7 @@ function App() {
       {/* Game Cards */}
       {filteredGames.map(g => (
         <div key={gameKey(g)} style={{ marginBottom: '16px' }}>
-          <GameCard game={g} allGames={rawGames} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
+          <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
         </div>
       ))}
 

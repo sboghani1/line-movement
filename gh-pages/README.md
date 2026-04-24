@@ -93,6 +93,19 @@ The site will be live within ~1 minute.
 
 ---
 
+## Local Development
+
+The HTML pages fetch data from Google Sheets via CORS requests, so opening them directly as `file://` URLs won't work. Start a local server instead:
+
+```bash
+cd gh-pages
+python3 -m http.server 8080
+```
+
+Then open http://localhost:8080/boxscore.html (or any other page).
+
+---
+
 ## Troubleshooting
 
 **CSV not loading?**
