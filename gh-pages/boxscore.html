@@ -974,7 +974,7 @@ function App() {
                   const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
                   const line = Math.abs(g.spread);
                   const favTeam = g.favSide === 'home' ? g.home : g.away;
-                  const result = favMargin + line > 0 ? 'W' : favMargin + line < 0 ? 'L' : 'P';
+                  const result = favMargin - line > 0 ? 'W' : favMargin - line < 0 ? 'L' : 'P';
                   if (result === 'W') w++; else if (result === 'L') l++; else p++;
                   details.push(`${result} ${g.date} ${shortName(g.away)} ${g.finalAway} @ ${shortName(g.home)} ${g.finalHome} (${shortName(favTeam)} -${line})`);
                 }
