@@ -214,8 +214,6 @@ function findSimilarGames(targetGame, allGames, filters) {
       const tq = targetGame.quarters[i];
       const gq = g.quarters[i];
       if (tq.favWon !== gq.favWon) return false;
-      // Optionally match margin bucket
-      if (filters.matchMargin && tq.bucket.level !== gq.bucket.level) return false;
     }
 
     // Spread range filter
@@ -662,7 +660,8 @@ function App() {
   const [filterSeriesGame, setFilterSeriesGame] = useState(new Set());
   const [filterSpreadRange, setFilterSpreadRange] = useState(new Set());
   const [filterFavSide, setFilterFavSide] = useState(new Set());
-  const [matchMargin, setMatchMargin] = useState(false);
+  const [filterYear, setFilterYear] = useState(new Set());
+
   const [marginThresholds, setMarginThresholds] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const mt = params.get('mt');
@@ -673,6 +672,7 @@ function App() {
     return DEFAULT_MARGIN_THRESHOLDS;
   });
   const [atsDetail, setAtsDetail] = useState(null); // { label, details[] }
+  const [mlMode, setMlMode] = useState(false); // moneyline mode - ignore spread
   const [linkedGameKeys, setLinkedGameKeys] = useState(() => {
     // Read linked games from URL query params on initial load
     const params = new URLSearchParams(window.location.search);
@@ -780,6 +780,7 @@ function App() {
       if (filterRound.size > 0 && !filterRound.has(g.round)) return false;
       if (filterSeriesGame.size > 0 && !filterSeriesGame.has(g.seriesGame)) return false;
       if (filterFavSide.size > 0 && !filterFavSide.has(g.favSide)) return false;
+      if (filterYear.size > 0 && !filterYear.has(parseInt(g.date.slice(0, 4)))) return false;
       if (filterSpreadRange.size > 0) {
         const abs = Math.abs(g.spread);
         let matched = false;
@@ -798,15 +799,15 @@ function App() {
       if (!a.isUpcoming && !a.isLive && b.isUpcoming) return 1;
       return b.date.localeCompare(a.date) || a.away.localeCompare(b.away);
     });
-  }, [games, filterRound, filterSeriesGame, filterSpreadRange, filterFavSide]);
+  }, [games, filterRound, filterSeriesGame, filterSpreadRange, filterFavSide, filterYear]);
 
   const patternFilters = useMemo(() => ({
-    matchMargin,
     spreadRange: filterSpreadRange.size === 1 ? [...filterSpreadRange][0].split('-').map(Number) : null,
-  }), [matchMargin, filterSpreadRange]);
+  }), [filterSpreadRange]);
 
   const uniqueRounds = useMemo(() => [...new Set(games.map(g => g.round))].sort(), [games]);
   const uniqueSeriesGames = useMemo(() => [...new Set(games.map(g => g.seriesGame))].sort(), [games]);
+  const uniqueYears = useMemo(() => [...new Set(games.map(g => parseInt(g.date.slice(0, 4))))].sort(), [games]);
 
   // Aggregate stats
   const stats = useMemo(() => {
@@ -828,17 +829,6 @@ function App() {
 
     return { completed: completed.length, qStats };
   }, [filteredGames]);
-
-  const selectStyle = {
-    padding: '8px 12px',
-    background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(255,255,255,0.2)',
-    borderRadius: '8px',
-    color: '#fff',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    minWidth: '100px',
-  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FA4616 0%, #d63a0f 40%, #0021A5 100%)', fontFamily: "'Segoe UI', system-ui, sans-serif", color: '#fff', padding: '20px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -895,9 +885,19 @@ function App() {
             fontWeight: active ? '700' : '500',
           });
           const labelStyle = { fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px' };
-          const hasFilters = filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0;
+          const hasFilters = filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0 || filterYear.size > 0;
           return (<>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button style={{
+            padding: '6px 12px',
+            background: mlMode ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.05)',
+            border: mlMode ? '1px solid rgba(255,215,0,0.6)' : '1px solid rgba(255,255,255,0.15)',
+            borderRadius: '6px',
+            color: mlMode ? '#FFD700' : 'rgba(255,255,255,0.5)',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            fontWeight: mlMode ? '700' : '500',
+          }} onClick={() => setMlMode(prev => !prev)}>ML Winner</button>
           <span style={labelStyle}>Round</span>
           {uniqueRounds.map(r => <button key={r} style={btnStyle(filterRound.has(r))} onClick={() => toggleSet(setFilterRound, r)}>R{r}</button>)}
           <span style={{ ...labelStyle, marginLeft: '8px' }}>Game</span>
@@ -907,12 +907,10 @@ function App() {
           <span style={{ ...labelStyle, marginLeft: '8px' }}>Side</span>
           <button style={btnStyle(filterFavSide.has('home'))} onClick={() => toggleSet(setFilterFavSide, 'home')}>Home</button>
           <button style={btnStyle(filterFavSide.has('away'))} onClick={() => toggleSet(setFilterFavSide, 'away')}>Away</button>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', marginLeft: '8px' }}>
-            <input type="checkbox" checked={matchMargin} onChange={e => setMatchMargin(e.target.checked)} style={{ cursor: 'pointer' }} />
-            Match margin size
-          </label>
+          <span style={{ ...labelStyle, marginLeft: '8px' }}>Year</span>
+          {uniqueYears.map(y => <button key={y} style={btnStyle(filterYear.has(y))} onClick={() => toggleSet(setFilterYear, y)}>{y}</button>)}
           {hasFilters && (
-            <button onClick={() => { setFilterRound(new Set()); setFilterSeriesGame(new Set()); setFilterSpreadRange(new Set()); setFilterFavSide(new Set()); }}
+            <button onClick={() => { setFilterRound(new Set()); setFilterSeriesGame(new Set()); setFilterSpreadRange(new Set()); setFilterFavSide(new Set()); setFilterYear(new Set()); }}
               style={{ padding: '6px 12px', background: 'rgba(255,100,100,0.2)', border: '1px solid rgba(255,100,100,0.5)', borderRadius: '6px', color: '#FF6B6B', fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600' }}>
               Clear
             </button>
@@ -959,7 +957,7 @@ function App() {
         </div>
         {!loading && games.length > 0 && (
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <div>{(filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0)
+            <div>{(filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0 || filterYear.size > 0)
               ? `Showing ${filteredGames.length} of ${games.length} games (${games.length - filteredGames.length} excluded)`
               : `${games.length} games`}</div>
             {(() => {
@@ -971,7 +969,9 @@ function App() {
               const countFor = (r, min, max) => filteredGames.filter(g => (r === null || g.round === r) && (() => { const s = Math.abs(g.spread); return s >= min && s <= max; })()).length;
               const countNoLine = (r) => filteredGames.filter(g => (r === null || g.round === r) && g.spread === 0).length;
               const atsFor = (r, min, max) => {
-                const subset = filteredGames.filter(g => g.isComplete && g.spread !== 0 && (r === null || g.round === r) && (() => { const s = Math.abs(g.spread); return s >= min && s <= max; })());
+                const subset = mlMode
+                  ? filteredGames.filter(g => g.isComplete && (r === null || g.round === r) && (() => { const s = Math.abs(g.spread); return s >= min && s <= max; })())
+                  : filteredGames.filter(g => g.isComplete && g.spread !== 0 && (r === null || g.round === r) && (() => { const s = Math.abs(g.spread); return s >= min && s <= max; })());
                 let w = 0, l = 0, p = 0;
                 const details = [];
                 const shortName = (name) => {
@@ -987,9 +987,15 @@ function App() {
                   const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
                   const line = Math.abs(g.spread);
                   const favTeam = g.favSide === 'home' ? g.home : g.away;
-                  const result = favMargin - line > 0 ? 'W' : favMargin - line < 0 ? 'L' : 'P';
+                  let result;
+                  if (mlMode) {
+                    result = favMargin > 0 ? 'W' : favMargin < 0 ? 'L' : 'P';
+                  } else {
+                    result = favMargin - line > 0 ? 'W' : favMargin - line < 0 ? 'L' : 'P';
+                  }
                   if (result === 'W') w++; else if (result === 'L') l++; else p++;
-                  details.push(`${result} ${g.date} R${g.round}G${g.seriesGame} ${shortName(g.away)} ${g.finalAway} @ ${shortName(g.home)} ${g.finalHome} (${shortName(favTeam)} -${line})`);
+                  const spreadInfo = line ? `(${shortName(favTeam)} -${line})` : '';
+                  details.push(`${result} ${g.date} R${g.round}G${g.seriesGame} ${shortName(g.away)} ${g.finalAway} @ ${shortName(g.home)} ${g.finalHome} ${spreadInfo}`);
                 }
                 const record = `${w}-${l}${p ? `-${p}` : ''}`;
                 const tooltip = details.join('\n');
@@ -1009,7 +1015,7 @@ function App() {
                 <table style={{ borderCollapse: 'collapse', marginTop: '8px', width: '100%' }}>
                   <thead>
                     <tr>
-                      <th style={{ ...thStyle, textAlign: 'left' }}>Spread</th>
+                      <th style={{ ...thStyle, textAlign: 'left' }}>{mlMode ? 'Spread (ML)' : 'Spread (ATS)'}</th>
                       {rounds.map(r => <th key={r} style={thStyle}>R{r}</th>)}
                       <th style={thStyle}>Total</th>
                     </tr>
