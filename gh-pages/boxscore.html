@@ -409,6 +409,40 @@ function Connector() {
   );
 }
 
+const ROUND_NAMES = { 1: 'First Round', 2: 'Conference Semis', 3: 'Conference Finals', 4: 'Finals' };
+
+function Collapsible({ title, subtitle, defaultOpen, children, level, onLinkGames, linkCount }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const bg = level === 0 ? 'rgba(0,33,165,0.35)' : level === 1 ? 'rgba(0,33,165,0.25)' : 'rgba(0,33,165,0.15)';
+  const fontSize = level === 0 ? '1.1rem' : level === 1 ? '0.95rem' : '0.85rem';
+  const pad = level === 0 ? '16px 20px' : level === 1 ? '12px 16px' : '10px 14px';
+  return (
+    <div style={{ marginBottom: level === 0 ? '16px' : level === 1 ? '10px' : '6px' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', textAlign: 'left', padding: pad, background: bg,
+        border: '1px solid rgba(255,255,255,0.1)', borderRadius: open ? '12px 12px 0 0' : '12px',
+        color: '#fff', fontSize, fontWeight: '700', cursor: 'pointer',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <span>{title} {subtitle && <span style={{ fontWeight: '400', fontSize: '0.8em', color: 'rgba(255,255,255,0.5)' }}>{subtitle}</span>}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onLinkGames && <span onClick={(e) => { e.stopPropagation(); onLinkGames(); }} style={{
+            fontSize: '0.7em', fontWeight: '500', padding: '3px 10px', borderRadius: '6px',
+            background: 'rgba(90,155,213,0.25)', border: '1px solid rgba(90,155,213,0.5)',
+            color: 'rgba(90,155,213,0.9)', cursor: 'pointer',
+          }}>Link {linkCount} games</span>}
+          <span style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.4)', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }}>&#9660;</span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: level < 2 ? '12px' : '8px', background: 'rgba(0,0,0,0.1)', borderRadius: '0 0 12px 12px', border: '1px solid rgba(255,255,255,0.06)', borderTop: 'none' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -506,10 +540,8 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
             <span style={{ color: FAV_COLOR }}>FAV</span> {favLabel} -{spreadDisplay} &bull; <span style={{ color: DOG_COLOR }}>DOG</span> {dogLabel} +{spreadDisplay}
             {game.totalLine && <span> &bull; O/U {game.totalLine}</span>}
           </div>
-        </div>
-        {game.isComplete && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>
+          {game.isComplete && (<>
+            <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#fff', marginTop: '4px' }}>
               {game.finalAway} - {game.finalHome}
             </div>
             {game.totalLine && (() => {
@@ -520,7 +552,7 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
               const vegasAway = game.favSide === 'away' ? vegasFav : vegasDog;
               const vegasHome = game.favSide === 'home' ? vegasFav : vegasDog;
               return (
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'rgba(255,255,255,0.35)' }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: '800', color: 'rgba(255,255,255,0.35)' }}>
                   Vegas thot: {vegasAway} - {vegasHome}
                 </div>
               );
@@ -533,19 +565,17 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
               {(game.finalMargin > 0 ? 'home' : 'away') === game.favSide ? 'FAV' : 'DOG'} wins by {Math.abs(game.finalMargin)}
               {Math.abs(game.finalMargin) > spreadDisplay ? ` (COVERS -${spreadDisplay})` : ` (NO COVER -${spreadDisplay})`}
             </div>
-            {game.isComplete && (
-              <div style={{
-                fontSize: '0.7rem',
-                fontWeight: '600',
-                color: game.totalLine
-                  ? (game.finalTotal > game.totalLine ? '#FF9B3B' : game.finalTotal < game.totalLine ? '#70AD47' : 'rgba(255,255,255,0.5)')
-                  : 'rgba(255,255,255,0.5)',
-              }}>
-                Total: {game.finalTotal}{game.totalLine ? ` (${game.finalTotal > game.totalLine ? 'OVER' : game.finalTotal < game.totalLine ? 'UNDER' : 'PUSH'} by ${Math.abs(game.finalTotal - game.totalLine).toFixed(1)})` : ''}
-              </div>
-            )}
-          </div>
-        )}
+            <div style={{
+              fontSize: '0.7rem',
+              fontWeight: '600',
+              color: game.totalLine
+                ? (game.finalTotal > game.totalLine ? '#FF9B3B' : game.finalTotal < game.totalLine ? '#70AD47' : 'rgba(255,255,255,0.5)')
+                : 'rgba(255,255,255,0.5)',
+            }}>
+              Total: {game.finalTotal}{game.totalLine ? ` (${game.finalTotal > game.totalLine ? 'OVER' : game.finalTotal < game.totalLine ? 'UNDER' : 'PUSH'} by ${Math.abs(game.finalTotal - game.totalLine).toFixed(1)})` : ''}
+            </div>
+          </>)}
+        </div>
       </div>
 
       {/* Quarter Flow Boxes */}
@@ -1295,12 +1325,82 @@ function App() {
         );
       })()}
 
-      {/* Game Cards */}
-      {filteredGames.map(g => (
-        <div key={gameKey(g)} style={{ marginBottom: '16px' }}>
-          <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
-        </div>
-      ))}
+      {/* Incomplete Games (no Q4 score) */}
+      {(() => {
+        const incompleteGames = filteredGames.filter(g => g.quarters.length < 4);
+        if (incompleteGames.length === 0) return null;
+        return (
+          <Collapsible title="In Progress / Upcoming" subtitle={`${incompleteGames.length} games`} defaultOpen={true} level={0}
+            onLinkGames={() => setLinkedGameKeys(prev => { const next = new Set(prev); incompleteGames.forEach(g => next.add(gameKey(g))); return next; })} linkCount={incompleteGames.length}>
+            {incompleteGames.map(g => (
+              <div key={gameKey(g)} style={{ marginBottom: '10px' }}>
+                <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
+              </div>
+            ))}
+          </Collapsible>
+        );
+      })()}
+
+      {/* Game Cards - grouped by Season > Round > Series */}
+      {(() => {
+        // Group completed games by season (year), round, then series (matchup)
+        const completedGames = filteredGames.filter(g => g.quarters.length >= 4);
+        const latestYear = completedGames.length > 0 ? Math.max(...completedGames.map(g => parseInt(g.date.slice(0, 4)))) : 0;
+        const byYear = {};
+        for (const g of completedGames) {
+          const y = parseInt(g.date.slice(0, 4));
+          if (!byYear[y]) byYear[y] = [];
+          byYear[y].push(g);
+        }
+        const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
+
+        return years.map(year => {
+          const yearGames = byYear[year];
+          // Group by round
+          const byRound = {};
+          for (const g of yearGames) {
+            if (!byRound[g.round]) byRound[g.round] = [];
+            byRound[g.round].push(g);
+          }
+          const rounds = Object.keys(byRound).map(Number).sort();
+
+          return (
+            <Collapsible key={year} title={`${year} Playoffs`} subtitle={`${yearGames.length} games`} defaultOpen={year === latestYear} level={0}
+              onLinkGames={() => setLinkedGameKeys(prev => { const next = new Set(prev); yearGames.forEach(g => next.add(gameKey(g))); return next; })} linkCount={yearGames.length}>
+              {rounds.map(round => {
+                const roundGames = byRound[round];
+                // Group by series (unordered team pair)
+                const bySeries = {};
+                for (const g of roundGames) {
+                  const sk = [g.away, g.home].sort().join(' vs ');
+                  if (!bySeries[sk]) bySeries[sk] = [];
+                  bySeries[sk].push(g);
+                }
+                const seriesKeys = Object.keys(bySeries).sort();
+
+                return (
+                  <Collapsible key={round} title={ROUND_NAMES[round] || `Round ${round}`} subtitle={`${roundGames.length} games`} defaultOpen={year === latestYear} level={1}
+                    onLinkGames={() => setLinkedGameKeys(prev => { const next = new Set(prev); roundGames.forEach(g => next.add(gameKey(g))); return next; })} linkCount={roundGames.length}>
+                    {seriesKeys.map(sk => {
+                      const seriesGames = bySeries[sk].sort((a, b) => a.date.localeCompare(b.date) || a.seriesGame - b.seriesGame);
+                      return (
+                        <Collapsible key={sk} title={sk} subtitle={`${seriesGames.length} games`} defaultOpen={year === latestYear} level={2}
+                          onLinkGames={() => setLinkedGameKeys(prev => { const next = new Set(prev); seriesGames.forEach(g => next.add(gameKey(g))); return next; })} linkCount={seriesGames.length}>
+                          {seriesGames.map(g => (
+                            <div key={gameKey(g)} style={{ marginBottom: '10px' }}>
+                              <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
+                            </div>
+                          ))}
+                        </Collapsible>
+                      );
+                    })}
+                  </Collapsible>
+                );
+              })}
+            </Collapsible>
+          );
+        });
+      })()}
 
       {/* Footer */}
       <div style={{ textAlign: 'center', marginTop: '40px', padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
