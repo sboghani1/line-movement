@@ -443,8 +443,9 @@ function Collapsible({ title, subtitle, defaultOpen, children, level, onLinkGame
   );
 }
 
-function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
+function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores, onUpdateTestScore, onClearTestScores }) {
   const [expanded, setExpanded] = useState(false);
+  const [localMlMode, setLocalMlMode] = useState(false);
 
   const gameKey = `${game.date}|${game.away}|${game.home}`;
 
@@ -595,6 +596,48 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
         ))}
       </div>
 
+      {/* Editable Test Scores for incomplete games */}
+      {!game.isComplete && onUpdateTestScore && (() => {
+        const gk = gameKey;
+        const ts = testScores || {};
+        const gts = ts[gk] || {};
+        const inputStyle = {
+          width: '40px', padding: '4px', textAlign: 'center', fontSize: '0.8rem',
+          background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+          borderRadius: '4px', color: '#fff', outline: 'none',
+        };
+        return (
+          <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>TEST SCORES</span>
+              {Object.keys(gts).length > 0 && (
+                <button onClick={() => onClearTestScores(gk)} style={{
+                  fontSize: '0.65rem', padding: '2px 8px', borderRadius: '4px',
+                  background: 'rgba(255,80,80,0.2)', border: '1px solid rgba(255,80,80,0.4)',
+                  color: 'rgba(255,80,80,0.8)', cursor: 'pointer',
+                }}>Clear</button>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(4, 40px)', gap: '4px 6px', alignItems: 'center', width: 'fit-content' }}>
+              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}></span>
+              {[1,2,3,4].map(q => <span key={q} style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>Q{q}</span>)}
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{game.away}</span>
+              {[0,1,2,3].map(qi => (
+                <input key={`a${qi}`} type="number" style={inputStyle}
+                  value={gts[qi]?.away ?? ''} placeholder="-"
+                  onChange={(e) => onUpdateTestScore(gk, qi, 'away', e.target.value)} />
+              ))}
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{game.home}</span>
+              {[0,1,2,3].map(qi => (
+                <input key={`h${qi}`} type="number" style={inputStyle}
+                  value={gts[qi]?.home ?? ''} placeholder="-"
+                  onChange={(e) => onUpdateTestScore(gk, qi, 'home', e.target.value)} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Total Quarter Flow Boxes */}
       {game.quarters.length > 0 && (
         <>
@@ -640,12 +683,77 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
       )}
 
       {/* Pattern Matching Results */}
-      {(game.isLive || (game.isComplete && expanded)) && similar.length > 0 && remainingQStats.length > 0 && (
-        <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
-          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', fontWeight: '600' }}>
-            SIMILAR PATTERNS ({similar.length} games with same Q{game.quarters.map(q => q.qNum).join('+')} flow)
+      {(game.isLive || game._hasTestScores || (game.isComplete && expanded)) && similar.length > 0 && (() => {
+        // Contextual breakdowns
+        const finalStats = (games) => {
+          const favWins = games.filter(g => {
+            if (localMlMode) {
+              // ML: fav wins outright
+              const winner = g.finalMargin > 0 ? 'home' : g.finalMargin < 0 ? 'away' : 'tie';
+              return winner === g.favSide;
+            } else {
+              // ATS: fav covers the spread
+              const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
+              return favMargin > Math.abs(g.spread);
+            }
+          }).length;
+          const dogWins = games.filter(g => {
+            if (localMlMode) {
+              const winner = g.finalMargin > 0 ? 'home' : g.finalMargin < 0 ? 'away' : 'tie';
+              return winner !== g.favSide && winner !== 'tie';
+            } else {
+              const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
+              return favMargin < Math.abs(g.spread);
+            }
+          }).length;
+          return { total: games.length, favWins, dogWins, favPct: games.length ? Math.round(favWins / games.length * 100) : 0, dogPct: games.length ? Math.round(dogWins / games.length * 100) : 0 };
+        };
+
+        const byGameNum = {};
+        const byRound = {};
+        const bySpreadBucket = {};
+        for (const g of similar) {
+          // By game number
+          const gn = g.seriesGame || 0;
+          if (!byGameNum[gn]) byGameNum[gn] = [];
+          byGameNum[gn].push(g);
+          // By round
+          const r = g.round || 0;
+          if (!byRound[r]) byRound[r] = [];
+          byRound[r].push(g);
+          // By spread size
+          const abs = Math.abs(g.spread);
+          const bucket = abs <= 3 ? '1-3' : abs <= 6 ? '3.5-6' : abs <= 9 ? '6.5-9' : '9.5+';
+          if (!bySpreadBucket[bucket]) bySpreadBucket[bucket] = [];
+          bySpreadBucket[bucket].push(g);
+        }
+
+        const ROUND_LABELS = { 1: 'R1', 2: 'Semis', 3: 'Conf Finals', 4: 'Finals' };
+        const favVerb = localMlMode ? 'wins' : 'covers';
+        const dogVerb = localMlMode ? 'wins' : 'covers';
+        const statLine = (label, stats) => (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', minWidth: '70px' }}>{label}</span>
+            <span style={{ fontSize: '0.75rem', color: FAV_COLOR, fontWeight: '600' }}>Fav {favVerb} {stats.favWins}/{stats.total} ({stats.favPct}%)</span>
+            <span style={{ fontSize: '0.75rem', color: DOG_COLOR, fontWeight: '600' }}>Dog {dogVerb} {stats.dogWins}/{stats.total} ({stats.dogPct}%)</span>
           </div>
-          {remainingQStats.map(stat => (
+        );
+
+        return (
+        <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <button onClick={() => setLocalMlMode(!localMlMode)} style={{
+              fontSize: '0.65rem', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer',
+              background: localMlMode ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.07)',
+              border: localMlMode ? '1px solid rgba(255,215,0,0.6)' : '1px solid rgba(255,255,255,0.2)',
+              color: localMlMode ? '#FFD700' : 'rgba(255,255,255,0.5)',
+              fontWeight: localMlMode ? '700' : '500',
+            }}>{localMlMode ? 'ML Winner' : 'ATS Cover'}</button>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>
+              SIMILAR PATTERNS ({similar.length} playoff games with same Q{game.quarters.map(q => q.qNum).join('+')} flow)
+            </span>
+          </div>
+          {remainingQStats.length > 0 && remainingQStats.map(stat => (
             <div key={stat.qNum} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '4px' }}>
               <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', minWidth: '30px' }}>Q{stat.qNum}:</span>
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -658,11 +766,34 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink }) {
               </div>
             </div>
           ))}
+
+          {/* Final result */}
+          <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>FINAL RESULT</div>
+          {statLine('Overall', finalStats(similar))}
+
+          {/* By game number */}
+          <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY GAME #</div>
+          {Object.keys(byGameNum).sort((a, b) => a - b).map(gn => (
+            <React.Fragment key={`gn${gn}`}>{statLine(`Game ${gn}`, finalStats(byGameNum[gn]))}</React.Fragment>
+          ))}
+
+          {/* By round */}
+          <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY ROUND</div>
+          {Object.keys(byRound).sort((a, b) => a - b).map(r => (
+            <React.Fragment key={`r${r}`}>{statLine(ROUND_LABELS[r] || `R${r}`, finalStats(byRound[r]))}</React.Fragment>
+          ))}
+
+          {/* By spread size */}
+          <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY SPREAD SIZE</div>
+          {['1-3', '3.5-6', '6.5-9', '9.5+'].filter(b => bySpreadBucket[b]).map(b => (
+            <React.Fragment key={`s${b}`}>{statLine(b + ' pts', finalStats(bySpreadBucket[b]))}</React.Fragment>
+          ))}
         </div>
-      )}
+        );
+      })()}
 
       {/* Expand/collapse for completed games */}
-      {game.isComplete && similar.length > 0 && (
+      {game.isComplete && !game._hasTestScores && similar.length > 0 && (
         <button onClick={() => setExpanded(!expanded)} style={{
           marginTop: '8px',
           padding: '4px 12px',
@@ -701,6 +832,27 @@ function App() {
     }
     return DEFAULT_MARGIN_THRESHOLDS;
   });
+  const [testScores, setTestScores] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('boxscore_testScores') || '{}'); } catch { return {}; }
+  });
+  const updateTestScore = (gk, qIdx, side, val) => {
+    setTestScores(prev => {
+      const next = { ...prev };
+      if (!next[gk]) next[gk] = {};
+      if (!next[gk][qIdx]) next[gk][qIdx] = {};
+      next[gk][qIdx][side] = val === '' ? '' : parseInt(val) || 0;
+      localStorage.setItem('boxscore_testScores', JSON.stringify(next));
+      return next;
+    });
+  };
+  const clearTestScores = (gk) => {
+    setTestScores(prev => {
+      const next = { ...prev };
+      delete next[gk];
+      localStorage.setItem('boxscore_testScores', JSON.stringify(next));
+      return next;
+    });
+  };
   const [atsDetail, setAtsDetail] = useState(null); // { label, details[] }
   const [mlMode, setMlMode] = useState(false); // moneyline mode - ignore spread
   const [linkedGameKeys, setLinkedGameKeys] = useState(() => {
@@ -794,16 +946,67 @@ function App() {
     load();
   }, []);
 
-  // Re-bucket quarters when margin thresholds change
+  // Re-bucket quarters when margin thresholds change, apply test scores
   const games = useMemo(() => {
-    return rawGames.map(g => ({
-      ...g,
-      quarters: g.quarters.map(q => ({
-        ...q,
-        bucket: marginBucket(q.margin, marginThresholds),
-      })),
-    }));
-  }, [rawGames, marginThresholds]);
+    return rawGames.map(g => {
+      const gk = `${g.date}|${g.away}|${g.home}`;
+      const ts = testScores[gk];
+      // If test scores exist for this game, rebuild quarters from them
+      if (ts && Object.keys(ts).length > 0) {
+        let runAway = 0, runHome = 0;
+        const newQuarters = [];
+        for (let i = 0; i < 4; i++) {
+          const tq = ts[i];
+          if (!tq || tq.away === '' || tq.home === '' || tq.away === undefined || tq.home === undefined) {
+            // Use existing quarter data if available
+            if (i < g.quarters.length) {
+              newQuarters.push({ ...g.quarters[i], bucket: marginBucket(g.quarters[i].margin, marginThresholds) });
+            }
+            break; // Stop at first missing test quarter
+          }
+          const away = parseInt(tq.away) || 0;
+          const home = parseInt(tq.home) || 0;
+          runAway += away;
+          runHome += home;
+          const margin = home - away;
+          const winner = margin > 0 ? 'home' : margin < 0 ? 'away' : 'tie';
+          const favWon = winner === g.favSide ? 'fav' : winner === 'tie' ? 'tie' : 'dog';
+          const qTotal = away + home;
+          const runTotal = runAway + runHome;
+          const projectedTotal = g.totalLine ? Math.round(runTotal / (i + 1) * 4) : null;
+          newQuarters.push({
+            qNum: i + 1, away, home, margin, winner, favWon,
+            bucket: marginBucket(margin, marginThresholds),
+            runAway, runHome, runMargin: runHome - runAway,
+            qTotal, runTotal, projectedTotal,
+            totalPace: g.totalLine ? (runTotal - (g.totalLine / 4 * (i + 1))) : null,
+          });
+        }
+        const finalAway = runAway;
+        const finalHome = runHome;
+        const isComplete = newQuarters.length >= 4;
+        return {
+          ...g,
+          quarters: newQuarters,
+          finalAway: isComplete ? finalAway : g.finalAway,
+          finalHome: isComplete ? finalHome : g.finalHome,
+          finalMargin: isComplete ? finalHome - finalAway : g.finalMargin,
+          finalTotal: isComplete ? finalAway + finalHome : g.finalTotal,
+          isComplete: isComplete || g.isComplete,
+          isLive: !isComplete && newQuarters.length > 0,
+          isUpcoming: newQuarters.length === 0,
+          _hasTestScores: true,
+        };
+      }
+      return {
+        ...g,
+        quarters: g.quarters.map(q => ({
+          ...q,
+          bucket: marginBucket(q.margin, marginThresholds),
+        })),
+      };
+    });
+  }, [rawGames, marginThresholds, testScores]);
 
   const filteredGames = useMemo(() => {
     return games.filter(g => {
@@ -1334,7 +1537,7 @@ function App() {
             onLinkGames={() => setLinkedGameKeys(prev => { const next = new Set(prev); incompleteGames.forEach(g => next.add(gameKey(g))); return next; })} linkCount={incompleteGames.length}>
             {incompleteGames.map(g => (
               <div key={gameKey(g)} style={{ marginBottom: '10px' }}>
-                <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
+                <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} testScores={testScores} onUpdateTestScore={updateTestScore} onClearTestScores={clearTestScores} />
               </div>
             ))}
           </Collapsible>
@@ -1388,7 +1591,7 @@ function App() {
                           onLinkGames={() => setLinkedGameKeys(prev => { const next = new Set(prev); seriesGames.forEach(g => next.add(gameKey(g))); return next; })} linkCount={seriesGames.length}>
                           {seriesGames.map(g => (
                             <div key={gameKey(g)} style={{ marginBottom: '10px' }}>
-                              <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} />
+                              <GameCard game={g} allGames={games} filters={patternFilters} isLinked={linkedGameKeys.has(gameKey(g))} onToggleLink={toggleLink} testScores={testScores} onUpdateTestScore={updateTestScore} onClearTestScores={clearTestScores} />
                             </div>
                           ))}
                         </Collapsible>
