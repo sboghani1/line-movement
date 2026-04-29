@@ -17637,3 +17637,26 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-04-29,tcc,MLB,Kansas City Royals,ML,Kansas City Royals @ Athletics,Kansas City Royals -1.5,,discord_all_in_one
 2026-04-29,tcc,NBA,Houston Rockets,5.5,Houston Rockets @ Los Angeles Lakers,Los Angeles Lakers -4.5,,discord_all_in_one
 2026-04-29,tcc,NBA,Orlando Magic,10.5,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,analytics_capper,NBA,Detroit Pistons,-10.5,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,analytics_capper,MLB,Detroit Tigers,ML,Detroit Tigers @ Atlanta Braves,Detroit Tigers -1.5,,discord_all_in_one
+2026-04-29,bankroll_bill,MLB,Athletics,ML,Kansas City Royals @ Athletics,Kansas City Royals -1.5,,discord_all_in_one
+2026-04-29,bankroll_bill,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Milwaukee Brewers,Milwaukee Brewers -1.5,,discord_all_in_one
+2026-04-29,bankroll_bill,NBA,Detroit Pistons,-9.5,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,bankroll_bill,NHL,Pittsburgh Penguins,ML,Pittsburgh Penguins @ Philadelphia Flyers,Philadelphia Flyers -1.5,,discord_all_in_one
+2026-04-29,cash_cing,NBA,Detroit Pistons,-10,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,cash_cing,MLB,Detroit Tigers,ML,Detroit Tigers @ Atlanta Braves,Detroit Tigers -1.5,,discord_all_in_one
+2026-04-29,cash_cing,NHL,Philadelphia Flyers,ML,Pittsburgh Penguins @ Philadelphia Flyers,Philadelphia Flyers -1.5,,discord_all_in_one
+2026-04-29,hammering_hank,NHL,Pittsburgh Penguins,ML,Pittsburgh Penguins @ Philadelphia Flyers,Philadelphia Flyers -1.5,,discord_all_in_one
+2026-04-29,hammering_hank,NHL,Montreal Canadiens,ML,Montreal Canadiens @ Tampa Bay Lightning,Tampa Bay Lightning -1.5,,discord_all_in_one
+2026-04-29,lear_locks,NHL,Philadelphia Flyers,ML,Pittsburgh Penguins @ Philadelphia Flyers,Philadelphia Flyers -1.5,,discord_all_in_one
+2026-04-29,lear_locks,NBA,Detroit Pistons,ML,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,lear_locks,NBA,Houston Rockets,5,Houston Rockets @ Los Angeles Lakers,Los Angeles Lakers -4.5,,discord_all_in_one
+2026-04-29,nicky_cashin,NHL,Pittsburgh Penguins,ML,Pittsburgh Penguins @ Philadelphia Flyers,Philadelphia Flyers -1.5,,discord_all_in_one
+2026-04-29,nicky_cashin,NBA,Detroit Pistons,-10,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,out_of_line_bets,MLB,Detroit Tigers,ML,Detroit Tigers @ Atlanta Braves,Detroit Tigers -1.5,,discord_all_in_one
+2026-04-29,porter_picks,NBA,Cleveland Cavaliers,-9.5,Toronto Raptors @ Cleveland Cavaliers,Cleveland Cavaliers -9.5,,discord_all_in_one
+2026-04-29,tail_to_win,NBA,Detroit Pistons,-9.5,Orlando Magic @ Detroit Pistons,Detroit Pistons -10.5,,discord_all_in_one
+2026-04-29,tail_to_win,NBA,Cleveland Cavaliers,-9.5,Toronto Raptors @ Cleveland Cavaliers,Cleveland Cavaliers -9.5,,discord_all_in_one
+2026-04-29,capper_not_found,MLB,Pittsburgh Pirates,ML,St. Louis Cardinals @ Pittsburgh Pirates,Pittsburgh Pirates -1.5,,discord_all_in_one
+2026-04-29,capper_not_found,MLB,Detroit Tigers,ML,Detroit Tigers @ Atlanta Braves,Detroit Tigers -1.5,,discord_all_in_one
+2026-04-29,capper_not_found,MLB,Philadelphia Phillies,-1,San Francisco Giants @ Philadelphia Phillies,Philadelphia Phillies -1.5,,discord_all_in_one
