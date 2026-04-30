@@ -905,6 +905,9 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
                     <span style={{ color: 'rgba(255,255,255,0.35)', minWidth: '70px' }}>{g.date}</span>
                     <span>{g.away} @ {g.home}</span>
                     <span style={{ fontWeight: '700', color: '#fff' }}>{g.finalAway}-{g.finalHome}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      ({g.quarters.map(q => `${q.away}-${q.home}`).join(', ')})
+                    </span>
                     <span style={{ color: favWon ? FAV_COLOR : DOG_COLOR, fontWeight: '600' }}>
                       ML: {favWon ? 'Fav' : 'Dog'} wins by {margin}
                     </span>
