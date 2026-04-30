@@ -740,8 +740,8 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
         const statLine = (label, stats) => (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '2px' }}>
             <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', minWidth: '70px' }}>{label}</span>
-            <span onClick={() => stats.favGames.length > 0 && setPatternDetail({ label: `${label} — Fav ${favVerb}`, games: stats.favGames })} style={{ fontSize: '0.75rem', color: FAV_COLOR, fontWeight: '600', cursor: stats.favGames.length > 0 ? 'pointer' : 'default', textDecoration: stats.favGames.length > 0 ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>Fav {favVerb} {stats.favWins}/{stats.total} ({stats.favPct}%)</span>
-            <span onClick={() => stats.dogGames.length > 0 && setPatternDetail({ label: `${label} — Dog ${dogVerb}`, games: stats.dogGames })} style={{ fontSize: '0.75rem', color: DOG_COLOR, fontWeight: '600', cursor: stats.dogGames.length > 0 ? 'pointer' : 'default', textDecoration: stats.dogGames.length > 0 ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>Dog {dogVerb} {stats.dogWins}/{stats.total} ({stats.dogPct}%)</span>
+            <span onClick={() => stats.favGames.length > 0 && setPatternDetail({ label: `${label} — Fav ${favVerb}`, allGames: stats.favGames.concat(stats.dogGames), wins: new Set(stats.favGames.map(g => `${g.date}|${g.away}|${g.home}`)) })} style={{ fontSize: '0.75rem', color: FAV_COLOR, fontWeight: '600', cursor: stats.favGames.length > 0 ? 'pointer' : 'default', textDecoration: stats.favGames.length > 0 ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>Fav {favVerb} {stats.favWins}/{stats.total} ({stats.favPct}%)</span>
+            <span onClick={() => stats.dogGames.length > 0 && setPatternDetail({ label: `${label} — Dog ${dogVerb}`, allGames: stats.dogGames.concat(stats.favGames), wins: new Set(stats.dogGames.map(g => `${g.date}|${g.away}|${g.home}`)) })} style={{ fontSize: '0.75rem', color: DOG_COLOR, fontWeight: '600', cursor: stats.dogGames.length > 0 ? 'pointer' : 'default', textDecoration: stats.dogGames.length > 0 ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>Dog {dogVerb} {stats.dogWins}/{stats.total} ({stats.dogPct}%)</span>
           </div>
         );
 
@@ -880,16 +880,16 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
           {patternDetail && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px', marginTop: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{patternDetail.label} ({patternDetail.games.length} games)</span>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{patternDetail.label} ({patternDetail.wins.size}/{patternDetail.allGames.length} games)</span>
                 <button onClick={() => setPatternDetail(null)} style={{
                   fontSize: '0.65rem', padding: '2px 8px', borderRadius: '4px',
                   background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.2)',
                   color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
                 }}>Close</button>
               </div>
-              {patternDetail.games.sort((a, b) => b.date.localeCompare(a.date)).map(g => {
-                const favLabel = g.favSide === 'home' ? g.home : g.away;
-                const dogLabel = g.favSide === 'home' ? g.away : g.home;
+              {patternDetail.allGames.sort((a, b) => b.date.localeCompare(a.date)).map(g => {
+                const gk = `${g.date}|${g.away}|${g.home}`;
+                const isWin = patternDetail.wins.has(gk);
                 const winner = g.finalMargin > 0 ? 'home' : 'away';
                 const favWon = winner === g.favSide;
                 const margin = Math.abs(g.finalMargin);
@@ -897,14 +897,17 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
                 const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
                 const covered = favMargin > spreadAbs;
                 return (
-                  <div key={`${g.date}|${g.away}|${g.home}`} style={{
+                  <div key={gk} style={{
                     padding: '6px 8px', marginBottom: '4px', borderRadius: '6px',
-                    background: 'rgba(255,255,255,0.04)', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)',
+                    background: isWin ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)',
+                    fontSize: '0.7rem', color: isWin ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)',
                     display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
+                    opacity: isWin ? 1 : 0.5,
+                    borderLeft: isWin ? '3px solid rgba(90,155,213,0.5)' : '3px solid rgba(255,255,255,0.08)',
                   }}>
-                    <span style={{ color: 'rgba(255,255,255,0.35)', minWidth: '70px' }}>{g.date}</span>
+                    <span style={{ minWidth: '70px' }}>{g.date}</span>
                     <span>{g.away} @ {g.home}</span>
-                    <span style={{ fontWeight: '700', color: '#fff' }}>{g.finalAway}-{g.finalHome}</span>
+                    <span style={{ fontWeight: '700', color: isWin ? '#fff' : 'rgba(255,255,255,0.35)' }}>{g.finalAway}-{g.finalHome}</span>
                     <span style={{ color: 'rgba(255,255,255,0.35)' }}>
                       ({g.quarters.map(q => `${q.away}-${q.home}`).join(', ')})
                     </span>
@@ -914,6 +917,7 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
                     <span style={{ color: covered ? FAV_COLOR : DOG_COLOR, fontWeight: '600' }}>
                       ATS: {covered ? `Fav covers -${spreadAbs}` : `Dog covers +${spreadAbs}`}
                     </span>
+                    <span>{isWin ? '✓' : '✗'}</span>
                     <span style={{ color: 'rgba(255,255,255,0.35)' }}>R{g.round} G{g.seriesGame}</span>
                   </div>
                 );
