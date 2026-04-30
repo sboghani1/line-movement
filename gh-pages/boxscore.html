@@ -899,15 +899,14 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
                 return (
                   <div key={gk} style={{
                     padding: '6px 8px', marginBottom: '4px', borderRadius: '6px',
-                    background: isWin ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)',
-                    fontSize: '0.7rem', color: isWin ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)',
+                    background: 'rgba(255,255,255,0.04)',
+                    fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)',
                     display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
-                    opacity: isWin ? 1 : 0.5,
-                    borderLeft: isWin ? '3px solid rgba(90,155,213,0.5)' : '3px solid rgba(255,255,255,0.08)',
                   }}>
+                    <span style={{ color: isWin ? '#70AD47' : '#FF6B6B', fontWeight: '700' }}>{isWin ? '✓' : '✗'}</span>
                     <span style={{ minWidth: '70px' }}>{g.date}</span>
                     <span>{g.away} @ {g.home}</span>
-                    <span style={{ fontWeight: '700', color: isWin ? '#fff' : 'rgba(255,255,255,0.35)' }}>{g.finalAway}-{g.finalHome}</span>
+                    <span style={{ fontWeight: '700', color: '#fff' }}>{g.finalAway}-{g.finalHome}</span>
                     <span style={{ color: 'rgba(255,255,255,0.35)' }}>
                       ({g.quarters.map(q => `${q.away}-${q.home}`).join(', ')})
                     </span>
@@ -917,7 +916,6 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
                     <span style={{ color: covered ? FAV_COLOR : DOG_COLOR, fontWeight: '600' }}>
                       ATS: {covered ? `Fav covers -${spreadAbs}` : `Dog covers +${spreadAbs}`}
                     </span>
-                    <span>{isWin ? '✓' : '✗'}</span>
                     <span style={{ color: 'rgba(255,255,255,0.35)' }}>R{g.round} G{g.seriesGame}</span>
                   </div>
                 );
