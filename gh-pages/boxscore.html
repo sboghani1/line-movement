@@ -446,6 +446,8 @@ function Collapsible({ title, subtitle, defaultOpen, children, level, onLinkGame
 function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores, onUpdateTestScore, onClearTestScores }) {
   const [expanded, setExpanded] = useState(false);
   const [localMlMode, setLocalMlMode] = useState(false);
+  const [localMarginThresholds, setLocalMarginThresholds] = useState(DEFAULT_MARGIN_THRESHOLDS);
+  const [patternDetail, setPatternDetail] = useState(null); // { label, games }
 
   const gameKey = `${game.date}|${game.away}|${game.home}`;
 
@@ -468,6 +470,19 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
     if (completedQs === 0) return [];
     return findSimilarGames(game, allGames, filters);
   }, [game, allGames, filters]);
+
+  // Similar games also matching margin bucket per quarter
+  const similarBucket = useMemo(() => {
+    if (completedQs === 0) return [];
+    return similar.filter(g => {
+      for (let i = 0; i < completedQs; i++) {
+        const tBucket = marginBucket(game.quarters[i].margin, localMarginThresholds).level;
+        const gBucket = marginBucket(g.quarters[i].margin, localMarginThresholds).level;
+        if (tBucket !== gBucket) return false;
+      }
+      return true;
+    });
+  }, [similar, completedQs, game, localMarginThresholds]);
 
   const nextQStats = useMemo(() => {
     if (completedQs === 0 || completedQs >= 4) return null;
@@ -684,20 +699,30 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
 
       {/* Pattern Matching Results */}
       {(game.isLive || game._hasTestScores || (game.isComplete && expanded)) && similar.length > 0 && (() => {
+        // Flow description
+        const flowDesc = game.quarters.map((q, i) => {
+          const who = q.favWon === 'fav' ? 'Fav' : q.favWon === 'dog' ? 'Dog' : 'Tie';
+          return `${who} Q${i + 1}`;
+        }).join(' → ');
+        const flowBucketDesc = game.quarters.map((q, i) => {
+          const who = q.favWon === 'fav' ? 'Fav' : q.favWon === 'dog' ? 'Dog' : 'Tie';
+          const b = marginBucket(q.margin, localMarginThresholds);
+          const plus = q.favWon === 'tie' ? '' : b.symbol;
+          return `${who}${plus} Q${i + 1}`;
+        }).join(' → ');
+
         // Contextual breakdowns
         const finalStats = (games) => {
-          const favWins = games.filter(g => {
+          const favGames = games.filter(g => {
             if (localMlMode) {
-              // ML: fav wins outright
               const winner = g.finalMargin > 0 ? 'home' : g.finalMargin < 0 ? 'away' : 'tie';
               return winner === g.favSide;
             } else {
-              // ATS: fav covers the spread
               const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
               return favMargin > Math.abs(g.spread);
             }
-          }).length;
-          const dogWins = games.filter(g => {
+          });
+          const dogGames = games.filter(g => {
             if (localMlMode) {
               const winner = g.finalMargin > 0 ? 'home' : g.finalMargin < 0 ? 'away' : 'tie';
               return winner !== g.favSide && winner !== 'tie';
@@ -705,28 +730,9 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
               const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
               return favMargin < Math.abs(g.spread);
             }
-          }).length;
-          return { total: games.length, favWins, dogWins, favPct: games.length ? Math.round(favWins / games.length * 100) : 0, dogPct: games.length ? Math.round(dogWins / games.length * 100) : 0 };
+          });
+          return { total: games.length, favWins: favGames.length, dogWins: dogGames.length, favPct: games.length ? Math.round(favGames.length / games.length * 100) : 0, dogPct: games.length ? Math.round(dogGames.length / games.length * 100) : 0, favGames, dogGames };
         };
-
-        const byGameNum = {};
-        const byRound = {};
-        const bySpreadBucket = {};
-        for (const g of similar) {
-          // By game number
-          const gn = g.seriesGame || 0;
-          if (!byGameNum[gn]) byGameNum[gn] = [];
-          byGameNum[gn].push(g);
-          // By round
-          const r = g.round || 0;
-          if (!byRound[r]) byRound[r] = [];
-          byRound[r].push(g);
-          // By spread size
-          const abs = Math.abs(g.spread);
-          const bucket = abs <= 3 ? '1-3' : abs <= 6 ? '3.5-6' : abs <= 9 ? '6.5-9' : '9.5+';
-          if (!bySpreadBucket[bucket]) bySpreadBucket[bucket] = [];
-          bySpreadBucket[bucket].push(g);
-        }
 
         const ROUND_LABELS = { 1: 'R1', 2: 'Semis', 3: 'Conf Finals', 4: 'Finals' };
         const favVerb = localMlMode ? 'wins' : 'covers';
@@ -734,10 +740,83 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
         const statLine = (label, stats) => (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '2px' }}>
             <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', minWidth: '70px' }}>{label}</span>
-            <span style={{ fontSize: '0.75rem', color: FAV_COLOR, fontWeight: '600' }}>Fav {favVerb} {stats.favWins}/{stats.total} ({stats.favPct}%)</span>
-            <span style={{ fontSize: '0.75rem', color: DOG_COLOR, fontWeight: '600' }}>Dog {dogVerb} {stats.dogWins}/{stats.total} ({stats.dogPct}%)</span>
+            <span onClick={() => stats.favGames.length > 0 && setPatternDetail({ label: `${label} — Fav ${favVerb}`, games: stats.favGames })} style={{ fontSize: '0.75rem', color: FAV_COLOR, fontWeight: '600', cursor: stats.favGames.length > 0 ? 'pointer' : 'default', textDecoration: stats.favGames.length > 0 ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>Fav {favVerb} {stats.favWins}/{stats.total} ({stats.favPct}%)</span>
+            <span onClick={() => stats.dogGames.length > 0 && setPatternDetail({ label: `${label} — Dog ${dogVerb}`, games: stats.dogGames })} style={{ fontSize: '0.75rem', color: DOG_COLOR, fontWeight: '600', cursor: stats.dogGames.length > 0 ? 'pointer' : 'default', textDecoration: stats.dogGames.length > 0 ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>Dog {dogVerb} {stats.dogWins}/{stats.total} ({stats.dogPct}%)</span>
           </div>
         );
+
+        const buildBreakdowns = (gameSet) => {
+          const byGameNum = {}, byRound = {}, bySpreadBucket = {};
+          for (const g of gameSet) {
+            const gn = g.seriesGame || 0;
+            if (!byGameNum[gn]) byGameNum[gn] = [];
+            byGameNum[gn].push(g);
+            const r = g.round || 0;
+            if (!byRound[r]) byRound[r] = [];
+            byRound[r].push(g);
+            const abs = Math.abs(g.spread);
+            const bucket = abs <= 3 ? '1-3' : abs <= 6 ? '3.5-6' : abs <= 9 ? '6.5-9' : '9.5+';
+            if (!bySpreadBucket[bucket]) bySpreadBucket[bucket] = [];
+            bySpreadBucket[bucket].push(g);
+          }
+          return { byGameNum, byRound, bySpreadBucket };
+        };
+
+        const renderBreakdowns = (gameSet) => {
+          const { byGameNum, byRound, bySpreadBucket } = buildBreakdowns(gameSet);
+          return (<>
+            <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>FINAL RESULT</div>
+            {statLine('Overall', finalStats(gameSet))}
+            <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY GAME #</div>
+            {Object.keys(byGameNum).sort((a, b) => a - b).map(gn => (
+              <React.Fragment key={`gn${gn}`}>{statLine(`Game ${gn}`, finalStats(byGameNum[gn]))}</React.Fragment>
+            ))}
+            <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY ROUND</div>
+            {Object.keys(byRound).sort((a, b) => a - b).map(r => (
+              <React.Fragment key={`r${r}`}>{statLine(ROUND_LABELS[r] || `R${r}`, finalStats(byRound[r]))}</React.Fragment>
+            ))}
+            <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY SPREAD SIZE</div>
+            {['1-3', '3.5-6', '6.5-9', '9.5+'].filter(b => bySpreadBucket[b]).map(b => (
+              <React.Fragment key={`s${b}`}>{statLine(b + ' pts', finalStats(bySpreadBucket[b]))}</React.Fragment>
+            ))}
+          </>);
+        };
+
+        // Remaining Q stats for flow match
+        const renderRemainingQ = (gameSet) => {
+          const stats = [];
+          for (let q = completedQs + 1; q <= 4; q++) {
+            const gamesWithQ = gameSet.filter(g => g.quarters.length >= q);
+            if (gamesWithQ.length === 0) continue;
+            const favWins = gamesWithQ.filter(g => g.quarters[q - 1].favWon === 'fav').length;
+            const dogWins = gamesWithQ.filter(g => g.quarters[q - 1].favWon === 'dog').length;
+            stats.push({ qNum: q, total: gamesWithQ.length, favWins, dogWins,
+              favPct: Math.round(favWins / gamesWithQ.length * 100), dogPct: Math.round(dogWins / gamesWithQ.length * 100) });
+          }
+          if (stats.length === 0) return null;
+          return stats.map(stat => (
+            <div key={stat.qNum} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', minWidth: '30px' }}>Q{stat.qNum}:</span>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <span style={{ fontSize: '0.8rem', color: FAV_COLOR, fontWeight: '600' }}>Fav wins {stat.favWins}/{stat.total} ({stat.favPct}%)</span>
+                <span style={{ fontSize: '0.8rem', color: DOG_COLOR, fontWeight: '600' }}>Dog wins {stat.dogWins}/{stat.total} ({stat.dogPct}%)</span>
+              </div>
+            </div>
+          ));
+        };
+
+        const btnStyle = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', cursor: 'pointer', padding: '0 2px', lineHeight: 1 };
+        const adjustThreshold = (idx, delta) => {
+          setLocalMarginThresholds(prev => {
+            const next = [...prev];
+            const newVal = next[idx] + delta;
+            const min = idx === 0 ? 1 : next[idx - 1] + 1;
+            const max = idx === 2 ? 50 : next[idx + 1] - 1;
+            if (newVal < min || newVal > max) return prev;
+            next[idx] = newVal;
+            return next;
+          });
+        };
 
         return (
         <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
@@ -749,45 +828,95 @@ function GameCard({ game, allGames, filters, isLinked, onToggleLink, testScores,
               color: localMlMode ? '#FFD700' : 'rgba(255,255,255,0.5)',
               fontWeight: localMlMode ? '700' : '500',
             }}>{localMlMode ? 'ML Winner' : 'ATS Cover'}</button>
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>
-              SIMILAR PATTERNS ({similar.length} playoff games with same Q{game.quarters.map(q => q.qNum).join('+')} flow)
-            </span>
           </div>
-          {remainingQStats.length > 0 && remainingQStats.map(stat => (
-            <div key={stat.qNum} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '4px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', minWidth: '30px' }}>Q{stat.qNum}:</span>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <span style={{ fontSize: '0.8rem', color: FAV_COLOR, fontWeight: '600' }}>
-                  Fav wins {stat.favWins}/{stat.total} ({stat.favPct}%)
-                </span>
-                <span style={{ fontSize: '0.8rem', color: DOG_COLOR, fontWeight: '600' }}>
-                  Dog wins {stat.dogWins}/{stat.total} ({stat.dogPct}%)
-                </span>
-              </div>
+
+          {/* Section 1: Flow Match (fav/dog per quarter) */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', marginBottom: '6px' }}>
+              FLOW MATCH — {flowDesc} ({similar.length} games)
             </div>
-          ))}
+            {renderRemainingQ(similar)}
+            {renderBreakdowns(similar)}
+          </div>
 
-          {/* Final result */}
-          <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>FINAL RESULT</div>
-          {statLine('Overall', finalStats(similar))}
+          {/* Section 2: Flow + Margin Match */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', marginBottom: '6px' }}>
+              FLOW + MARGIN MATCH — {flowBucketDesc} ({similarBucket.length} games)
+            </div>
+            {/* Margin range controls */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '8px' }}>
+              {[
+                { symbol: '+', label: 'Close', idx: 0 },
+                { symbol: '++', label: 'Comfortable', idx: 1 },
+                { symbol: '+++', label: 'Dominant', idx: 2 },
+                { symbol: '++++', label: 'Blowout', idx: null },
+              ].map((bucket, i) => {
+                const low = i === 0 ? 1 : localMarginThresholds[i - 1] + 1;
+                const high = bucket.idx !== null ? localMarginThresholds[bucket.idx] : null;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>
+                    <span style={{ fontWeight: '700', color: 'rgba(255,215,0,0.7)', minWidth: '30px' }}>{bucket.symbol}</span>
+                    <span>{low}–{high || '+'}</span>
+                    {bucket.idx !== null && (
+                      <span style={{ display: 'flex', flexDirection: 'column' }}>
+                        <button style={btnStyle} onClick={() => adjustThreshold(bucket.idx, 1)}>&#9650;</button>
+                        <button style={btnStyle} onClick={() => adjustThreshold(bucket.idx, -1)}>&#9660;</button>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {similarBucket.length > 0 ? (<>
+              {renderRemainingQ(similarBucket)}
+              {renderBreakdowns(similarBucket)}
+            </>) : (
+              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No games match this exact flow + margin pattern</div>
+            )}
+          </div>
 
-          {/* By game number */}
-          <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY GAME #</div>
-          {Object.keys(byGameNum).sort((a, b) => a - b).map(gn => (
-            <React.Fragment key={`gn${gn}`}>{statLine(`Game ${gn}`, finalStats(byGameNum[gn]))}</React.Fragment>
-          ))}
-
-          {/* By round */}
-          <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY ROUND</div>
-          {Object.keys(byRound).sort((a, b) => a - b).map(r => (
-            <React.Fragment key={`r${r}`}>{statLine(ROUND_LABELS[r] || `R${r}`, finalStats(byRound[r]))}</React.Fragment>
-          ))}
-
-          {/* By spread size */}
-          <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginBottom: '4px' }}>BY SPREAD SIZE</div>
-          {['1-3', '3.5-6', '6.5-9', '9.5+'].filter(b => bySpreadBucket[b]).map(b => (
-            <React.Fragment key={`s${b}`}>{statLine(b + ' pts', finalStats(bySpreadBucket[b]))}</React.Fragment>
-          ))}
+          {/* Detail panel for clicked stat */}
+          {patternDetail && (
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{patternDetail.label} ({patternDetail.games.length} games)</span>
+                <button onClick={() => setPatternDetail(null)} style={{
+                  fontSize: '0.65rem', padding: '2px 8px', borderRadius: '4px',
+                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
+                }}>Close</button>
+              </div>
+              {patternDetail.games.sort((a, b) => b.date.localeCompare(a.date)).map(g => {
+                const favLabel = g.favSide === 'home' ? g.home : g.away;
+                const dogLabel = g.favSide === 'home' ? g.away : g.home;
+                const winner = g.finalMargin > 0 ? 'home' : 'away';
+                const favWon = winner === g.favSide;
+                const margin = Math.abs(g.finalMargin);
+                const spreadAbs = Math.abs(g.spread);
+                const favMargin = g.favSide === 'home' ? g.finalMargin : -g.finalMargin;
+                const covered = favMargin > spreadAbs;
+                return (
+                  <div key={`${g.date}|${g.away}|${g.home}`} style={{
+                    padding: '6px 8px', marginBottom: '4px', borderRadius: '6px',
+                    background: 'rgba(255,255,255,0.04)', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)',
+                    display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
+                  }}>
+                    <span style={{ color: 'rgba(255,255,255,0.35)', minWidth: '70px' }}>{g.date}</span>
+                    <span>{g.away} @ {g.home}</span>
+                    <span style={{ fontWeight: '700', color: '#fff' }}>{g.finalAway}-{g.finalHome}</span>
+                    <span style={{ color: favWon ? FAV_COLOR : DOG_COLOR, fontWeight: '600' }}>
+                      ML: {favWon ? 'Fav' : 'Dog'} wins by {margin}
+                    </span>
+                    <span style={{ color: covered ? FAV_COLOR : DOG_COLOR, fontWeight: '600' }}>
+                      ATS: {covered ? `Fav covers -${spreadAbs}` : `Dog covers +${spreadAbs}`}
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>R{g.round} G{g.seriesGame}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         );
       })()}
