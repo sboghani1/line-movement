@@ -1207,6 +1207,13 @@ function App() {
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginBottom: '10px' }}>
           NBA Playoff Quarter Flow &bull; <a href="index.html" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Fade Finder</a> &bull; <a href="journal.html" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Picks Journal</a>
         </p>
+        {Object.keys(testScores).length > 0 && (
+          <button onClick={() => { setTestScores({}); localStorage.removeItem('boxscore_testScores'); }} style={{
+            marginBottom: '10px', padding: '6px 14px', borderRadius: '6px',
+            background: 'rgba(255,80,80,0.2)', border: '1px solid rgba(255,80,80,0.4)',
+            color: 'rgba(255,80,80,0.9)', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer',
+          }}>Clear All Test Scores ({Object.keys(testScores).length} games)</button>
+        )}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
           <span style={{ color: FAV_COLOR }}>Blue = Favorite</span>
           <span style={{ color: DOG_COLOR }}>Red = Underdog</span>
