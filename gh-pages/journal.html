@@ -22,9 +22,13 @@ const JOURNAL_TAB = 'picks_journal';
 const SCHEDULE_TABS = ['nba_schedule', 'nhl_schedule', 'mlb_schedule', 'cbb_schedule'];
 const SPORT_MAP = { nba_schedule: 'NBA', nhl_schedule: 'NHL', mlb_schedule: 'MLB', cbb_schedule: 'CBB' };
 
+// ── Apps Script URL (paste your deployed web app URL here) ──────────────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLYgXgYHhQtDblqBXAZWW33N3b2ASp8FkSRO6TXKMrIfLOL5fsfodFYRUFajwOmxk4/exec';
+
 const DEFAULT_SOURCES = ['me'];
-const DEFAULT_TAGS = [];
+const DEFAULT_TAGS = ['national_tv', 'back_to_back', 'revenge_game', 'injury_return'];
 const DEFAULT_CONFIDENCE = ['lean', 'like', 'love', 'lock'];
+const CONFIDENCE_VALUES = { lean: '1_lean', like: '2_like', love: '3_love', lock: '4_lock' };
 const PHASES = ['pregame', 'live', 'postgame'];
 const RESULTS = ['W', 'L', 'P'];
 
@@ -82,7 +86,7 @@ function parseSheetCsv(text, isJournal) {
       }
     }
     return obj;
-  }).filter(r => r.date);
+  }).filter(r => r.date || r.game_date);
 }
 
 async function fetchTab(tab, isJournal) {
@@ -434,6 +438,448 @@ function JournalEntry({ game, scheduleMap, filterTags, onToggleTag }) {
   );
 }
 
+// ── Submit helper ────────────────────────────────────────────────────────────
+
+async function submitEntry(data) {
+  if (!APPS_SCRIPT_URL) {
+    alert('Apps Script URL not configured. Set APPS_SCRIPT_URL in journal.html');
+    return false;
+  }
+  try {
+    // Use JSONP-style GET request via script tag to bypass CORS entirely
+    // Data is URL-encoded and sent as a query parameter
+    return new Promise((resolve) => {
+      const payload = encodeURIComponent(JSON.stringify(data));
+      const script = document.createElement('script');
+      const cbName = '_apsCb' + Date.now();
+      window[cbName] = () => { delete window[cbName]; resolve(true); };
+      script.src = `${APPS_SCRIPT_URL}?action=add&payload=${payload}&callback=${cbName}`;
+      script.onerror = () => { delete window[cbName]; resolve(true); }; // optimistic even on error
+      document.body.appendChild(script);
+      // Clean up after 10s
+      setTimeout(() => { try { document.body.removeChild(script); } catch(_) {} }, 10000);
+    });
+  } catch (e) {
+    console.error('Submit failed:', e);
+    return false;
+  }
+}
+
+// ── Entry Form ──────────────────────────────────────────────────────────────
+
+function EntryForm({ schedules, dateGames = [], entryDate, setEntryDate, uniqueSources = ['me'], uniqueTags = [], onSubmitted }) {
+  const [open, setOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [source, setSource] = useState('me');
+  const [side, setSide] = useState('');
+  const [confidence, setConfidence] = useState('like');
+  const [phase, setPhase] = useState('pregame');
+  const [isPlayoff, setIsPlayoff] = useState(false);
+  const [playoffRound, setPlayoffRound] = useState('');
+  const [seriesGame, setSeriesGame] = useState('');
+  const [result, setResult] = useState('');
+  const [tags, setTags] = useState(new Set());
+  const [reflection, setReflection] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [lastStatus, setLastStatus] = useState(null);
+  const [addingSource, setAddingSource] = useState(false);
+  const [newSourceText, setNewSourceText] = useState('');
+  const [addingSide, setAddingSide] = useState(false);
+  const [newSideText, setNewSideText] = useState('');
+  const [addingTag, setAddingTag] = useState(false);
+  const [newTagText, setNewTagText] = useState('');
+  const [customSources, setCustomSources] = useState([]);
+  const [customSides, setCustomSides] = useState([]);
+  const [customTags, setCustomTags] = useState([]);
+
+  const sortedSources = useMemo(() => {
+    const all = [...new Set([...(uniqueSources || []), ...customSources])];
+    const me = all.filter(s => s === 'me');
+    const rest = all.filter(s => s !== 'me').sort((a, b) => a.localeCompare(b));
+    return [...me, ...rest];
+  }, [uniqueSources, customSources]);
+
+  const sortedTags = useMemo(() => {
+    const all = [...new Set([...(uniqueTags || []), ...customTags])];
+    return all.sort((a, b) => a.localeCompare(b));
+  }, [uniqueTags, customTags]);
+
+  const sideOptions = useMemo(() => {
+    if (!selectedGame) return [];
+    const g = selectedGame;
+    const opts = [];
+    // Parse spread — could be numeric or "Team -8.5" format
+    const spreadStr = (g.spread || '').trim();
+    const numericSpread = parseFloat(spreadStr);
+    if (!isNaN(numericSpread) && spreadStr.match(/^[+-]?\d/)) {
+      // Pure numeric spread (home team perspective)
+      opts.push(`${g.away_team} ${numericSpread > 0 ? '+' : ''}${-numericSpread}`);
+      opts.push(`${g.home_team} ${numericSpread >= 0 ? '-' : '+'}${Math.abs(numericSpread)}`);
+    } else if (spreadStr) {
+      // "Team -8.5" format — extract number and figure out other side
+      const spreadMatch = spreadStr.match(/([+-]?\d+\.?\d*)/);
+      if (spreadMatch) {
+        const num = parseFloat(spreadMatch[1]);
+        const favTeam = spreadStr.includes(g.home_team) ? g.home_team : g.away_team;
+        const dogTeam = favTeam === g.home_team ? g.away_team : g.home_team;
+        opts.push(`${favTeam} ${num}`);
+        opts.push(`${dogTeam} +${Math.abs(num)}`);
+      }
+    }
+    opts.push(`${g.away_team} ML`);
+    opts.push(`${g.home_team} ML`);
+    if (g.over_under) {
+      opts.push(`Over ${g.over_under}`);
+      opts.push(`Under ${g.over_under}`);
+    }
+    return opts;
+  }, [selectedGame]);
+
+  const allSideOptions = useMemo(() => [...sideOptions, ...customSides], [sideOptions, customSides]);
+
+  const gamesBySport = useMemo(() => {
+    const grouped = {};
+    for (const g of dateGames) {
+      if (!grouped[g._sport]) grouped[g._sport] = [];
+      grouped[g._sport].push(g);
+    }
+    // Sort each sport's games by time ascending
+    for (const sport of Object.keys(grouped)) {
+      grouped[sport].sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
+    }
+    // Return in consistent sport order
+    const order = ['NBA', 'NHL', 'MLB', 'CBB'];
+    return order.filter(s => grouped[s]).map(s => ({ sport: s, games: grouped[s] }));
+  }, [dateGames]);
+
+  useEffect(() => {
+    setSide(''); setCustomSides([]);
+    // Prefill playoff/round/game from schedule tags (e.g. "round_1,game_7")
+    if (selectedGame) {
+      const gameTags = (selectedGame.tags || '').split(',').map(t => t.trim());
+      const roundTag = gameTags.find(t => /^round_\d+$/i.test(t));
+      const gameTag = gameTags.find(t => /^game_\d+$/i.test(t));
+      if (roundTag || gameTag) {
+        setIsPlayoff(true);
+        setPlayoffRound(roundTag ? roundTag.replace(/^round_/i, '') : '');
+        setSeriesGame(gameTag ? gameTag.replace(/^game_/i, '') : '');
+      } else {
+        setIsPlayoff(false);
+        setPlayoffRound('');
+        setSeriesGame('');
+      }
+    }
+  }, [selectedGame]);
+
+  const handleSubmit = async () => {
+    if (!selectedGame || !side) return;
+    setSubmitting(true);
+    setLastStatus(null);
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const row = {
+      date: selectedGame.game_date,
+      sport: selectedGame._sport,
+      game: `${selectedGame.away_team} @ ${selectedGame.home_team}`,
+      phase,
+      source,
+      side,
+      confidence: CONFIDENCE_VALUES[confidence] || confidence,
+      is_playoff: isPlayoff ? 'Y' : 'N',
+      playoff_round: isPlayoff ? playoffRound : '',
+      series_game: isPlayoff ? seriesGame : '',
+      result,
+      tags: [...tags].join(','),
+      reflection,
+      logged_at: now,
+    };
+    const ok = await submitEntry(row);
+    setSubmitting(false);
+    setLastStatus(ok ? 'sent' : 'error');
+    if (ok) {
+      // Reset form fields but keep game selected
+      setSide('');
+      setConfidence('like');
+      setReflection('');
+      setResult('');
+      setTags(new Set());
+      if (onSubmitted) onSubmitted(row);
+    }
+  };
+
+  const inputStyle = {
+    padding: '8px 12px',
+    background: 'rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: '8px',
+    color: '#fff',
+    fontSize: '0.85rem',
+    width: '100%',
+  };
+  const selStyle = { ...inputStyle, cursor: 'pointer' };
+
+  if (!open) {
+    return (
+      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+        <button onClick={() => setOpen(true)} style={{
+          padding: '10px 24px', background: 'rgba(112,173,71,0.3)', border: '2px solid rgba(112,173,71,0.6)',
+          borderRadius: '10px', color: '#70AD47', fontSize: '0.95rem', fontWeight: '700', cursor: 'pointer',
+        }}>+ New Entry</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: 'rgba(0,33,165,0.3)', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '2px solid rgba(112,173,71,0.4)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: '700' }}>New Entry</h2>
+        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>X</button>
+      </div>
+
+      {/* Date picker */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Date</label>
+        <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} style={selStyle} />
+      </div>
+
+      {/* Game selector */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Game ({dateGames.length} unscored)</label>
+        <select value={selectedGame ? `${selectedGame._sport}|${selectedGame.away_team}|${selectedGame.home_team}` : ''} onChange={e => {
+          if (!e.target.value) { setSelectedGame(null); return; }
+          const [sport, away, home] = e.target.value.split('|');
+          const g = dateGames.find(g => g._sport === sport && g.away_team === away && g.home_team === home);
+          setSelectedGame(g || null);
+        }} style={selStyle}>
+          <option value="">Select a game...</option>
+          {gamesBySport.map(({ sport, games }) => (
+            <optgroup key={sport} label={`${sport} (${games.length})`}>
+              {games.map(g => {
+                const key = `${g._sport}|${g.away_team}|${g.home_team}`;
+                return <option key={key} value={key}>{g.away_team} @ {g.home_team} ({g.game_time || 'TBD'})</option>;
+              })}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      {selectedGame && (
+        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+          Spread: {selectedGame.spread || 'N/A'} | O/U: {selectedGame.over_under || 'N/A'} | Time: {selectedGame.game_time || 'TBD'}
+        </div>
+      )}
+
+      {/* Source */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Source</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {sortedSources.map(s => {
+            const active = source === s;
+            return <button key={s} onClick={() => setSource(s)} style={{
+              padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+              border: active ? '1px solid rgba(112,173,71,0.7)' : '1px solid rgba(255,255,255,0.2)',
+              background: active ? 'rgba(112,173,71,0.2)' : 'rgba(255,255,255,0.07)',
+              color: active ? '#70AD47' : 'rgba(255,255,255,0.6)',
+              fontWeight: active ? '700' : '400',
+            }}>{s}</button>;
+          })}
+          {addingSource ? (
+            <form onSubmit={e => { e.preventDefault(); const v = newSourceText.trim().replace(/\s+/g, '_'); if (v) { setCustomSources(prev => [...prev, v]); setSource(v); } setAddingSource(false); setNewSourceText(''); }} style={{ display: 'flex', gap: '4px' }}>
+              <input autoFocus value={newSourceText} onChange={e => setNewSourceText(e.target.value)} placeholder="new_source" style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(112,173,71,0.5)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '0.8rem', width: '120px' }} />
+              <button type="submit" style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(112,173,71,0.5)', background: 'rgba(112,173,71,0.2)', color: '#70AD47', fontSize: '0.8rem', cursor: 'pointer' }}>Add</button>
+              <button type="button" onClick={() => { setAddingSource(false); setNewSourceText(''); }} style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', cursor: 'pointer' }}>X</button>
+            </form>
+          ) : (
+            <button onClick={() => setAddingSource(true)} style={{ padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer', border: '1px dashed rgba(255,255,255,0.3)', background: 'transparent', color: 'rgba(255,255,255,0.4)' }}>+</button>
+          )}
+        </div>
+      </div>
+
+      {/* Side */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Side</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {allSideOptions.length === 0 && !addingSide && <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)' }}>Select a game first</span>}
+          {allSideOptions.map(s => {
+            const active = side === s;
+            return <button key={s} onClick={() => setSide(s)} style={{
+              padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+              border: active ? '1px solid rgba(91,155,213,0.7)' : '1px solid rgba(255,255,255,0.2)',
+              background: active ? 'rgba(91,155,213,0.2)' : 'rgba(255,255,255,0.07)',
+              color: active ? '#5B9BD5' : 'rgba(255,255,255,0.6)',
+              fontWeight: active ? '700' : '400',
+            }}>{s}</button>;
+          })}
+          {addingSide ? (
+            <form onSubmit={e => { e.preventDefault(); const v = newSideText.trim(); if (v) { setCustomSides(prev => [...prev, v]); setSide(v); } setAddingSide(false); setNewSideText(''); }} style={{ display: 'flex', gap: '4px' }}>
+              <input autoFocus value={newSideText} onChange={e => setNewSideText(e.target.value)} placeholder="Custom bet" style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(91,155,213,0.5)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '0.8rem', width: '160px' }} />
+              <button type="submit" style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(91,155,213,0.5)', background: 'rgba(91,155,213,0.2)', color: '#5B9BD5', fontSize: '0.8rem', cursor: 'pointer' }}>Add</button>
+              <button type="button" onClick={() => { setAddingSide(false); setNewSideText(''); }} style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', cursor: 'pointer' }}>X</button>
+            </form>
+          ) : (
+            <button onClick={() => setAddingSide(true)} style={{ padding: '6px 12px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer', border: '1px dashed rgba(255,255,255,0.3)', background: 'transparent', color: 'rgba(255,255,255,0.4)' }}>+</button>
+          )}
+        </div>
+      </div>
+
+      {/* Confidence */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Confidence</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {DEFAULT_CONFIDENCE.map(c => {
+            const active = confidence === c;
+            const col = CONFIDENCE_COLORS[c] || '#999';
+            return <button key={c} onClick={() => setConfidence(c)} style={{
+              padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+              border: active ? `1px solid ${col}` : '1px solid rgba(255,255,255,0.2)',
+              background: active ? `${col}33` : 'rgba(255,255,255,0.07)',
+              color: active ? col : 'rgba(255,255,255,0.6)',
+              fontWeight: active ? '700' : '400',
+            }}>{c}</button>;
+          })}
+        </div>
+      </div>
+
+      {/* Phase */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Phase</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {PHASES.map(p => {
+            const active = phase === p;
+            return <button key={p} onClick={() => setPhase(p)} style={{
+              padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+              border: active ? '1px solid rgba(112,173,71,0.7)' : '1px solid rgba(255,255,255,0.2)',
+              background: active ? 'rgba(112,173,71,0.2)' : 'rgba(255,255,255,0.07)',
+              color: active ? '#70AD47' : 'rgba(255,255,255,0.6)',
+              fontWeight: active ? '700' : '400',
+            }}>{p}</button>;
+          })}
+        </div>
+      </div>
+
+      {/* Playoff */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Playoff?</label>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[{ label: 'No', val: false }, { label: 'Yes', val: true }].map(({ label, val }) => {
+            const active = isPlayoff === val;
+            return <button key={label} onClick={() => setIsPlayoff(val)} style={{
+              padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+              border: active ? '1px solid rgba(255,215,0,0.7)' : '1px solid rgba(255,255,255,0.2)',
+              background: active ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.07)',
+              color: active ? '#FFD700' : 'rgba(255,255,255,0.6)',
+              fontWeight: active ? '700' : '400',
+            }}>{label}</button>;
+          })}
+        </div>
+      </div>
+
+      {isPlayoff && <>
+        {/* Round */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Round</label>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[1,2,3,4].map(r => {
+              const active = playoffRound === String(r);
+              return <button key={r} onClick={() => setPlayoffRound(String(r))} style={{
+                padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+                border: active ? '1px solid rgba(255,215,0,0.7)' : '1px solid rgba(255,255,255,0.2)',
+                background: active ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.07)',
+                color: active ? '#FFD700' : 'rgba(255,255,255,0.6)',
+                fontWeight: active ? '700' : '400',
+              }}>{r}</button>;
+            })}
+          </div>
+        </div>
+
+        {/* Game # */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Game #</label>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[1,2,3,4,5,6,7].map(g => {
+              const active = seriesGame === String(g);
+              return <button key={g} onClick={() => setSeriesGame(String(g))} style={{
+                padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+                border: active ? '1px solid rgba(255,215,0,0.7)' : '1px solid rgba(255,255,255,0.2)',
+                background: active ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.07)',
+                color: active ? '#FFD700' : 'rgba(255,255,255,0.6)',
+                fontWeight: active ? '700' : '400',
+              }}>{g}</button>;
+            })}
+          </div>
+        </div>
+      </>}
+
+      {/* Result */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Result (optional)</label>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {RESULTS.map(r => {
+            const active = result === r;
+            const col = RESULT_COLORS[r] || '#999';
+            return <button key={r} onClick={() => setResult(prev => prev === r ? '' : r)} style={{
+              padding: '6px 14px', borderRadius: '12px', fontSize: '0.8rem', cursor: 'pointer',
+              border: active ? `1px solid ${col}` : '1px solid rgba(255,255,255,0.2)',
+              background: active ? `${col}33` : 'rgba(255,255,255,0.07)',
+              color: active ? col : 'rgba(255,255,255,0.6)',
+              fontWeight: active ? '700' : '400',
+            }}>{r}</button>;
+          })}
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Tags</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {sortedTags.map(t => {
+            const active = tags.has(t);
+            return (
+              <button key={t} onClick={() => setTags(prev => { const n = new Set(prev); if (n.has(t)) n.delete(t); else n.add(t); return n; })} style={{
+                padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', cursor: 'pointer',
+                border: active ? '1px solid rgba(112,173,71,0.7)' : '1px solid rgba(255,255,255,0.2)',
+                background: active ? 'rgba(112,173,71,0.2)' : 'rgba(255,255,255,0.07)',
+                color: active ? '#70AD47' : 'rgba(255,255,255,0.6)',
+                fontWeight: active ? '700' : '400',
+              }}>{t}</button>
+            );
+          })}
+          {addingTag ? (
+            <form onSubmit={e => { e.preventDefault(); const v = newTagText.trim().replace(/\s+/g, '_'); if (v) { setCustomTags(prev => [...prev, v]); setTags(prev => { const n = new Set(prev); n.add(v); return n; }); } setAddingTag(false); setNewTagText(''); }} style={{ display: 'flex', gap: '4px' }}>
+              <input autoFocus value={newTagText} onChange={e => setNewTagText(e.target.value)} placeholder="new_tag" style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(112,173,71,0.5)', background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '0.75rem', width: '120px' }} />
+              <button type="submit" style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(112,173,71,0.5)', background: 'rgba(112,173,71,0.2)', color: '#70AD47', fontSize: '0.75rem', cursor: 'pointer' }}>Add</button>
+              <button type="button" onClick={() => { setAddingTag(false); setNewTagText(''); }} style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>X</button>
+            </form>
+          ) : (
+            <button onClick={() => setAddingTag(true)} style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', cursor: 'pointer', border: '1px dashed rgba(255,255,255,0.3)', background: 'transparent', color: 'rgba(255,255,255,0.4)' }}>+</button>
+          )}
+        </div>
+      </div>
+
+      {/* Reflection */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Reflection (optional)</label>
+        <textarea value={reflection} onChange={e => setReflection(e.target.value)} rows={2} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Notes on this pick..." />
+      </div>
+
+      {/* Submit */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <button onClick={handleSubmit} disabled={!selectedGame || !side || submitting} style={{
+          padding: '10px 24px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: '700', cursor: 'pointer',
+          background: (!selectedGame || !side) ? 'rgba(255,255,255,0.1)' : 'rgba(112,173,71,0.4)',
+          border: (!selectedGame || !side) ? '1px solid rgba(255,255,255,0.15)' : '2px solid rgba(112,173,71,0.7)',
+          color: (!selectedGame || !side) ? 'rgba(255,255,255,0.3)' : '#70AD47',
+          opacity: submitting ? 0.5 : 1,
+        }}>
+          {submitting ? 'Sending...' : 'Submit Entry'}
+        </button>
+        {lastStatus === 'sent' && <span style={{ color: '#70AD47', fontSize: '0.85rem', fontWeight: '600' }}>Sent (optimistic)</span>}
+        {lastStatus === 'error' && <span style={{ color: '#FF6B6B', fontSize: '0.85rem', fontWeight: '600' }}>Failed to send</span>}
+        {!APPS_SCRIPT_URL && <span style={{ color: '#FFD700', fontSize: '0.75rem' }}>Apps Script URL not set</span>}
+      </div>
+    </div>
+  );
+}
+
 // ── App ─────────────────────────────────────────────────────────────────────
 
 function App() {
@@ -495,6 +941,20 @@ function App() {
   }, [entries]);
 
   const uniqueSports = useMemo(() => [...new Set(entries.map(e => e.sport).filter(Boolean))], [entries]);
+
+  // Games from schedules for entry form (unscored only)
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
+  const dateGames = useMemo(() => {
+    const games = [];
+    for (const [key, sched] of Object.entries(schedules)) {
+      const [sport] = key.split('|');
+      if (sched.game_date === entryDate && !sched.score) {
+        games.push({ ...sched, _sport: sport });
+      }
+    }
+    games.sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
+    return games;
+  }, [schedules, entryDate]);
 
   // Filter entries
   const filteredEntries = useMemo(() => {
@@ -585,6 +1045,26 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Entry Form */}
+      {!loading && (
+        <EntryForm
+          schedules={schedules}
+          dateGames={dateGames}
+          entryDate={entryDate}
+          setEntryDate={setEntryDate}
+          uniqueSources={uniqueSources}
+          uniqueTags={uniqueTags}
+          onSubmitted={(row) => {
+            // Optimistically add to local state
+            setEntries(prev => [...prev, {
+              ...row,
+              confidence: row.confidence.replace(/^\d+_/, ''),
+              is_playoff: /^(y|yes|true|1)$/i.test(row.is_playoff) ? 'TRUE' : 'FALSE',
+            }]);
+          }}
+        />
+      )}
 
       {/* Filters */}
       <div style={{ background: 'rgba(0,33,165,0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(0,33,165,0.4)' }}>
