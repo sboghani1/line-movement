@@ -18666,3 +18666,21 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-06,seeking_returns,MLB,Pittsburgh Pirates,ML,Pittsburgh Pirates @ Arizona Diamondbacks,Pittsburgh Pirates -1.5,,discord_all_in_one
 2026-05-06,capper_not_found,MLB,Minnesota Twins,ML,Minnesota Twins @ Washington Nationals,Minnesota Twins -1.5,,discord_all_in_one
 2026-05-06,main_play,NBA,San Antonio Spurs,-9.5,Minnesota Timberwolves @ San Antonio Spurs,San Antonio Spurs -9.5,,discord_all_in_one
+2026-05-06,analytics_capper,NBA,Philadelphia 76ers,10.5,Philadelphia 76ers @ New York Knicks,New York Knicks -10.5,,discord_all_in_one
+2026-05-06,analytics_capper,NHL,Anaheim Ducks,ML,Anaheim Ducks @ Vegas Golden Knights,Vegas Golden Knights -1.5,,discord_all_in_one
+2026-05-06,analytics_capper,MLB,Washington Nationals,ML,Minnesota Twins @ Washington Nationals,Minnesota Twins -1.5,,discord_all_in_one
+2026-05-06,bankroll_bill,NHL,Montreal Canadiens,ML,Montreal Canadiens @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
+2026-05-06,bankroll_bill,MLB,Boston Red Sox,ML,Boston Red Sox @ Detroit Tigers,Boston Red Sox -1.5,,discord_all_in_one
+2026-05-06,bet_labs,NBA,San Antonio Spurs,-10,Minnesota Timberwolves @ San Antonio Spurs,San Antonio Spurs -9.5,,discord_all_in_one
+2026-05-06,dquan_picks,NBA,New York Knicks,ML,Philadelphia 76ers @ New York Knicks,New York Knicks -10.5,,discord_all_in_one
+2026-05-06,lear_locks,NHL,Buffalo Sabres,ML,Montreal Canadiens @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
+2026-05-06,lear_locks,NBA,Philadelphia 76ers,6.5,Philadelphia 76ers @ New York Knicks,New York Knicks -10.5,,discord_all_in_one
+2026-05-06,mc_bets,NBA,San Antonio Spurs,-9.5,Minnesota Timberwolves @ San Antonio Spurs,San Antonio Spurs -9.5,,discord_all_in_one
+2026-05-06,nicky_cashin,NHL,Montreal Canadiens,ML,Montreal Canadiens @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
+2026-05-06,out_of_line_bets,NBA,Philadelphia 76ers,11,Philadelphia 76ers @ New York Knicks,New York Knicks -10.5,,discord_all_in_one
+2026-05-06,pardon_my_pick,NBA,Minnesota Timberwolves,10,Minnesota Timberwolves @ San Antonio Spurs,San Antonio Spurs -9.5,,discord_all_in_one
+2026-05-06,pardon_my_pick,NHL,Buffalo Sabres,ML,Montreal Canadiens @ Buffalo Sabres,Buffalo Sabres -1.5,,discord_all_in_one
+2026-05-06,tail_to_win,NBA,Philadelphia 76ers,10.5,Philadelphia 76ers @ New York Knicks,New York Knicks -10.5,,discord_all_in_one
+2026-05-06,the_sharp_sheets,NBA,Philadelphia 76ers,7.5,Philadelphia 76ers @ New York Knicks,New York Knicks -10.5,,discord_all_in_one
+2026-05-06,the_sharp_sheets,NBA,San Antonio Spurs,-9,Minnesota Timberwolves @ San Antonio Spurs,San Antonio Spurs -9.5,,discord_all_in_one
+2026-05-06,the_sharp_sheets,MLB,Milwaukee Brewers,ML,Milwaukee Brewers @ St. Louis Cardinals,Milwaukee Brewers -1.5,,discord_all_in_one
