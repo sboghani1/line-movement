@@ -988,9 +988,30 @@ function App() {
     });
   };
   const [atsDetail, setAtsDetail] = useState(null); // { label, details[] }
+  const [pushedToBottom, setPushedToBottom] = useState(new Set()); // indices pushed to bottom (ephemeral)
+  const recordSpan = (ats, cellLabel) => {
+    const parts = ats.record.split('-').map(Number);
+    const w = parts[0] || 0, l = parts[1] || 0;
+    const total = w + l;
+    const pct = total > 0 ? (w / total * 100).toFixed(1) : '0.0';
+    const pctColor = parseFloat(pct) > 55 ? '#70AD47' : parseFloat(pct) < 45 ? '#FF6B6B' : 'rgba(255,255,255,0.4)';
+    return (
+      <span style={{ cursor: ats.tooltip ? 'pointer' : 'default', textDecoration: ats.tooltip ? 'underline dotted' : 'none', display: 'inline-block', textAlign: 'center' }}
+        title={ats.tooltip}
+        onClick={() => ats.details.length > 0 && (() => { setPushedToBottom(new Set()); setAtsDetail(prev => prev && prev.label === cellLabel ? null : { label: cellLabel, details: ats.details }); })()}>
+        <span style={{ display: 'block' }}>{ats.record}</span>
+        <span style={{ display: 'block', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '2px', paddingTop: '2px', color: pctColor, fontSize: '0.65rem' }}>({pct}%)</span>
+      </span>
+    );
+  };
   const [mlMode, setMlMode] = useState(false); // moneyline mode - ignore spread
-  // Series context filters: { gameNum: [{ mode: 'ats'|'margin', who: 'fav'|'dog', min: number|null, max: number|null }, ...] }
-  const [seriesFilters, setSeriesFilters] = useState({});
+  // Series context filters with localStorage persistence
+  const [seriesFilters, setSeriesFilters] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('boxscore_seriesFilters') || '{}'); } catch { return {}; }
+  });
+  useEffect(() => {
+    localStorage.setItem('boxscore_seriesFilters', JSON.stringify(seriesFilters));
+  }, [seriesFilters]);
   const [linkedGameKeys, setLinkedGameKeys] = useState(() => {
     // Read linked games from URL query params on initial load
     const params = new URLSearchParams(window.location.search);
@@ -1167,24 +1188,34 @@ function App() {
   const gameMatchesCondition = (game, condition) => {
     if (!game || !game.isComplete) return false;
     const spread = Math.abs(game.spread);
-    // favMargin: positive = fav won, negative = dog won
+    // favMargin: positive = fav won, negative = dog won (only meaningful when spread exists)
     const favMargin = game.favSide === 'home' ? game.finalMargin : -game.finalMargin;
     // atsMargin: positive = fav covered, negative = dog covered
     const atsMargin = favMargin - spread;
 
     if (condition.mode === 'ats') {
-      // Pregame spread range filter only
+      // Pregame spread range filter — requires a spread to exist
+      if (spread === 0) return false;
       if (condition.min != null && spread < condition.min) return false;
       if (condition.max != null && spread > condition.max) return false;
     } else if (condition.mode === 'margin') {
       // Final score difference (absolute margin, regardless of who won)
-      const absMargin = Math.abs(favMargin);
+      const absMargin = Math.abs(game.finalMargin);
       if (condition.min != null && absMargin < condition.min) return false;
       if (condition.max != null && absMargin > condition.max) return false;
     } else if (condition.mode === 'winner') {
       // Who won straight up
-      if (condition.who === 'fav' && favMargin <= 0) return false;
-      if (condition.who === 'dog' && favMargin >= 0) return false;
+      if (condition.who === 'fav') {
+        if (spread === 0) return false; // can't determine fav without spread
+        if (favMargin <= 0) return false;
+      } else if (condition.who === 'dog') {
+        if (spread === 0) return false;
+        if (favMargin >= 0) return false;
+      } else if (condition.who === 'home') {
+        if (game.finalMargin <= 0) return false;
+      } else if (condition.who === 'away') {
+        if (game.finalMargin >= 0) return false;
+      }
     }
     return true;
   };
@@ -1322,6 +1353,43 @@ function App() {
           const labelStyle = { fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px' };
           const hasFilters = filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0 || filterYear.size > 0 || Object.keys(seriesFilters).length > 0;
           return (<>
+        {/* Margin bucket thresholds */}
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Margin Ranges:</span>
+          {[
+            { symbol: '+', label: 'Close', idx: 0, from: 1 },
+            { symbol: '++', label: 'Comfortable', idx: 1, from: null },
+            { symbol: '+++', label: 'Dominant', idx: 2, from: null },
+            { symbol: '++++', label: 'Blowout', idx: null, from: null },
+          ].map((bucket, i) => {
+            const low = i === 0 ? 1 : marginThresholds[i - 1] + 1;
+            const high = bucket.idx !== null ? marginThresholds[bucket.idx] : null;
+            const adjustThreshold = (idx, delta) => {
+              setMarginThresholds(prev => {
+                const next = [...prev];
+                const newVal = next[idx] + delta;
+                const min = idx === 0 ? 1 : next[idx - 1] + 1;
+                const max = idx === 2 ? 50 : next[idx + 1] - 1;
+                if (newVal < min || newVal > max) return prev;
+                next[idx] = newVal;
+                return next;
+              });
+            };
+            const mbtnStyle = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', cursor: 'pointer', padding: '0 2px', lineHeight: 1 };
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                <span style={{ fontWeight: '700', color: 'rgba(255,215,0,0.7)', minWidth: '36px' }}>{bucket.symbol}</span>
+                <span>{low}–{high || '+'}</span>
+                {bucket.idx !== null && (
+                  <span style={{ display: 'flex', flexDirection: 'column' }}>
+                    <button style={mbtnStyle} onClick={() => adjustThreshold(bucket.idx, 1)}>&#9650;</button>
+                    <button style={mbtnStyle} onClick={() => adjustThreshold(bucket.idx, -1)}>&#9660;</button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button style={{
             padding: '6px 12px',
@@ -1407,6 +1475,8 @@ function App() {
                           <select value={c.who} onChange={e => updateCondition(idx, 'who', e.target.value)} style={{ ...selStyle, marginTop: '2px' }}>
                             <option value="fav">Fav</option>
                             <option value="dog">Dog</option>
+                            <option value="home">Home</option>
+                            <option value="away">Away</option>
                           </select>
                         )}
                         {(c.mode === 'ats' || c.mode === 'margin') && (
@@ -1436,48 +1506,30 @@ function App() {
             </div>
           )}
         </div>
-        {/* Margin bucket thresholds */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Margin Ranges:</span>
-          {[
-            { symbol: '+', label: 'Close', idx: 0, from: 1 },
-            { symbol: '++', label: 'Comfortable', idx: 1, from: null },
-            { symbol: '+++', label: 'Dominant', idx: 2, from: null },
-            { symbol: '++++', label: 'Blowout', idx: null, from: null },
-          ].map((bucket, i) => {
-            const low = i === 0 ? 1 : marginThresholds[i - 1] + 1;
-            const high = bucket.idx !== null ? marginThresholds[bucket.idx] : null;
-            const adjustThreshold = (idx, delta) => {
-              setMarginThresholds(prev => {
-                const next = [...prev];
-                const newVal = next[idx] + delta;
-                const min = idx === 0 ? 1 : next[idx - 1] + 1;
-                const max = idx === 2 ? 50 : next[idx + 1] - 1;
-                if (newVal < min || newVal > max) return prev;
-                next[idx] = newVal;
-                return next;
-              });
-            };
-            const btnStyle = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', cursor: 'pointer', padding: '0 2px', lineHeight: 1 };
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-                <span style={{ fontWeight: '700', color: 'rgba(255,215,0,0.7)', minWidth: '36px' }}>{bucket.symbol}</span>
-                <span>{low}–{high || '+'}</span>
-                {bucket.idx !== null && (
-                  <span style={{ display: 'flex', flexDirection: 'column' }}>
-                    <button style={btnStyle} onClick={() => adjustThreshold(bucket.idx, 1)}>&#9650;</button>
-                    <button style={btnStyle} onClick={() => adjustThreshold(bucket.idx, -1)}>&#9660;</button>
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
         {!loading && games.length > 0 && (
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <div>{(filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0 || filterYear.size > 0)
-              ? `Showing ${filteredGames.length} of ${games.length} games (${games.length - filteredGames.length} excluded)`
-              : `${games.length} games`}</div>
+            <div>{(() => {
+              const yearCounts = {};
+              const yearSpreadCounts = {};
+              for (const g of filteredGames) {
+                const y = g.date.slice(0, 4);
+                yearCounts[y] = (yearCounts[y] || 0) + 1;
+                if (g.spread !== 0) yearSpreadCounts[y] = (yearSpreadCounts[y] || 0) + 1;
+              }
+              const years = Object.keys(yearCounts).sort();
+              const totalWithSpread = Object.values(yearSpreadCounts).reduce((a, b) => a + b, 0);
+              const prefix = (filterRound.size > 0 || filterSeriesGame.size > 0 || filterSpreadRange.size > 0 || filterFavSide.size > 0 || filterYear.size > 0 || Object.keys(seriesFilters).length > 0)
+                ? `Showing ${filteredGames.length} of ${games.length} games (${totalWithSpread} with spread)`
+                : `${games.length} games (${totalWithSpread} with spread)`;
+              return (<>
+                <div>{prefix}</div>
+                {years.map(y => {
+                  const sc = yearSpreadCounts[y] || 0;
+                  const spreadNote = sc < yearCounts[y] ? ` (${sc} with spread)` : '';
+                  return <div key={y} style={{ marginLeft: '8px' }}>{y}: {yearCounts[y]}{spreadNote}</div>;
+                })}
+              </>);
+            })()}</div>
             {(() => {
               const spreadBuckets = [
                 [0.5, 3, '0–3'], [3.5, 5.5, '3.5–5.5'], [6, 9.5, '6–9.5'],
@@ -1522,20 +1574,6 @@ function App() {
               const thStyle = { padding: '2px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' };
               const tdStyle = { padding: '6px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textAlign: 'center' };
               const tdLabelStyle = { ...tdStyle, textAlign: 'left', fontWeight: '600' };
-              const recordSpan = (ats, cellLabel) => {
-                const parts = ats.record.split('-').map(Number);
-                const w = parts[0] || 0, l = parts[1] || 0;
-                const total = w + l;
-                const pct = total > 0 ? (w / total * 100).toFixed(1) : '0.0';
-                const pctColor = parseFloat(pct) > 55 ? '#70AD47' : parseFloat(pct) < 45 ? '#FF6B6B' : 'rgba(255,255,255,0.4)';
-                return (
-                  <span style={{ cursor: ats.tooltip ? 'pointer' : 'default', textDecoration: ats.tooltip ? 'underline dotted' : 'none', display: 'inline-block', textAlign: 'center' }}
-                    title={ats.tooltip}
-                    onClick={() => ats.details.length > 0 && setAtsDetail(prev => prev && prev.label === cellLabel ? null : { label: cellLabel, details: ats.details })}>                    <span style={{ display: 'block' }}>{ats.record}</span>
-                    <span style={{ display: 'block', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '2px', paddingTop: '2px', color: pctColor, fontSize: '0.65rem' }}>({pct}%)</span>
-                  </span>
-                );
-              };
               return (
                 <table style={{ borderCollapse: 'collapse', marginTop: '8px', width: '100%' }}>
                   <thead>
@@ -1569,15 +1607,84 @@ function App() {
                 </table>
               );
             })()}
+            {/* Home Team Record by Series Game */}
+            {(() => {
+              const completed = filteredGames.filter(g => g.isComplete);
+              if (completed.length === 0) return null;
+              const rounds = [1, 2, 3, 4];
+              const seriesGames = [1, 2, 3, 4, 5, 6, 7];
+              const homeRecord = (r, sg) => {
+                const subset = completed.filter(g =>
+                  (r === null || g.round === r) &&
+                  (sg === null || g.seriesGame === sg)
+                );
+                let w = 0, l = 0;
+                const details = [];
+                const shortName = (name) => {
+                  const teams = {'Trail Blazers':1,'76ers':1,'Blue Jays':1,'Red Sox':1,'White Sox':1};
+                  const parts = name.split(' ');
+                  if (parts.length >= 3) {
+                    const last2 = parts.slice(-2).join(' ');
+                    if (teams[last2]) return last2;
+                  }
+                  return parts[parts.length - 1];
+                };
+                for (const g of subset) {
+                  const homeWon = g.finalMargin > 0;
+                  if (homeWon) w++; else l++;
+                  const result = homeWon ? 'W' : 'L';
+                  details.push({ text: `${result} ${g.date} R${g.round}G${g.seriesGame} ${shortName(g.away)} ${g.finalAway} @ ${shortName(g.home)} ${g.finalHome}`, game: g });
+                }
+                const record = `${w}-${l}`;
+                const tooltip = details.map(d => d.text).join('\n');
+                return { record, tooltip, details };
+              };
+              const thStyle2 = { padding: '2px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' };
+              const tdStyle2 = { padding: '6px 6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textAlign: 'center' };
+              return (
+                <table style={{ borderCollapse: 'collapse', marginTop: '16px', width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thStyle2, textAlign: 'left' }}>Home Record</th>
+                      {rounds.map(r => <th key={r} style={thStyle2}>R{r}</th>)}
+                      <th style={thStyle2}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {seriesGames.map((sg, idx) => {
+                      const totalRec = homeRecord(null, sg);
+                      const hasGames = totalRec.details.length > 0;
+                      if (!hasGames) return null;
+                      return (
+                        <tr key={sg} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
+                          <td style={{ ...tdStyle2, textAlign: 'left', fontWeight: '600' }}>Game {sg}</td>
+                          {rounds.map(r => { const rec = homeRecord(r, sg); return <td key={r} style={tdStyle2}>{rec.details.length > 0 ? recordSpan(rec, `R${r} G${sg} Home`) : ''}</td>; })}
+                          <td style={{ ...tdStyle2, fontWeight: '600' }}>{recordSpan(totalRec, `All G${sg} Home`)}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <td style={{ ...tdStyle2, textAlign: 'left', fontWeight: '700' }}>Total</td>
+                      {rounds.map(r => { const rec = homeRecord(r, null); return <td key={r} style={{ ...tdStyle2, fontWeight: '700' }}>{recordSpan(rec, `R${r} Home All`)}</td>; })}
+                      {(() => { const rec = homeRecord(null, null); return <td style={{ ...tdStyle2, fontWeight: '700' }}>{recordSpan(rec, 'Home All')}</td>; })()}
+                    </tr>
+                  </tbody>
+                </table>
+              );
+            })()}
             {atsDetail && (
               <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{atsDetail.label}</span>
                   <button onClick={() => setAtsDetail(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', cursor: 'pointer', padding: '0 4px' }}>&#x2715;</button>
                 </div>
-                {atsDetail.details.map((d, i) => {
+                {atsDetail.details
+                  .map((d, i) => ({ d, i }))
+                  .sort((a, b) => (pushedToBottom.has(a.i) ? 1 : 0) - (pushedToBottom.has(b.i) ? 1 : 0))
+                  .map(({ d, i }) => {
                   const isLoss = d.text.startsWith('L');
                   const isPush = d.text.startsWith('P');
+                  const pushed = pushedToBottom.has(i);
                   // Find all games in this series
                   const g = d.game;
                   const sk = getSeriesKey(g);
@@ -1587,7 +1694,12 @@ function App() {
                     .map(([gn, sg]) => sg);
                   return (
                     <div key={i}>
-                      <div style={{ fontSize: '0.7rem', color: isLoss ? DOG_COLOR : isPush ? 'rgba(255,255,255,0.4)' : FAV_COLOR, fontFamily: 'monospace', lineHeight: '1.8' }}>{d.text}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button onClick={() => setPushedToBottom(prev => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
+                          style={{ background: 'none', border: 'none', color: pushed ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.15)', fontSize: '0.6rem', cursor: 'pointer', padding: '0 2px', flexShrink: 0 }}
+                          title={pushed ? 'Restore' : 'Push to bottom'}>&#x25BC;</button>
+                        <div style={{ fontSize: '0.7rem', color: isLoss ? DOG_COLOR : isPush ? 'rgba(255,255,255,0.4)' : FAV_COLOR, fontFamily: 'monospace', lineHeight: '1.8', opacity: pushed ? 0.4 : 1 }}>{d.text}</div>
+                      </div>
                       {allSeriesGames.length > 0 && (
                         <div style={{ marginLeft: '16px', marginBottom: '4px', borderLeft: '2px solid rgba(255,255,255,0.08)', paddingLeft: '8px' }}>
                           {allSeriesGames.map(pg => {
@@ -1595,7 +1707,8 @@ function App() {
                             const favMargin = pg.favSide === 'home' ? pg.finalMargin : -pg.finalMargin;
                             const line = Math.abs(pg.spread);
                             const atsMargin = favMargin - line;
-                            const pgResult = pg.isComplete ? (favMargin > 0 ? 'Fav' : 'Dog') : '';
+                            const homeWon = pg.finalMargin > 0;
+                            const pgResult = pg.isComplete ? (homeWon ? 'Home' : 'Away') : '';
                             const pgAts = pg.isComplete && line ? (atsMargin > 0 ? 'Fav covers' : 'Dog covers') : '';
                             return (
                               <div key={pg.seriesGame} style={{ fontSize: '0.6rem', color: isCurrent ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)', fontFamily: 'monospace', lineHeight: '1.6', fontWeight: isCurrent ? '700' : '400' }}>
