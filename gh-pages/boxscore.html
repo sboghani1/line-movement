@@ -989,6 +989,7 @@ function App() {
   };
   const [atsDetail, setAtsDetail] = useState(null); // { label, details[] }
   const [pushedToBottom, setPushedToBottom] = useState(new Set()); // indices pushed to bottom (ephemeral)
+  const [expandedQuarters, setExpandedQuarters] = useState(new Set()); // keys like "detailIdx-seriesGame"
   const recordSpan = (ats, cellLabel) => {
     const parts = ats.record.split('-').map(Number);
     const w = parts[0] || 0, l = parts[1] || 0;
@@ -998,7 +999,7 @@ function App() {
     return (
       <span style={{ cursor: ats.tooltip ? 'pointer' : 'default', textDecoration: ats.tooltip ? 'underline dotted' : 'none', display: 'inline-block', textAlign: 'center' }}
         title={ats.tooltip}
-        onClick={() => ats.details.length > 0 && (() => { setPushedToBottom(new Set()); setAtsDetail(prev => prev && prev.label === cellLabel ? null : { label: cellLabel, details: ats.details }); })()}>
+        onClick={() => ats.details.length > 0 && (() => { setPushedToBottom(new Set()); setExpandedQuarters(new Set()); setAtsDetail(prev => prev && prev.label === cellLabel ? null : { label: cellLabel, details: ats.details }); })()}>
         <span style={{ display: 'block' }}>{ats.record}</span>
         <span style={{ display: 'block', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '2px', paddingTop: '2px', color: pctColor, fontSize: '0.65rem' }}>({pct}%)</span>
       </span>
@@ -1710,9 +1711,28 @@ function App() {
                             const homeWon = pg.finalMargin > 0;
                             const pgResult = pg.isComplete ? (homeWon ? 'Home' : 'Away') : '';
                             const pgAts = pg.isComplete && line ? (atsMargin > 0 ? 'Fav covers' : 'Dog covers') : '';
+                            const qKey = `${i}-${pg.seriesGame}`;
+                            const qExpanded = expandedQuarters.has(qKey);
                             return (
-                              <div key={pg.seriesGame} style={{ fontSize: '0.6rem', color: isCurrent ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)', fontFamily: 'monospace', lineHeight: '1.6', fontWeight: isCurrent ? '700' : '400' }}>
-                                G{pg.seriesGame}{isCurrent ? '*' : ''}: {pg.away} {pg.finalAway} @ {pg.home} {pg.finalHome} {pg.isComplete ? `| ${pgResult} +${Math.abs(pg.finalMargin)}` : ''} {pgAts ? `| ${pgAts} by ${Math.abs(atsMargin).toFixed(1)}` : ''}
+                              <div key={pg.seriesGame}>
+                                <div onClick={() => pg.isComplete && pg.quarters.length > 0 && setExpandedQuarters(prev => { const n = new Set(prev); if (n.has(qKey)) n.delete(qKey); else n.add(qKey); return n; })}
+                                  style={{ fontSize: '0.6rem', color: isCurrent ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)', fontFamily: 'monospace', lineHeight: '1.6', fontWeight: isCurrent ? '700' : '400', cursor: pg.isComplete && pg.quarters.length > 0 ? 'pointer' : 'default' }}>
+                                  G{pg.seriesGame}{isCurrent ? '*' : ''}: {pg.away} {pg.finalAway} @ {pg.home} {pg.finalHome} {pg.isComplete ? `| ${pgResult} +${Math.abs(pg.finalMargin)}` : ''} {pgAts ? `| ${pgAts} by ${Math.abs(atsMargin).toFixed(1)}` : ''}
+                                </div>
+                                {qExpanded && pg.quarters.length > 0 && (
+                                  <div style={{ marginLeft: '16px', marginBottom: '2px' }}>
+                                    <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', lineHeight: '1.5' }}>
+                                      {pg.quarters.map((q, qi) => {
+                                        const diff = q.home - q.away;
+                                        const label = diff > 0 ? `Home +${diff}` : diff < 0 ? `Away +${Math.abs(diff)}` : 'Tie';
+                                        return `Q${qi + 1}: ${label}`;
+                                      }).join('  ')}
+                                    </div>
+                                    <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', lineHeight: '1.5' }}>
+                                      {pg.quarters.map(q => `${q.away}-${q.home}`).join(', ')}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
