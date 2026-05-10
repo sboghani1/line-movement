@@ -15,7 +15,7 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 | File | Workflow | Description |
 |------|----------|-------------|
 | `capper_analyzer.py` | Every 15 min | Main script: fetch Discord images, OCR with Claude, parse picks, finalize with schedule matching, append to Google Sheets + local CSV. Also runs `daily_audit.py` at the end of each nightly invocation. |
-| `espn_schedule_fetcher.py` | Daily 10am ET | Fetch NBA/CBB/NHL schedules from ESPN for pick validation |
+| `espn_schedule_fetcher.py` | Daily 10am ET | Fetch NBA/CBB/NHL/WNBA schedules from ESPN for pick validation |
 | `nba_odds_poller.py` | Every 3 hours | Poll betting odds from The Odds API |
 | `activity_logger.py` | N/A (imported) | Log activity to Google Sheets activity_log tab |
 | `daily_audit.py` | Nightly (via capper_analyzer) | Check-based audit of yesterday's picks. Auto-fixes what it can, flags ambiguous cases for Opus review. Writes findings to `audit_results` sheet, upgrades any existing `needs_review` rows when a fix is applied, syncs CSV after any auto-fixes, and logs to `activity_log`. See § "Audit Results Review Process". |
@@ -30,6 +30,7 @@ Automated betting pick tracker with Discord integration, ESPN schedules, and odd
 | `populate_stage2.py` | Fill game/spread by matching picks against schedule sheets |
 | `cleanup_invalid_rows.py` | Remove duplicates, props, parlays, totals, and wrong-sport rows |
 | `finalize_picks.py` | Copy parsed_picks_new → master_sheet_new (backfill final step) |
+| `backfill_wnba_schedule.py` | Backfill WNBA schedule from ESPN (2021-present, writes to separate sheet) |
 | `reprocess_cbb_picks.py` | Re-parse CBB picks that were tagged with the wrong sport |
 
 ### Diagnostics (`diagnostics/`)
@@ -64,6 +65,8 @@ Kept for reference in case similar issues arise with future data.
 | File | Description |
 |------|-------------|
 | `index.html` | Fade Finder React app (converted from Claude TSX artifact) |
+| `journal.html` | Picks Journal — entry form (writes to Google Sheet via Apps Script) + pattern finder |
+| `boxscore.html` | Box Score Patterns — playoff series context filters, ATS/home record tables |
 | `data/master_sheet.csv` | Pick data loaded by the app |
 
 ### Shell Scripts
@@ -86,7 +89,7 @@ Required secrets in GitHub Actions:
 | Workflow | Schedule | Trigger |
 |----------|----------|---------|
 | `capper_analyzer.yml` | Every 15 min | Manual |
-| `espn_schedule.yml` | Daily 10am ET | Manual |
+| `espn_schedule.yml` | Hourly | Manual |
 | `poll_odds.yml` | Every 3 hours | Manual |
 | `deploy-pages.yml` | On push to gh-pages/ | Manual |
 
@@ -107,6 +110,12 @@ Sheet: `1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k`
 | `nhl_schedule` | ESPN NHL schedules |
 | `nba_odds` | Historical odds data |
 | `activity_log` | Script activity log (includes `daily_audit` Opus cost entries) |
+
+### WNBA Sheet: `1_6ZLngd0AZ_uCMBkcYX63QJjzpo0NJcSIyDVf-QI4b8`
+
+| Tab | Description |
+|-----|-------------|
+| `wnba_schedule` | ESPN WNBA schedules (separate sheet, shared with same service account) |
 
 ## 🩺 Audit Results Review Process
 
