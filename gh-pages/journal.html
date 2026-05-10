@@ -18,9 +18,11 @@
 const { useState, useMemo, useEffect, useCallback } = React;
 
 const SHEET_ID = '1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k';
+const WNBA_SHEET_ID = '1_6ZLngd0AZ_uCMBkcYX63QJjzpo0NJcSIyDVf-QI4b8';
 const JOURNAL_TAB = 'picks_journal';
 const SCHEDULE_TABS = ['nba_schedule', 'nhl_schedule', 'mlb_schedule', 'cbb_schedule'];
-const SPORT_MAP = { nba_schedule: 'NBA', nhl_schedule: 'NHL', mlb_schedule: 'MLB', cbb_schedule: 'CBB' };
+const WNBA_SCHEDULE_TABS = ['wnba_schedule'];
+const SPORT_MAP = { nba_schedule: 'NBA', nhl_schedule: 'NHL', mlb_schedule: 'MLB', cbb_schedule: 'CBB', wnba_schedule: 'WNBA' };
 
 // ── Apps Script URL (paste your deployed web app URL here) ──────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLYgXgYHhQtDblqBXAZWW33N3b2ASp8FkSRO6TXKMrIfLOL5fsfodFYRUFajwOmxk4/exec';
@@ -35,8 +37,9 @@ const RESULTS = ['W', 'L', 'P'];
 const CONFIDENCE_COLORS = { lean: '#999', like: '#5B9BD5', love: '#70AD47', lock: '#FFD700' };
 const RESULT_COLORS = { W: '#70AD47', L: '#FF6B6B', P: '#999' };
 
-function sheetCsvUrl(tab) {
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
+function sheetCsvUrl(tab, sheetId) {
+  const id = sheetId || SHEET_ID;
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
 }
 
 function* csvRows(text) {
@@ -89,9 +92,9 @@ function parseSheetCsv(text, isJournal) {
   }).filter(r => r.date || r.game_date);
 }
 
-async function fetchTab(tab, isJournal) {
+async function fetchTab(tab, isJournal, sheetId) {
   const bust = Math.floor(Date.now() / (60 * 1000));
-  const res = await fetch(sheetCsvUrl(tab) + '&v=' + bust);
+  const res = await fetch(sheetCsvUrl(tab, sheetId) + '&v=' + bust);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${tab}`);
   return parseSheetCsv(await res.text(), isJournal);
 }
@@ -910,6 +913,19 @@ function App() {
         for (const tab of SCHEDULE_TABS) {
           try {
             const rows = await fetchTab(tab);
+            const sport = SPORT_MAP[tab];
+            for (const r of rows) {
+              const game = `${r.away_team} @ ${r.home_team}`;
+              schedMap[`${sport}|${game}`] = r;
+            }
+          } catch (e) {
+            console.warn(`Failed to load ${tab}:`, e);
+          }
+        }
+        // Load WNBA from separate sheet
+        for (const tab of WNBA_SCHEDULE_TABS) {
+          try {
+            const rows = await fetchTab(tab, false, WNBA_SHEET_ID);
             const sport = SPORT_MAP[tab];
             for (const r of rows) {
               const game = `${r.away_team} @ ${r.home_team}`;

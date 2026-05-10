@@ -24,6 +24,7 @@ SPORT_TO_SCHED = {
     "cbb": "cbb_schedule",
     "nhl": "nhl_schedule",
     "mlb": "mlb_schedule",
+    "wnba": "wnba_schedule",
 }
 
 # ── Rate-limit cooldown ──────────────────────────────────────────────────────

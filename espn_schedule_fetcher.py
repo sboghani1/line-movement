@@ -34,12 +34,14 @@ from tag_nba_playoffs import tag_playoff_games
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GOOGLE_SHEET_ID = "1LzkU7rH3OtrJckV5oMvFHyuLAnbRn9E74FO1uyfM65k"
+WNBA_SHEET_ID = "1_6ZLngd0AZ_uCMBkcYX63QJjzpo0NJcSIyDVf-QI4b8"
 NBA_WORKSHEET_NAME = "nba_schedule"
 CBB_WORKSHEET_NAME = "cbb_schedule"
 NHL_WORKSHEET_NAME = "nhl_schedule"
 NFL_WORKSHEET_NAME = "nfl_schedule"
 CFB_WORKSHEET_NAME = "cfb_schedule"
 MLB_WORKSHEET_NAME = "mlb_schedule"
+WNBA_WORKSHEET_NAME = "wnba_schedule"
 
 FIELDNAMES = [
     "fetch_date",
@@ -63,6 +65,12 @@ SPORT_WORKSHEETS = {
     "nfl": NFL_WORKSHEET_NAME,
     "cfb": CFB_WORKSHEET_NAME,
     "mlb": MLB_WORKSHEET_NAME,
+    "wnba": WNBA_WORKSHEET_NAME,
+}
+
+# Sports that use a different Google Sheet
+SPORT_SHEET_IDS = {
+    "wnba": WNBA_SHEET_ID,
 }
 
 # ESPN API path fragment + optional query params for each sport
@@ -73,6 +81,7 @@ _ESPN_SPORT_PATHS = {
     "nfl": "football/nfl/scoreboard",
     "cfb": "football/college-football/scoreboard?groups=80",
     "mlb": "baseball/mlb/scoreboard",
+    "wnba": "basketball/wnba/scoreboard",
 }
 _ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports"
 
@@ -542,12 +551,18 @@ def main(target_date: Optional[str] = None, sport: Optional[str] = None, score_l
     try:
         client = get_gspread_client()
         spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
+        # Open alternate sheets for sports that use different Google Sheets
+        alt_spreadsheets = {}
+        for s, sheet_id in SPORT_SHEET_IDS.items():
+            if s in sports:
+                alt_spreadsheets[s] = client.open_by_key(sheet_id)
 
-        labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL", "nfl": "🏈 NFL", "cfb": "🏈 College Football", "mlb": "⚾ MLB"}
+        labels = {"nba": "📊 NBA", "cbb": "🏀 College Basketball", "nhl": "🏒 NHL", "nfl": "🏈 NFL", "cfb": "🏈 College Football", "mlb": "⚾ MLB", "wnba": "🏀 WNBA"}
         nba_new = 0
         for s in sports:
             print(f"\n{labels[s]}...")
-            new_count = run_sport(spreadsheet, s, date_str, formatted_date, timestamp, score_limit=score_limit)
+            ss = alt_spreadsheets.get(s, spreadsheet)
+            new_count = run_sport(ss, s, date_str, formatted_date, timestamp, score_limit=score_limit)
             if s == "nba":
                 nba_new = new_count
 
