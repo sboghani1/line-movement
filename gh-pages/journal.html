@@ -551,7 +551,7 @@ function EntryForm({ schedules, dateGames = [], entryDate, setEntryDate, uniqueS
       grouped[sport].sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
     }
     // Return in consistent sport order
-    const order = ['NBA', 'NHL', 'MLB', 'CBB'];
+    const order = ['WNBA', 'NBA', 'NHL', 'MLB', 'CBB'];
     return order.filter(s => grouped[s]).map(s => ({ sport: s, games: grouped[s] }));
   }, [dateGames]);
 
