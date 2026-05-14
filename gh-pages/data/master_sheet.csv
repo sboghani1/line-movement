@@ -19577,7 +19577,7 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-12,hammering_hank,NHL,Anaheim Ducks,ML,Anaheim Ducks @ Vegas Golden Knights,Vegas Golden Knights -1.5,lose,discord_all_in_one
 2026-05-13,algo_picks,NBA,Detroit Pistons,ML,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,lose,discord_all_in_one
 2026-05-13,algo_picks,NHL,Colorado Avalanche,ML,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
-2026-05-13,algo_picks,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,,discord_all_in_one
+2026-05-13,algo_picks,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,win,discord_all_in_one
 2026-05-13,anders_picks,MLB,Cincinnati Reds,ML,Washington Nationals @ Cincinnati Reds,Cincinnati Reds -1.5,lose,discord_all_in_one
 2026-05-13,anders_picks,MLB,Milwaukee Brewers,ML,San Diego Padres @ Milwaukee Brewers,Milwaukee Brewers -1.5,lose,discord_all_in_one
 2026-05-13,anders_picks,MLB,Chicago White Sox,ML,Kansas City Royals @ Chicago White Sox,Kansas City Royals -1.5,win,discord_all_in_one
@@ -19605,7 +19605,7 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,picks_4_dayzzz,MLB,Cleveland Guardians,ML,Los Angeles Angels @ Cleveland Guardians,Cleveland Guardians -1.5,win,discord_all_in_one
 2026-05-13,picks_4_dayzzz,MLB,Miami Marlins,ML,Miami Marlins @ Minnesota Twins,Miami Marlins -1.5,win,discord_all_in_one
 2026-05-13,picks_4_dayzzz,MLB,Texas Rangers,ML,Arizona Diamondbacks @ Texas Rangers,Arizona Diamondbacks -1.5,win,discord_all_in_one
-2026-05-13,picks_4_dayzzz,MLB,St. Louis Cardinals,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,,discord_all_in_one
+2026-05-13,picks_4_dayzzz,MLB,St. Louis Cardinals,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,lose,discord_all_in_one
 2026-05-13,prop_joe,NBA,Detroit Pistons,-3.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,lose,discord_all_in_one
 2026-05-13,prop_joe,MLB,Chicago White Sox,ML,Kansas City Royals @ Chicago White Sox,Kansas City Royals -1.5,win,discord_all_in_one
 2026-05-13,prop_joe,MLB,Texas Rangers,ML,Arizona Diamondbacks @ Texas Rangers,Arizona Diamondbacks -1.5,win,discord_all_in_one
@@ -19619,13 +19619,13 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,this_girl_betz,MLB,Atlanta Braves,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,win,discord_all_in_one
 2026-05-13,this_girl_betz,MLB,Milwaukee Brewers,ML,San Diego Padres @ Milwaukee Brewers,Milwaukee Brewers -1.5,lose,discord_all_in_one
 2026-05-13,this_girl_betz,MLB,Miami Marlins,ML,Miami Marlins @ Minnesota Twins,Miami Marlins -1.5,win,discord_all_in_one
-2026-05-13,this_girl_betz,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
-2026-05-13,capper_not_found,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,this_girl_betz,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-05-13,capper_not_found,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,lose,discord_all_in_one
 2026-05-13,exclusive_play,MLB,Chicago Cubs,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
 2026-05-13,five,MLB,Chicago Cubs,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
 2026-05-13,five,MLB,Cincinnati Reds,ML,Washington Nationals @ Cincinnati Reds,Cincinnati Reds -1.5,lose,discord_all_in_one
 2026-05-13,five,MLB,Baltimore Orioles,1.5,New York Yankees @ Baltimore Orioles,New York Yankees -1.5,win,discord_all_in_one
-2026-05-13,five,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,,discord_all_in_one
+2026-05-13,five,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,win,discord_all_in_one
 2026-05-13,main_play,MLB,Miami Marlins,ML,Miami Marlins @ Minnesota Twins,Miami Marlins -1.5,win,discord_all_in_one
 2026-05-13,porter_picks,MLB,Chicago Cubs,-1.5,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
 2026-05-13,porter_picks,MLB,Kansas City Royals,ML,Kansas City Royals @ Chicago White Sox,Kansas City Royals -1.5,lose,discord_all_in_one
@@ -19637,7 +19637,7 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,a11_bets,MLB,Toronto Blue Jays,ML,Tampa Bay Rays @ Toronto Blue Jays,Toronto Blue Jays -1.5,win,discord_all_in_one
 2026-05-13,a11_bets,MLB,Chicago Cubs,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
 2026-05-13,capper_not_found,MLB,Chicago Cubs,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
-2026-05-13,capper_not_found,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,capper_not_found,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,lose,discord_all_in_one
 2026-05-13,analytics_capper,MLB,Milwaukee Brewers,ML,San Diego Padres @ Milwaukee Brewers,Milwaukee Brewers -1.5,lose,discord_all_in_one
 2026-05-13,analytics_capper,MLB,Detroit Tigers,ML,Detroit Tigers @ New York Mets,Detroit Tigers -1.5,lose,discord_all_in_one
 2026-05-13,analytics_capper,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Texas Rangers,Arizona Diamondbacks -1.5,lose,discord_all_in_one
@@ -19650,15 +19650,15 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,bullies_picks,MLB,Chicago White Sox,1.5,Kansas City Royals @ Chicago White Sox,Kansas City Royals -1.5,win,discord_all_in_one
 2026-05-13,caleb_picks,NHL,Colorado Avalanche,ML,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
 2026-05-13,cash_cing,MLB,New York Mets,ML,Detroit Tigers @ New York Mets,Detroit Tigers -1.5,win,discord_all_in_one
-2026-05-13,cash_cing,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,,discord_all_in_one
+2026-05-13,cash_cing,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,win,discord_all_in_one
 2026-05-13,cash_cing,MLB,Chicago Cubs,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
 2026-05-13,cash_cing,MLB,Chicago White Sox,ML,Kansas City Royals @ Chicago White Sox,Kansas City Royals -1.5,win,discord_all_in_one
 2026-05-13,cash_cing,NBA,Cleveland Cavaliers,4.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,win,discord_all_in_one
 2026-05-13,chamba,MLB,Toronto Blue Jays,ML,Tampa Bay Rays @ Toronto Blue Jays,Toronto Blue Jays -1.5,win,discord_all_in_one
-2026-05-13,chamba,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,chamba,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,lose,discord_all_in_one
 2026-05-13,chamba,MLB,Miami Marlins,ML,Miami Marlins @ Minnesota Twins,Miami Marlins -1.5,win,discord_all_in_one
 2026-05-13,chamba,MLB,Milwaukee Brewers,ML,San Diego Padres @ Milwaukee Brewers,Milwaukee Brewers -1.5,lose,discord_all_in_one
-2026-05-13,darth_fader,MLB,Houston Astros,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,darth_fader,MLB,Houston Astros,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,win,discord_all_in_one
 2026-05-13,darth_fader,MLB,Minnesota Twins,ML,Miami Marlins @ Minnesota Twins,Miami Marlins -1.5,lose,discord_all_in_one
 2026-05-13,dirty_bubble_bets,NBA,Cleveland Cavaliers,4.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,win,discord_all_in_one
 2026-05-13,dommy_locked,MLB,New York Mets,ML,Detroit Tigers @ New York Mets,Detroit Tigers -1.5,win,discord_all_in_one
@@ -19674,7 +19674,7 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,hammering_hank,NBA,Cleveland Cavaliers,4.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,win,discord_all_in_one
 2026-05-13,kims_picks,NBA,Cleveland Cavaliers,4.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,win,discord_all_in_one
 2026-05-13,kims_picks,NHL,Minnesota Wild,1.5,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
-2026-05-13,kims_picks,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,kims_picks,MLB,Seattle Mariners,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,lose,discord_all_in_one
 2026-05-13,kims_picks,MLB,Chicago Cubs,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,lose,discord_all_in_one
 2026-05-13,matt_severance,MLB,Toronto Blue Jays,ML,Tampa Bay Rays @ Toronto Blue Jays,Toronto Blue Jays -1.5,win,discord_all_in_one
 2026-05-13,mc_bets,NBA,Cleveland Cavaliers,5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,win,discord_all_in_one
@@ -19697,8 +19697,8 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,tail_to_win,NBA,Cleveland Cavaliers,4.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,win,discord_all_in_one
 2026-05-13,the_gambling_gawd,NHL,Colorado Avalanche,-1,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,push,discord_all_in_one
 2026-05-13,the_gambling_gawd,MLB,Toronto Blue Jays,ML,Tampa Bay Rays @ Toronto Blue Jays,Toronto Blue Jays -1.5,win,discord_all_in_one
-2026-05-13,the_gambling_gawd,MLB,Los Angeles Dodgers,-1.5,San Francisco Giants @ Los Angeles Dodgers,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-05-13,the_gambling_gawd,MLB,Houston Astros,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,the_gambling_gawd,MLB,Los Angeles Dodgers,-1.5,San Francisco Giants @ Los Angeles Dodgers,Los Angeles Dodgers -1.5,win,discord_all_in_one
+2026-05-13,the_gambling_gawd,MLB,Houston Astros,ML,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,win,discord_all_in_one
 2026-05-13,the_gambling_gawd,MLB,Atlanta Braves,ML,Chicago Cubs @ Atlanta Braves,Chicago Cubs -1.5,win,discord_all_in_one
 2026-05-13,capper_not_found,MLB,Boston Red Sox,ML,Philadelphia Phillies @ Boston Red Sox,Boston Red Sox -1.5,win,discord_all_in_one
 2026-05-13,capper_not_found,MLB,Tampa Bay Rays,ML,Tampa Bay Rays @ Toronto Blue Jays,Toronto Blue Jays -1.5,lose,discord_all_in_one
@@ -19708,14 +19708,14 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-13,capper_not_found,MLB,New York Mets,ML,Detroit Tigers @ New York Mets,Detroit Tigers -1.5,win,discord_all_in_one
 2026-05-13,ydc,MLB,Boston Red Sox,ML,Philadelphia Phillies @ Boston Red Sox,Boston Red Sox -1.5,win,discord_all_in_one
 2026-05-13,ydc,NHL,Colorado Avalanche,ML,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
-2026-05-13,ydc,MLB,Houston Astros,1.5,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-13,ydc,MLB,Houston Astros,1.5,Seattle Mariners @ Houston Astros,Seattle Mariners -1.5,win,discord_all_in_one
 2026-05-13,bankroll_bill,NHL,Colorado Avalanche,-1.5,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,lose,discord_all_in_one
 2026-05-13,chamba,NBA,Detroit Pistons,ML,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,lose,discord_all_in_one
 2026-05-13,laformula,MLB,Miami Marlins,ML,Miami Marlins @ Minnesota Twins,Miami Marlins -1.5,win,discord_all_in_one
 2026-05-13,laformula,NHL,Colorado Avalanche,ML,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
 2026-05-13,pardon_my_pick,NBA,Detroit Pistons,-4,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,lose,discord_all_in_one
 2026-05-13,pardon_my_pick,NHL,Colorado Avalanche,ML,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
-2026-05-13,pardon_my_pick,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,,discord_all_in_one
+2026-05-13,pardon_my_pick,MLB,Athletics,ML,St. Louis Cardinals @ Athletics,Athletics -1.5,win,discord_all_in_one
 2026-05-13,ab,NBA,Detroit Pistons,-1.5,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,lose,discord_all_in_one
 2026-05-13,anon,NHL,Minnesota Wild,1.5,Minnesota Wild @ Colorado Avalanche,Colorado Avalanche -1.5,win,discord_all_in_one
 2026-05-13,random_other_cappers,NBA,Detroit Pistons,ML,Cleveland Cavaliers @ Detroit Pistons,Detroit Pistons -4.5,lose,discord_all_in_one
