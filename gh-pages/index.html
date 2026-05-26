@@ -576,7 +576,7 @@ const CapperRatioHistory = memo(({game, ratioHistory, ratioHistoryL30, l30Days, 
   );
 });
 
-const CapperCard = memo(({c, isFake, isDeleted, onRemove, onRestore}) => (
+const CapperCard = memo(({c, isFake, isDeleted, onRemove, onRestore, onCapperClick}) => (
   <div style={{display:'flex',flexDirection:'column',padding:'6px 10px',
     background: isFake ? '#2a1a00' : isDeleted ? 'rgba(80,0,0,0.5)' : '#fff',
     border:`4px solid ${isDeleted ? 'rgba(255,80,80,0.5)' : c.capperColor}`,
@@ -590,7 +590,11 @@ const CapperCard = memo(({c, isFake, isDeleted, onRemove, onRestore}) => (
       {isDeleted ? '↩' : '✕'}
     </button>
     <div style={{fontWeight:'700',fontSize:'0.75rem',marginBottom:'4px',display:'flex',justifyContent:'space-between',paddingRight:'12px'}}>
-      <span>{c.capper}</span>{c.line && <span style={{fontSize:'0.7rem',opacity:0.7}}>({c.line})</span>}
+      <span style={{cursor: onCapperClick ? 'pointer' : 'default', textDecoration: 'none'}}
+        onClick={onCapperClick ? (e) => { e.stopPropagation(); onCapperClick(c.capper); } : undefined}
+        onMouseEnter={onCapperClick ? e => e.currentTarget.style.textDecoration='underline' : undefined}
+        onMouseLeave={onCapperClick ? e => e.currentTarget.style.textDecoration='none' : undefined}
+      >{c.capper}</span>{c.line && <span style={{fontSize:'0.7rem',opacity:0.7}}>({c.line})</span>}
     </div>
     {isFake && <div style={{fontSize:'0.6rem',color:'rgba(255,200,0,0.6)'}}>hypothetical</div>}
     {isDeleted && <div style={{fontSize:'0.6rem',color:'rgba(255,100,100,0.6)'}}>deleted</div>}
@@ -616,7 +620,7 @@ const AddFakeButton = memo(({onClick}) => (
   </button>
 ));
 
-const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, spreadMin, spreadMax, ratioExcl, ratioTotalGames, ratioFavCount, ratioDogCount, sectionSetters, btSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, collapsed, onToggleCollapse, isForeground, onForeground, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame}) => {
+const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, minOpponent, maxPicks, maxOpponent, spreadMin, spreadMax, ratioExcl, ratioTotalGames, ratioFavCount, ratioDogCount, sectionSetters, btSetters, fakeCappers, deletedPicks, bucketRanges, setBucketRanges, collapsed, onToggleCollapse, isForeground, onForeground, onAddFake, onRemoveFake, onDeletePick, onRestorePick, onResetGame, onCapperClick}) => {
   const colors = SPORT_COLORS[game.sport]||SPORT_COLORS.default;
   const sides = Object.entries(game.sides);
   const totalPicks = sides.reduce((s,[,sd])=>s+sd.cappers.length, 0);
@@ -691,6 +695,7 @@ const GameCard = memo(({game, ratioHistory, ratioHistoryL30, l30Days, minPicks, 
                     const isDeleted = gameDeleted.has(c.pickKey);
                     return (
                       <CapperCard key={ci} c={c} isFake={false} isDeleted={isDeleted}
+                        onCapperClick={onCapperClick}
                         onRemove={()=>onDeletePick(game.game, c.pickKey)}
                         onRestore={()=>onRestorePick(game.game, c.pickKey)}
                       />
@@ -783,6 +788,27 @@ function CapperConsensusTracker() {
   // collapsedGames: { [gameName]: bool } — true = collapsed
   const [collapsedGames, setCollapsedGames] = useState({});
   const [foregroundGame, setForegroundGame] = useState(null);
+  const [historyCappers, setHistoryCappers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ff-history-cappers')) || []; } catch { return []; }
+  });
+  const [historyExcluded, setHistoryExcluded] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('ff-history-excluded')) || {};
+      const out = {};
+      for (const [k, v] of Object.entries(raw)) out[k] = new Set(v);
+      return out;
+    } catch { return {}; }
+  });
+  const [historyLimitInput, setHistoryLimitInput] = useState('10');
+  const [historyLimit, setHistoryLimit] = useState(10);
+  const [sharedOnePerCapper, setSharedOnePerCapper] = useState(true);
+  const [sharedGameExcluded, setSharedGameExcluded] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('ff-shared-game-excluded')) || []); } catch { return new Set(); }
+  });
+  const historySectionRef = useRef(null);
+  useEffect(() => { try { localStorage.setItem('ff-history-cappers', JSON.stringify(historyCappers)); } catch {} }, [historyCappers]);
+  useEffect(() => { try { const out = {}; for (const [k,v] of Object.entries(historyExcluded)) out[k] = [...v]; localStorage.setItem('ff-history-excluded', JSON.stringify(out)); } catch {} }, [historyExcluded]);
+  useEffect(() => { try { localStorage.setItem('ff-shared-game-excluded', JSON.stringify([...sharedGameExcluded])); } catch {} }, [sharedGameExcluded]);
   const fakeCounter = useRef(0);
   const [refreshState, setRefreshState] = useState('idle'); // idle | loading | success | error
   const [refreshMsg, setRefreshMsg]     = useState('');
@@ -840,7 +866,8 @@ function CapperConsensusTracker() {
   useEffect(() => {
     const load = async () => {
       const isGithubPages = window.location.hostname.includes('github.io');
-      if (isGithubPages) {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isGithubPages || isLocalhost) {
         try {
           const bust = Math.floor(Date.now() / (5 * 60 * 1000));
           const basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -948,6 +975,78 @@ function CapperConsensusTracker() {
   const dates      = useMemo(() => [...new Set(picks.map(p=>p.date))].filter(Boolean).sort().reverse(), [picks]);
   const allCappers = useMemo(() => [...new Set(picks.map(p=>p.capper))].filter(Boolean).sort(), [picks]);
   const toggleCapper = useCallback(c => setSelectedCappers(prev => prev.includes(c)?prev.filter(x=>x!==c):[...prev,c]), []);
+
+  const handleAddHistoryCapper = useCallback(capperName => {
+    setHistoryCappers(prev => {
+      if (prev.includes(capperName)) {
+        // Already present — scroll to section
+        setTimeout(() => historySectionRef.current?.scrollIntoView({behavior:'smooth',block:'start'}), 50);
+        return prev;
+      }
+      setTimeout(() => historySectionRef.current?.scrollIntoView({behavior:'smooth',block:'start'}), 50);
+      return [...prev, capperName];
+    });
+  }, []);
+
+  const capperHistories = useMemo(() => {
+    return historyCappers.map(capper => {
+      const allCapperPicks = picks
+        .filter(p => p.capper === capper && p.result)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, historyLimit)
+        .map((p, i) => ({ ...p, histKey: `${capper}-${p.date}-${p.game}-${p.pick}-${i}` }));
+      const excluded = historyExcluded[capper] || new Set();
+      const active = allCapperPicks.filter(p => !excluded.has(p.histKey));
+      const wins = active.filter(p => p.result?.toLowerCase() === 'win').length;
+      const losses = active.filter(p => p.result?.toLowerCase() === 'lose').length;
+      const pushes = active.filter(p => p.result?.toLowerCase() === 'push').length;
+      const sortedPicks = allCapperPicks.sort((a, b) => {
+        const aExcl = excluded.has(a.histKey) ? 1 : 0;
+        const bExcl = excluded.has(b.histKey) ? 1 : 0;
+        if (aExcl !== bExcl) return aExcl - bExcl;
+        return b.date.localeCompare(a.date);
+      });
+      return { capper, picks: sortedPicks, excluded, wins, losses, pushes };
+    });
+  }, [historyCappers, picks, historyLimit, historyExcluded]);
+
+  const historySharedGames = useMemo(() => {
+    if (historyCappers.length < 2) return [];
+    const capperSet = new Set(historyCappers);
+    const gameMap = {};
+    // Include ALL picks (graded and ungraded) from history cappers
+    picks.forEach(p => {
+      if (!capperSet.has(p.capper) || !p.game) return;
+      if (selectedSport !== 'ALL' && p.sport !== selectedSport) return;
+      const key = `${p.date}-${p.game}`;
+      if (!gameMap[key]) gameMap[key] = {date: p.date, game: p.game, sport: p.sport, cappers: [], key};
+      gameMap[key].cappers.push({capper: p.capper, pick: p.pick, line: p.line, result: p.result});
+    });
+    let games = Object.values(gameMap)
+      .filter(g => new Set(g.cappers.map(c => c.capper)).size >= 2);
+    if (sharedOnePerCapper) {
+      games = games.map(g => {
+        const seen = new Set();
+        const deduped = [...g.cappers].sort((a,b) => a.pick.localeCompare(b.pick)).filter(c => {
+          if (seen.has(c.capper)) return false;
+          seen.add(c.capper);
+          return true;
+        });
+        return {...g, cappers: deduped};
+      });
+    }
+    return games
+      .sort((a, b) => {
+        const aExcl = sharedGameExcluded.has(a.key) ? 1 : 0;
+        const bExcl = sharedGameExcluded.has(b.key) ? 1 : 0;
+        if (aExcl !== bExcl) return aExcl - bExcl;
+        // Ungraded (no result) at top
+        const aUngraded = a.cappers.some(c => !c.result) ? 0 : 1;
+        const bUngraded = b.cappers.some(c => !c.result) ? 0 : 1;
+        if (aUngraded !== bUngraded) return aUngraded - bUngraded;
+        return b.date.localeCompare(a.date);
+      });
+  }, [historyCappers, picks, sharedGameExcluded, sharedOnePerCapper, selectedSport]);
 
   const getCapperRecords = useMemo(() => {
     const records = {};
@@ -1340,7 +1439,7 @@ function CapperConsensusTracker() {
             </div>
             <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
               {allCappers.map(capper => { const isSel=selectedCappers.includes(capper), color=capperMap[capper]?.color||'#888';
-                return <button key={capper} onClick={()=>toggleCapper(capper)} style={{padding:'6px 12px',background:isSel?'#fff':'transparent',border:`3px solid ${color}`,borderRadius:'6px',color:isSel?'#000':'#fff',fontSize:'0.75rem',fontWeight:'600',cursor:'pointer',opacity:isSel?1:0.7,transition:'all 0.2s'}}>{capper}</button>;})}
+                return <button key={capper} onClick={()=>toggleCapper(capper)} onDoubleClick={(e)=>{e.preventDefault();handleAddHistoryCapper(capper);}} title="Double-click for history" style={{padding:'6px 12px',background:isSel?'#fff':'transparent',border:`3px solid ${color}`,borderRadius:'6px',color:isSel?'#000':'#fff',fontSize:'0.75rem',fontWeight:'600',cursor:'pointer',opacity:isSel?1:0.7,transition:'all 0.2s'}}>{capper}</button>;})}
             </div>
           </>}
         </div>
@@ -1353,7 +1452,7 @@ function CapperConsensusTracker() {
           const color=capperMap[capperName]?.color||'#888', capRec=getCapperRecords[capperName];
           return (
             <div key={capperName} style={{marginBottom:'16px'}}>
-              <div style={{display:'inline-block',padding:'6px 12px',background:'#fff',border:`4px solid ${color}`,borderRadius:'6px',fontWeight:'600',fontSize:'0.85rem',color:'#000',marginBottom:'8px'}}>{capperName} ({capperPicks.length} pick{capperPicks.length!==1?'s':''})</div>
+              <div style={{display:'inline-block',padding:'6px 12px',background:'#fff',border:`4px solid ${color}`,borderRadius:'6px',fontWeight:'600',fontSize:'0.85rem',color:'#000',marginBottom:'8px',cursor:'pointer'}} onClick={()=>handleAddHistoryCapper(capperName)} onMouseEnter={e=>e.currentTarget.style.textDecoration='underline'} onMouseLeave={e=>e.currentTarget.style.textDecoration='none'}>{capperName} ({capperPicks.length} pick{capperPicks.length!==1?'s':''})</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginLeft:'8px'}}>
                 {capperPicks.map((pick,idx) => {
                   const bt=classifyPick(pick), sRec=capRec?.bySport[pick.sport]?.[bt]||null, aRec=capRec?.all[bt]||null;
@@ -1369,6 +1468,167 @@ function CapperConsensusTracker() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          );
+        })}
+      </div>}
+
+      {historyCappers.length > 0 && <div ref={historySectionRef} style={{background:'rgba(0,33,165,0.25)',borderRadius:'12px',padding:'20px',marginBottom:'24px',border:'2px solid rgba(0,33,165,0.4)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}>
+          <div style={{fontSize:'0.9rem',fontWeight:'600'}}>📜 CAPPER HISTORY</div>
+          <span style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.7)',marginLeft:'12px'}}>Last</span>
+          <input value={historyLimitInput} onChange={e=>setHistoryLimitInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){const v=parseInt(historyLimitInput);if(v>0)setHistoryLimit(v);}}} style={{width:'40px',padding:'4px 6px',borderRadius:'4px',border:'1px solid rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.1)',color:'#fff',fontSize:'0.75rem',textAlign:'center'}}/>
+          <span style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.7)'}}>picks</span>
+          <button onClick={()=>{const v=parseInt(historyLimitInput);if(v>0)setHistoryLimit(v);}} style={{padding:'4px 10px',background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'4px',color:'#fff',fontSize:'0.7rem',cursor:'pointer'}}>Apply</button>
+        </div>
+        {historySharedGames.length > 0 && <div style={{marginBottom:'16px',background:'rgba(0,0,0,0.15)',borderRadius:'8px',padding:'12px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px',flexWrap:'wrap'}}>
+            <span style={{fontWeight:'700',fontSize:'0.8rem',color:'rgba(255,255,255,0.9)'}}>🤝 SHARED GAMES ({historySharedGames.length})</span>
+            <button onClick={()=>setSharedOnePerCapper(v=>!v)} style={{padding:'3px 8px',background:sharedOnePerCapper?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'4px',color:'#fff',fontSize:'0.65rem',cursor:'pointer'}}>{sharedOnePerCapper?'✓ ':''}1 pick per capper</button>
+            {historyCappers.map(c => {const color=capperMap[c]?.color||'#888'; return (
+              <span key={c} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'2px 8px',background:'rgba(255,255,255,0.1)',border:`2px solid ${color}`,borderRadius:'12px',fontSize:'0.65rem',color:'#fff'}}>
+                {c}
+                <button onClick={()=>{setHistoryCappers(prev=>prev.filter(x=>x!==c));setHistoryExcluded(prev=>{const n={...prev};delete n[c];return n;});}} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,80,80,0.8)',fontSize:'0.65rem',fontWeight:'900',padding:'0',lineHeight:1}}>✕</button>
+              </span>
+            );})}
+          </div>
+          {(() => {
+            // Build calendar: current month + previous month
+            const today = new Date(); today.setHours(0,0,0,0);
+            const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const firstOfPrevMonth = new Date(firstOfMonth); firstOfPrevMonth.setMonth(firstOfPrevMonth.getMonth()-1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0); // end of current month
+            // Build all days from 1st of prev month through today
+            const allDays = [];
+            for (let d = new Date(firstOfPrevMonth); d <= lastDay; d.setDate(d.getDate()+1)) allDays.push(new Date(d));
+            // Pad start to Sunday
+            while (allDays[0].getDay() !== 0) { const d = new Date(allDays[0]); d.setDate(d.getDate()-1); allDays.unshift(d); }
+            // Pad end to Saturday
+            while (allDays[allDays.length-1].getDay() !== 6) { const d = new Date(allDays[allDays.length-1]); d.setDate(d.getDate()+1); allDays.push(d); }
+            const weeks = [];
+            for (let i = 0; i < allDays.length; i += 7) weeks.push(allDays.slice(i, i+7));
+            const byDate = {};
+            historySharedGames.filter(g => !sharedGameExcluded.has(g.key)).forEach(g => {
+              if (!byDate[g.date]) byDate[g.date] = [];
+              byDate[g.date].push(g);
+            });
+            const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            return (
+              <div style={{marginBottom:'12px',background:'rgba(0,0,0,0.15)',borderRadius:'8px',padding:'12px'}}>
+                <div style={{fontWeight:'700',fontSize:'0.8rem',marginBottom:'8px',color:'rgba(255,255,255,0.9)'}}>📅 CALENDAR VIEW — {monthNames[firstOfPrevMonth.getMonth()]} / {monthNames[today.getMonth()]} {today.getFullYear()}</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'4px'}}>
+                  {dayLabels.map(d => <div key={d} style={{textAlign:'center',fontSize:'0.65rem',fontWeight:'700',color:'rgba(255,255,255,0.5)',paddingBottom:'4px'}}>{d}</div>)}
+                  {weeks.map((week, wi) => week.map((day, di) => {
+                    const dateStr = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
+                    const games = byDate[dateStr] || [];
+                    const capperDayRecord = {};
+                    games.forEach(g => g.cappers.forEach(c => {
+                      if (!capperDayRecord[c.capper]) capperDayRecord[c.capper] = {w:0,l:0,p:0};
+                      const r = c.result?.toLowerCase();
+                      if (r==='win') capperDayRecord[c.capper].w++;
+                      else if (r==='lose') capperDayRecord[c.capper].l++;
+                      else if (r==='push') capperDayRecord[c.capper].p++;
+                    }));
+                    const totalW = Object.values(capperDayRecord).reduce((s,r)=>s+r.w,0);
+                    const totalL = Object.values(capperDayRecord).reduce((s,r)=>s+r.l,0);
+                    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+                    const isToday = dateStr === todayStr;
+                    const isCurrentMonth = day.getMonth() === today.getMonth() || day.getMonth() === firstOfPrevMonth.getMonth();
+                    const bgColor = !isCurrentMonth ? 'rgba(255,255,255,0.01)' : games.length===0 ? 'rgba(255,255,255,0.02)' : totalW>totalL ? 'rgba(76,175,80,0.1)' : totalL>totalW ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.06)';
+                    return (
+                      <div key={`${wi}-${di}`} style={{background:bgColor,borderRadius:'4px',padding:'4px',minHeight:'50px',border:isToday?'1px solid rgba(255,255,255,0.4)':'1px solid rgba(255,255,255,0.05)',fontSize:'0.6rem',opacity:isCurrentMonth?1:0.3}}>
+                        <div style={{color:'rgba(255,255,255,0.35)',fontSize:'0.55rem',marginBottom:'2px'}}>{day.getDate()===1?monthNames[day.getMonth()]+' ':''}{day.getDate()}</div>
+                        {Object.entries(capperDayRecord).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,rec]) => {
+                          const color = capperMap[name]?.color||'#888';
+                          return <div key={name} style={{color,lineHeight:'1.3'}}>{name.slice(0,8)} {rec.w}-{rec.l}{rec.p>0?`-${rec.p}`:''}</div>;
+                        })}
+                        {games.map((g,gi) => {
+                          return (
+                            <div key={gi} style={{marginTop:'2px',borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:'2px'}}>
+                              <div style={{color:'rgba(255,255,255,0.5)',lineHeight:'1.2',marginBottom:'1px'}}>{g.game}</div>
+                              {[...g.cappers].sort((a,b)=>a.pick.localeCompare(b.pick)||a.capper.localeCompare(b.capper)).map((c,ci) => {
+                                const r = c.result?.toLowerCase();
+                                const rColor = r==='win'?'#4CAF50':r==='lose'?'#f44336':r==='push'?'#FFD700':'rgba(255,255,255,0.4)';
+                                const rLabel = r==='win'?'W':r==='lose'?'L':r==='push'?'P':'—';
+                                const cColor = capperMap[c.capper]?.color||'#888';
+                                return <div key={ci} style={{lineHeight:'1.3'}}><span style={{color:cColor}}>{c.capper.slice(0,8)}</span> <span style={{color:'rgba(255,255,255,0.6)'}}>{c.pick}</span> <span style={{color:rColor,fontWeight:'700'}}>{rLabel}</span></div>;
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }))}
+                </div>
+              </div>
+            );
+          })()}
+          <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+            {historySharedGames.map((g, gi) => {
+              const isExcl = sharedGameExcluded.has(g.key);
+              const allSame = g.cappers.every(c => c.pick === g.cappers[0].pick);
+              const results = g.cappers.map(c => c.result?.toLowerCase());
+              const allGraded = results.every(r => r === 'win' || r === 'lose' || r === 'push');
+              const allWin = allGraded && results.every(r => r === 'win');
+              const allLose = allGraded && results.every(r => r === 'lose');
+              const bgColor = isExcl ? 'rgba(100,100,100,0.2)' : allWin ? 'rgba(76,175,80,0.12)' : allLose ? 'rgba(244,67,54,0.12)' : 'rgba(255,255,255,0.05)';
+              return (
+                <div key={gi} style={{padding:'6px 8px',borderRadius:'4px',background:bgColor,fontSize:'0.75rem',opacity:isExcl?0.4:1,textDecoration:isExcl?'line-through':'none'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'2px'}}>
+                    <span style={{color:'rgba(255,255,255,0.6)'}}>{g.date}</span>
+                    <span style={{color:'#90CAF9',fontWeight:'600'}}>{g.sport}</span>
+                    <span style={{color:'rgba(255,255,255,0.9)',fontWeight:'600'}}>{g.game}</span>
+                    {allSame && <span style={{color:'rgba(255,255,255,0.5)',fontSize:'0.65rem'}}>(consensus)</span>}
+                    <button onClick={()=>setSharedGameExcluded(prev=>{const s=new Set(prev);if(s.has(g.key))s.delete(g.key);else s.add(g.key);return s;})} style={{background:'none',border:'none',cursor:'pointer',color:isExcl?'rgba(100,255,100,0.6)':'rgba(255,80,80,0.5)',fontSize:'0.7rem',fontWeight:'900',padding:'0 2px',textDecoration:'none'}}>{isExcl?'↩':'✕'}</button>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'1px',marginLeft:'8px'}}>
+                    {[...g.cappers].sort((a,b)=>a.pick.localeCompare(b.pick)||a.capper.localeCompare(b.capper)).map((c, ci) => {
+                      const res = c.result?.toLowerCase();
+                      const resColor = res==='win'?'#4CAF50':res==='lose'?'#f44336':res==='push'?'#FFD700':'rgba(255,255,255,0.4)';
+                      const resLabel = res==='win'?'W':res==='lose'?'L':res==='push'?'P':'—';
+                      const color = capperMap[c.capper]?.color || '#888';
+                      return (
+                        <span key={ci} style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                          <span style={{color:color,fontWeight:'600'}}>{c.capper}</span>
+                          <span style={{color:'rgba(255,255,255,0.7)'}}>{c.pick}{c.line?` (${c.line})`:''}</span>
+                          <span style={{fontWeight:'700',color:resColor}}>{resLabel}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>}
+        {capperHistories.map(({capper, picks: hPicks, excluded, wins, losses, pushes}) => {
+          const color = capperMap[capper]?.color || '#888';
+          return (
+            <div key={capper} style={{marginBottom:'16px',background:'rgba(0,0,0,0.15)',borderRadius:'8px',padding:'12px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'10px'}}>
+                <span style={{fontWeight:'700',fontSize:'0.85rem',color:color}}>{capper}</span>
+                <span style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.8)',fontFamily:'monospace'}}>{wins}-{losses}{pushes>0?`-${pushes}`:''}</span>
+                <button onClick={()=>{setHistoryCappers(prev=>prev.filter(c=>c!==capper));setHistoryExcluded(prev=>{const n={...prev};delete n[capper];return n;});}} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,80,80,0.8)',fontSize:'0.8rem',fontWeight:'900'}}>✕</button>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+                {hPicks.map(p => {
+                  const isExcl = excluded.has(p.histKey);
+                  const res = p.result?.toLowerCase();
+                  const resColor = res==='win'?'#4CAF50':res==='lose'?'#f44336':'#FFD700';
+                  const resLabel = res==='win'?'W':res==='lose'?'L':'P';
+                  return (
+                    <div key={p.histKey} style={{display:'flex',alignItems:'center',gap:'10px',padding:'4px 8px',borderRadius:'4px',background:isExcl?'rgba(100,100,100,0.2)':'rgba(255,255,255,0.05)',opacity:isExcl?0.4:1,textDecoration:isExcl?'line-through':'none',fontSize:'0.75rem'}}>
+                      <span style={{color:'rgba(255,255,255,0.6)'}}>{p.date}</span>
+                      <span style={{color:'#90CAF9',fontWeight:'600'}}>{p.sport}</span>
+                      <span style={{color:'rgba(255,255,255,0.9)'}}>{p.pick}{p.line?` (${p.line})`:''}</span>
+                      <span style={{fontWeight:'700',color:resColor}}>{resLabel}</span>
+                      <button onClick={()=>setHistoryExcluded(prev=>{const n={...prev};const s=new Set(n[capper]||[]);if(s.has(p.histKey))s.delete(p.histKey);else s.add(p.histKey);n[capper]=s;return n;})} style={{background:'none',border:'none',cursor:'pointer',color:isExcl?'rgba(100,255,100,0.6)':'rgba(255,80,80,0.5)',fontSize:'0.7rem',fontWeight:'900',padding:'0 2px'}}>{isExcl?'↩':'✕'}</button>
+                    </div>
+                  );
+                })}
+                {hPicks.length === 0 && <div style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',padding:'4px'}}>No graded picks found</div>}
               </div>
             </div>
           );
@@ -1450,6 +1710,7 @@ function CapperConsensusTracker() {
                     onDeletePick={handleDeletePick}
                     onRestorePick={handleRestorePick}
                     onResetGame={handleResetGame}
+                    onCapperClick={handleAddHistoryCapper}
                   />
                 </div>
               ))}
