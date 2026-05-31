@@ -21708,3 +21708,54 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-05-31,prop_joe,MLB,Boston Red Sox,ML,team_not_found,,,discord_all_in_one
 2026-05-30,random_other_cappers,MLB,Seattle Mariners,ML,Arizona Diamondbacks @ Seattle Mariners,Seattle Mariners -1.5,win,discord_all_in_one
 2026-05-30,random_other_cappers,MLB,Los Angeles Dodgers,ML,Philadelphia Phillies @ Los Angeles Dodgers,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-05-31,analytics_capper,MLB,Baltimore Orioles,ML,Toronto Blue Jays @ Baltimore Orioles,Baltimore Orioles -1.5,,discord_all_in_one
+2026-05-31,analytics_capper,MLB,Washington Nationals,ML,San Diego Padres @ Washington Nationals,San Diego Padres -1.5,,discord_all_in_one
+2026-05-31,analytics_capper,MLB,Cincinnati Reds,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,analytics_capper,MLB,Boston Red Sox,ML,Boston Red Sox @ Cleveland Guardians,Boston Red Sox -1.5,,discord_all_in_one
+2026-05-31,anders_picks,MLB,Cleveland Guardians,ML,Boston Red Sox @ Cleveland Guardians,Boston Red Sox -1.5,,discord_all_in_one
+2026-05-31,anders_picks,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Seattle Mariners,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-31,bet_sharper,MLB,Los Angeles Angels,1.5,Los Angeles Angels @ Tampa Bay Rays,Tampa Bay Rays -1.5,,discord_all_in_one
+2026-05-31,bet_sharper,MLB,Cincinnati Reds,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,bullies_picks,MLB,Milwaukee Brewers,ML,Milwaukee Brewers @ Houston Astros,Milwaukee Brewers -1.5,,discord_all_in_one
+2026-05-31,bullies_picks,MLB,New York Yankees,ML,New York Yankees @ Athletics,New York Yankees -1.5,,discord_all_in_one
+2026-05-31,bullies_picks,MLB,Tampa Bay Rays,ML,Los Angeles Angels @ Tampa Bay Rays,Tampa Bay Rays -1.5,,discord_all_in_one
+2026-05-31,bullies_picks,MLB,Los Angeles Dodgers,ML,Philadelphia Phillies @ Los Angeles Dodgers,Los Angeles Dodgers -1.5,,discord_all_in_one
+2026-05-31,cash_it_baby,MLB,San Diego Padres,ML,San Diego Padres @ Washington Nationals,San Diego Padres -1.5,,discord_all_in_one
+2026-05-31,cash_it_baby,MLB,San Francisco Giants,ML,San Francisco Giants @ Colorado Rockies,San Francisco Giants -1.5,,discord_all_in_one
+2026-05-31,cash_it_baby,MLB,Los Angeles Dodgers,-1.5,Philadelphia Phillies @ Los Angeles Dodgers,Los Angeles Dodgers -1.5,,discord_all_in_one
+2026-05-31,dommy_locked,MLB,Pittsburgh Pirates,-1.5,Minnesota Twins @ Pittsburgh Pirates,Pittsburgh Pirates -1.5,,discord_all_in_one
+2026-05-31,dommy_locked,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,dommy_locked,MLB,Chicago White Sox,ML,Detroit Tigers @ Chicago White Sox,Chicago White Sox -1.5,,discord_all_in_one
+2026-05-31,dommy_locked,MLB,Texas Rangers,ML,Kansas City Royals @ Texas Rangers,Kansas City Royals -1.5,,discord_all_in_one
+2026-05-31,dommy_locked,MLB,Colorado Rockies,ML,San Francisco Giants @ Colorado Rockies,San Francisco Giants -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,Minnesota Twins,ML,Minnesota Twins @ Pittsburgh Pirates,Pittsburgh Pirates -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,Cincinnati Reds,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,Miami Marlins,ML,Miami Marlins @ New York Mets,New York Mets -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,Detroit Tigers,ML,Detroit Tigers @ Chicago White Sox,Chicago White Sox -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,Kansas City Royals,ML,Kansas City Royals @ Texas Rangers,Kansas City Royals -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,San Francisco Giants,ML,San Francisco Giants @ Colorado Rockies,San Francisco Giants -1.5,,discord_all_in_one
+2026-05-31,dormroom_degenerates,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Seattle Mariners,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-31,capper_not_found,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,matt_severance,MLB,Tampa Bay Rays,ML,Los Angeles Angels @ Tampa Bay Rays,Tampa Bay Rays -1.5,,discord_all_in_one
+2026-05-31,mr_big_bets,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,mr_big_bets,MLB,Chicago Cubs,ML,Chicago Cubs @ St. Louis Cardinals,Chicago Cubs -1.5,,discord_all_in_one
+2026-05-31,mr_big_bets,MLB,Milwaukee Brewers,-1.5,Milwaukee Brewers @ Houston Astros,Milwaukee Brewers -1.5,,discord_all_in_one
+2026-05-31,pardon_my_pick,MLB,Tampa Bay Rays,-1.5,Los Angeles Angels @ Tampa Bay Rays,Tampa Bay Rays -1.5,,discord_all_in_one
+2026-05-31,pardon_my_pick,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,parlay_safari,MLB,San Diego Padres,ML,San Diego Padres @ Washington Nationals,San Diego Padres -1.5,,discord_all_in_one
+2026-05-31,parlay_safari,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,parlay_safari,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Seattle Mariners,Seattle Mariners -1.5,,discord_all_in_one
+2026-05-31,random_other_cappers,MLB,Tampa Bay Rays,ML,Los Angeles Angels @ Tampa Bay Rays,Tampa Bay Rays -1.5,,discord_all_in_one
+2026-05-31,random_other_cappers,MLB,New York Yankees,ML,New York Yankees @ Athletics,New York Yankees -1.5,,discord_all_in_one
+2026-05-31,the_gambling_gawd,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,the_gambling_gawd,MLB,San Diego Padres,ML,San Diego Padres @ Washington Nationals,San Diego Padres -1.5,,discord_all_in_one
+2026-05-31,the_gambling_gawd,MLB,Boston Red Sox,ML,Boston Red Sox @ Cleveland Guardians,Boston Red Sox -1.5,,discord_all_in_one
+2026-05-31,the_gambling_gawd,MLB,Chicago Cubs,ML,Chicago Cubs @ St. Louis Cardinals,Chicago Cubs -1.5,,discord_all_in_one
+2026-05-31,this_girl_betz,MLB,Pittsburgh Pirates,ML,Minnesota Twins @ Pittsburgh Pirates,Pittsburgh Pirates -1.5,,discord_all_in_one
+2026-05-31,this_girl_betz,MLB,Washington Nationals,ML,San Diego Padres @ Washington Nationals,San Diego Padres -1.5,,discord_all_in_one
+2026-05-31,this_girl_betz,MLB,Atlanta Braves,ML,Atlanta Braves @ Cincinnati Reds,Atlanta Braves -1.5,,discord_all_in_one
+2026-05-31,this_girl_betz,MLB,Tampa Bay Rays,-1.5,Los Angeles Angels @ Tampa Bay Rays,Tampa Bay Rays -1.5,,discord_all_in_one
+2026-05-31,this_girl_betz,MLB,Chicago White Sox,ML,Detroit Tigers @ Chicago White Sox,Chicago White Sox -1.5,,discord_all_in_one
+2026-05-31,this_girl_betz,MLB,Los Angeles Dodgers,-1.5,Philadelphia Phillies @ Los Angeles Dodgers,Los Angeles Dodgers -1.5,,discord_all_in_one
+2026-05-31,capper_not_found,MLB,Miami Marlins,ML,Miami Marlins @ New York Mets,New York Mets -1.5,,discord_all_in_one
+2026-05-31,capper_not_found,MLB,Houston Astros,ML,Milwaukee Brewers @ Houston Astros,Milwaukee Brewers -1.5,,discord_all_in_one
