@@ -22963,188 +22963,189 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-06-08,vtuff,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
 2026-06-08,ydc,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
 2026-06-08,ydc,NBA,New York Knicks,ML,San Antonio Spurs @ New York Knicks,New York Knicks -1.5,lose,discord_all_in_one
-2026-06-09,capper_not_found,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,prop_joe,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,anders_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,anders_picks,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,anders_picks,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,bet_sharper,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,bet_sharper,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,bet_sharper,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,bullies_picks,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,bullies_picks,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,,discord_all_in_one
-2026-06-09,bullies_picks,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,cash_cing,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,cash_it_baby,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,cash_it_baby,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,cash_it_baby,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,cash_it_baby,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,dirty_bubble_bets,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,dirty_bubble_bets,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,hammering_hank,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,hammering_hank,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,hammering_hank,MLB,Kansas City Royals,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,mr_big_bets,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,mr_big_bets,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
+2026-06-09,capper_not_found,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,prop_joe,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,capper_not_found,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,capper_not_found,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,capper_not_found,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,anders_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,anders_picks,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,anders_picks,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
+2026-06-09,bet_sharper,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,lose,discord_all_in_one
+2026-06-09,bet_sharper,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,bet_sharper,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
+2026-06-09,bullies_picks,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,bullies_picks,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,lose,discord_all_in_one
+2026-06-09,bullies_picks,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,cash_cing,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,cash_it_baby,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,cash_it_baby,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,cash_it_baby,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
+2026-06-09,cash_it_baby,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,dirty_bubble_bets,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,dirty_bubble_bets,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,hammering_hank,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,hammering_hank,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,hammering_hank,MLB,Kansas City Royals,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,win,discord_all_in_one
+2026-06-09,mr_big_bets,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,mr_big_bets,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,lose,discord_all_in_one
 2026-06-09,mr_big_bets,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,nicky_cashin,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,nicky_cashin,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,nicky_cashin,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,nicky_cashin,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,nicky_cashin,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,nicky_cashin,MLB,San Francisco Giants,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,out_of_line_bets,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,parlay_safari,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,parlay_safari,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,parlay_safari,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,parlay_safari,MLB,Detroit Tigers,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,,discord_all_in_one
-2026-06-09,parlay_safari,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,picks_4_dayzzz,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,picks_4_dayzzz,MLB,Houston Astros,ML,Houston Astros @ Los Angeles Angels,Houston Astros -1.5,,discord_all_in_one
+2026-06-09,nicky_cashin,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,nicky_cashin,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,nicky_cashin,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,nicky_cashin,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,nicky_cashin,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
+2026-06-09,nicky_cashin,MLB,San Francisco Giants,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,lose,discord_all_in_one
+2026-06-09,out_of_line_bets,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,parlay_safari,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,parlay_safari,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,parlay_safari,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,parlay_safari,MLB,Detroit Tigers,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,win,discord_all_in_one
+2026-06-09,parlay_safari,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,lose,discord_all_in_one
+2026-06-09,picks_4_dayzzz,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,picks_4_dayzzz,MLB,Houston Astros,ML,Houston Astros @ Los Angeles Angels,Houston Astros -1.5,lose,discord_all_in_one
 2026-06-09,picks_4_dayzzz,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,picks_4_dayzzz,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,picks_4_dayzzz,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,MLB,Milwaukee Brewers,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,MLB,Los Angeles Dodgers,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,the_gambling_gawd,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,MLB,Los Angeles Dodgers,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,this_girl_betz,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,,discord_all_in_one
-2026-06-09,thomas_casale,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,a11_bets,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,a11_bets,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,a11_bets,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,a11_bets,MLB,New York Mets,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,,discord_all_in_one
+2026-06-09,picks_4_dayzzz,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
+2026-06-09,picks_4_dayzzz,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,win,discord_all_in_one
+2026-06-09,the_gambling_gawd,MLB,Milwaukee Brewers,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,lose,discord_all_in_one
+2026-06-09,the_gambling_gawd,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,the_gambling_gawd,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,the_gambling_gawd,MLB,Los Angeles Dodgers,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,win,discord_all_in_one
+2026-06-09,the_gambling_gawd,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,lose,discord_all_in_one
+2026-06-09,the_gambling_gawd,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,the_gambling_gawd,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,this_girl_betz,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,this_girl_betz,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,this_girl_betz,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,this_girl_betz,MLB,Los Angeles Dodgers,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,win,discord_all_in_one
+2026-06-09,this_girl_betz,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,this_girl_betz,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,lose,discord_all_in_one
+2026-06-09,this_girl_betz,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,lose,discord_all_in_one
+2026-06-09,thomas_casale,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
+2026-06-09,a11_bets,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,a11_bets,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,a11_bets,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
+2026-06-09,a11_bets,MLB,New York Mets,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,lose,discord_all_in_one
 2026-06-09,bankroll_bill,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,bankroll_bill,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,bet_labs,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
+2026-06-09,bankroll_bill,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,bet_labs,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
 2026-06-09,bet_labs,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,brandon_the_profit,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,cblez,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,cblez,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,cblez,MLB,St. Louis Cardinals,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,,discord_all_in_one
-2026-06-09,cblez,MLB,Chicago White Sox,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,,discord_all_in_one
-2026-06-09,cblez,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,darth_fader,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,darth_fader,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
+2026-06-09,brandon_the_profit,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,win,discord_all_in_one
+2026-06-09,cblez,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,cblez,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,cblez,MLB,St. Louis Cardinals,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,win,discord_all_in_one
+2026-06-09,cblez,MLB,Chicago White Sox,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,win,discord_all_in_one
+2026-06-09,cblez,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,win,discord_all_in_one
+2026-06-09,capper_not_found,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,darth_fader,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,darth_fader,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
 2026-06-09,darth_fader,MLB,San Diego Padres,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,dormroom_degenerates,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,dormroom_degenerates,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,dormroom_degenerates,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,exclusive_play,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,kims_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,kims_picks,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,main_play,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,porter_picks,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,porter_picks,MLB,Kansas City Royals,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,porter_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,seeking_returns,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,the_betting_queen,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,af_sports,MLB,Baltimore Orioles,1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
+2026-06-09,dormroom_degenerates,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,dormroom_degenerates,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,dormroom_degenerates,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,exclusive_play,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,kims_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,kims_picks,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,main_play,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,lose,discord_all_in_one
+2026-06-09,porter_picks,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,porter_picks,MLB,Kansas City Royals,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,win,discord_all_in_one
+2026-06-09,porter_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,seeking_returns,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,the_betting_queen,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,af_sports,MLB,Baltimore Orioles,1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
 2026-06-09,algo_picks,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,algo_picks,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,algo_picks,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,algo_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,MLB,Kansas City Royals,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,analytics_capper,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,anders_picks,MLB,Boston Red Sox,-1.5,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,beezo_wins,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,beezo_wins,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,beezo_wins,MLB,Houston Astros,ML,Houston Astros @ Los Angeles Angels,Houston Astros -1.5,,discord_all_in_one
-2026-06-09,beezo_wins,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
+2026-06-09,algo_picks,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,algo_picks,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,algo_picks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,analytics_capper,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,analytics_capper,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,analytics_capper,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,analytics_capper,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,analytics_capper,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
+2026-06-09,analytics_capper,MLB,Kansas City Royals,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,win,discord_all_in_one
+2026-06-09,analytics_capper,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,win,discord_all_in_one
+2026-06-09,anders_picks,MLB,Boston Red Sox,-1.5,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,beezo_wins,MLB,Athletics,ML,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,win,discord_all_in_one
+2026-06-09,beezo_wins,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,beezo_wins,MLB,Houston Astros,ML,Houston Astros @ Los Angeles Angels,Houston Astros -1.5,lose,discord_all_in_one
+2026-06-09,beezo_wins,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
 2026-06-09,beezo_wins,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,beezo_wins,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,cash_cing,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,cash_cing,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,cash_cing,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,cash_cing,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,cody_covers,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,Cleveland Guardians,1.5,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,St. Louis Cardinals,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,Chicago White Sox,1.5,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,,discord_all_in_one
-2026-06-09,cody_covers,MLB,Colorado Rockies,1.5,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,dpatt,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,dpatt,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,dpatt,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,,discord_all_in_one
-2026-06-09,dpatt,MLB,Athletics,1.5,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,,discord_all_in_one
-2026-06-09,duck_investments,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,duck_investments,MLB,Arizona Diamondbacks,1.5,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,duck_investments,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,duck_investments,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,five,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,five,MLB,Baltimore Orioles,1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,hammering_hank,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,isw,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,isw,MLB,Minnesota Twins,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,,discord_all_in_one
-2026-06-09,king_cap,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,lear_locks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,lear_locks,MLB,Minnesota Twins,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,,discord_all_in_one
-2026-06-09,locks_by_tommy,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,locks_by_tommy,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
+2026-06-09,beezo_wins,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,cash_cing,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,cash_cing,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,cash_cing,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,cash_cing,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,cody_covers,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,cody_covers,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,cody_covers,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,lose,discord_all_in_one
+2026-06-09,cody_covers,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,cody_covers,MLB,Cleveland Guardians,1.5,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,cody_covers,MLB,St. Louis Cardinals,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,win,discord_all_in_one
+2026-06-09,cody_covers,MLB,Chicago White Sox,1.5,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,win,discord_all_in_one
+2026-06-09,cody_covers,MLB,Colorado Rockies,1.5,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,win,discord_all_in_one
+2026-06-09,dpatt,MLB,New York Yankees,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,win,discord_all_in_one
+2026-06-09,dpatt,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,lose,discord_all_in_one
+2026-06-09,dpatt,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,lose,discord_all_in_one
+2026-06-09,dpatt,MLB,Athletics,1.5,Milwaukee Brewers @ Athletics,Milwaukee Brewers -1.5,win,discord_all_in_one
+2026-06-09,duck_investments,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,duck_investments,MLB,Arizona Diamondbacks,1.5,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,lose,discord_all_in_one
+2026-06-09,duck_investments,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,duck_investments,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,lose,discord_all_in_one
+2026-06-09,five,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,five,MLB,Baltimore Orioles,1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,hammering_hank,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,isw,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,lose,discord_all_in_one
+2026-06-09,isw,MLB,Minnesota Twins,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,lose,discord_all_in_one
+2026-06-09,king_cap,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,lear_locks,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,lear_locks,MLB,Minnesota Twins,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,lose,discord_all_in_one
+2026-06-09,locks_by_tommy,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,locks_by_tommy,MLB,Arizona Diamondbacks,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,lose,discord_all_in_one
 2026-06-09,locks_by_tommy,MLB,Cincinnati Reds,ML,Cincinnati Reds @ San Diego Padres,Cincinnati Reds -1.5,,discord_all_in_one
-2026-06-09,locks_by_tommy,MLB,Colorado Rockies,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,mc_bets,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,mc_bets,MLB,Baltimore Orioles,-1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,mc_bets,MLB,Pittsburgh Pirates,-1.5,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,mc_bets,MLB,Boston Red Sox,-1.5,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,mc_bets,MLB,Cleveland Guardians,-1.5,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,midwest_mike,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,midwest_mike,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,,discord_all_in_one
-2026-06-09,pardon_my_pick,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,pats_picks,MLB,Detroit Tigers,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,,discord_all_in_one
-2026-06-09,pats_picks,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,pats_picks,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,picks_4_dayzzz,MLB,Miami Marlins,-140,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,random_other_cappers,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,random_other_cappers,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,random_other_cappers,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,random_other_cappers,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,random_other_cappers,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,sbk,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,sbk,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,sbk,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,sharp_investments,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,sharp_investments,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,sharp_investments,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,tail_to_win,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,tb_sports_betting,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,tcc,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,tcc,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,,discord_all_in_one
-2026-06-09,tcc,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,,discord_all_in_one
-2026-06-09,capper_not_found,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,the_pick_don,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,the_pick_don,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,the_sharp_sheets,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,travy,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,vinny,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,,discord_all_in_one
-2026-06-09,vinny,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
-2026-06-09,vtuff,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,,discord_all_in_one
-2026-06-09,vtuff,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,ydc,MLB,Baltimore Orioles,1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,,discord_all_in_one
-2026-06-09,ydc,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,,discord_all_in_one
-2026-06-09,ydc,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,,discord_all_in_one
-2026-06-09,ydc,MLB,New York Mets,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,,discord_all_in_one
-2026-06-09,ydc,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,,discord_all_in_one
+2026-06-09,locks_by_tommy,MLB,Colorado Rockies,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,win,discord_all_in_one
+2026-06-09,mc_bets,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,mc_bets,MLB,Baltimore Orioles,-1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,mc_bets,MLB,Pittsburgh Pirates,-1.5,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,mc_bets,MLB,Boston Red Sox,-1.5,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,mc_bets,MLB,Cleveland Guardians,-1.5,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,midwest_mike,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,midwest_mike,MLB,Washington Nationals,ML,Washington Nationals @ San Francisco Giants,Washington Nationals -1.5,win,discord_all_in_one
+2026-06-09,pardon_my_pick,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,pats_picks,MLB,Detroit Tigers,ML,Minnesota Twins @ Detroit Tigers,Detroit Tigers -1.5,win,discord_all_in_one
+2026-06-09,pats_picks,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,pats_picks,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,picks_4_dayzzz,MLB,Miami Marlins,-140,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,lose,discord_all_in_one
+2026-06-09,random_other_cappers,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,random_other_cappers,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,random_other_cappers,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,random_other_cappers,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
+2026-06-09,random_other_cappers,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,sbk,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,sbk,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,sbk,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,lose,discord_all_in_one
+2026-06-09,sharp_investments,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,sharp_investments,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,sharp_investments,MLB,Texas Rangers,ML,Texas Rangers @ Kansas City Royals,Texas Rangers -1.5,lose,discord_all_in_one
+2026-06-09,capper_not_found,MLB,Atlanta Braves,ML,Atlanta Braves @ Chicago White Sox,Atlanta Braves -1.5,lose,discord_all_in_one
+2026-06-09,capper_not_found,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,tail_to_win,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,tb_sports_betting,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
+2026-06-09,tcc,MLB,Seattle Mariners,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,tcc,MLB,Pittsburgh Pirates,ML,Los Angeles Dodgers @ Pittsburgh Pirates,Los Angeles Dodgers -1.5,lose,discord_all_in_one
+2026-06-09,tcc,NHL,Vegas Golden Knights,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,lose,discord_all_in_one
+2026-06-09,capper_not_found,MLB,Cleveland Guardians,ML,New York Yankees @ Cleveland Guardians,New York Yankees -1.5,lose,discord_all_in_one
+2026-06-09,capper_not_found,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,the_pick_don,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,the_pick_don,MLB,Baltimore Orioles,ML,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,lose,discord_all_in_one
+2026-06-09,the_sharp_sheets,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,travy,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,vinny,MLB,Chicago Cubs,ML,Chicago Cubs @ Colorado Rockies,Chicago Cubs -1.5,lose,discord_all_in_one
+2026-06-09,vinny,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-09,vtuff,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Miami Marlins -1.5,win,discord_all_in_one
+2026-06-09,vtuff,MLB,Philadelphia Phillies,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,lose,discord_all_in_one
+2026-06-09,ydc,MLB,Baltimore Orioles,1.5,Seattle Mariners @ Baltimore Orioles,Seattle Mariners -1.5,win,discord_all_in_one
+2026-06-09,ydc,MLB,Boston Red Sox,ML,Boston Red Sox @ Tampa Bay Rays,Boston Red Sox -1.5,lose,discord_all_in_one
+2026-06-09,ydc,MLB,Toronto Blue Jays,ML,Philadelphia Phillies @ Toronto Blue Jays,Philadelphia Phillies -1.5,win,discord_all_in_one
+2026-06-09,ydc,MLB,New York Mets,ML,St. Louis Cardinals @ New York Mets,New York Mets -1.5,lose,discord_all_in_one
+2026-06-09,ydc,NHL,Carolina Hurricanes,ML,Carolina Hurricanes @ Vegas Golden Knights,Carolina Hurricanes -1.5,win,discord_all_in_one
+2026-06-10,prop_joe,MLB,Miami Marlins,ML,Arizona Diamondbacks @ Miami Marlins,Arizona Diamondbacks -1.5,,discord_all_in_one
