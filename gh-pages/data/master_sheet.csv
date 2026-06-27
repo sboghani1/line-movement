@@ -25219,3 +25219,10 @@ date,capper,sport,pick,line,game,spread,result,source
 2026-06-27,capper_not_found,MLB,Boston Red Sox,ML,New York Yankees @ Boston Red Sox,New York Yankees -1.5,,discord_all_in_one
 2026-06-27,capper_not_found,MLB,Cleveland Guardians,ML,Seattle Mariners @ Cleveland Guardians,Seattle Mariners -1.5,,discord_all_in_one
 2026-06-27,capper_not_found,MLB,San Diego Padres,ML,Los Angeles Dodgers @ San Diego Padres,Los Angeles Dodgers -1.5,,discord_all_in_one
+2026-06-27,analytics_capper,MLB,Washington Nationals,ML,Washington Nationals @ Baltimore Orioles,Washington Nationals -1.5,,discord_all_in_one
+2026-06-27,analytics_capper,MLB,Los Angeles Angels,ML,Athletics @ Los Angeles Angels,Athletics -1.5,,discord_all_in_one
+2026-06-27,cesar,MLB,Seattle Mariners,ML,Seattle Mariners @ Cleveland Guardians,Seattle Mariners -1.5,,discord_all_in_one
+2026-06-27,random_other_cappers,MLB,Milwaukee Brewers,-1.5,Chicago Cubs @ Milwaukee Brewers,Milwaukee Brewers -1.5,,discord_all_in_one
+2026-06-27,random_other_cappers,MLB,Colorado Rockies,ML,Colorado Rockies @ Minnesota Twins,Minnesota Twins -1.5,,discord_all_in_one
+2026-06-27,random_other_cappers,MLB,Miami Marlins,ML,Miami Marlins @ St. Louis Cardinals,St. Louis Cardinals -1.5,,discord_all_in_one
+2026-06-27,random_other_cappers,MLB,Los Angeles Dodgers,-1.5,Los Angeles Dodgers @ San Diego Padres,Los Angeles Dodgers -1.5,,discord_all_in_one
