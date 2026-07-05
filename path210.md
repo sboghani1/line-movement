@@ -2,7 +2,7 @@
 
 Purpose: This file is a decision log used to compare a decision currently under consideration against past outcomes, so we can learn which factors drive right vs. wrong binary decisions. Every decision resolves later to "right" or "wrong".
 
-1. The 'Processes' section contains content split by 2 line breaks. Each chunk follows this schema:
+1. The 'Events' section contains content split by 2 line breaks. Each chunk follows this schema:
 name: string id starting with a number
 result: either "right" or "wrong"
 tags: single comma-separated line of strings (human-provided and model-generated tags are merged here, deduplicated into one normalized set)
@@ -27,7 +27,7 @@ context: string starting with "context" which is explanation of why the decision
 
 5. Continuation entries: a pending decision in '# Notes to ignore' may be extended over time with one or more '<name>_cont' blocks appended after the prior lean, each holding new information (line moves, tipster positions, time-to-event, etc.). When asked to update a lean, read the original entry plus ALL its '<name>_cont' blocks together, then write a fresh block at the bottom (e.g. 'updated_lean:' / 'final_lean:') with refreshed tags, direction, strength, and reasoning. Do not edit the earlier leans — append, so the evolution of the read is preserved.
 
-# Processes
+# Events
 
 1fadespain
 wrong
@@ -89,6 +89,11 @@ right
 back_favorite,follow_consensus,follow_line_movement,followed_tipster,situational_angle,spread_nervousness,price_deterioration,decision_day_before
 context: morocco heavy home favorite -.5 with an insane home crowd; dabundo off a correct favorite call and trent on morocco -.5 (his first bet), and everyone was on morocco. the line firmed from -125 (2 days out) to -128 (1 day out). backed morocco -.5 WITH the consensus and line movement rather than fading. flagged thin value / price_deterioration on the late worse number and the -.5 draw risk, but stayed on the side history says not to fade. morocco won 2-0, so the -.5 cashed comfortably and the draw risk never materialized. lesson: a firming favorite with unanimous consensus + line movement is a follow, not a fade; the value worry was real but secondary to being on the correct side.
 
+13fadeparaguay
+wrong
+back_favorite,chased_better_payout,prefer_simple_line,fade_line_movement,parlay_conflict,followed_tipster,decision_day_before,overconfidence
+context: france favorite over paraguay; naive read was "france scores 3 every game, easy -2" at -101, tempted toward more profit on an o2.5+(-.5) parlay (+106 -> +121). the -2 cover line drifted adversely all day (-101 -> +110 -> +119), the market progressively fading france covering. trent was off a win and on france -2.5 (an even harder cover). france won 1-0: it did not cover -2, the o2.5 under hit, so the straight -2, trent's -2.5 tail, and the parlay all would have lost. fading paraguay via the spread/parlay was incorrect. lesson: the adverse cover-line drift correctly predicted france would not cover; the payout chase and "scores 3" overconfidence were the losing shape. backing a favorite to WIN is not the same as covering a big number the market is actively fading — the fade_line_movement warning was right, and the disciplined pass would have avoided all three losing tickets.
+
 # Model Cache
 
 Signal right/wrong record (based on tags):
@@ -104,19 +109,19 @@ nervous_winner: 1 right / 0 wrong
 total_under: 1 right / 0 wrong
 line_stable: 1 right / 0 wrong
 follow_consensus: 3 right / 1 wrong
-prefer_simple_line: 2 right / 1 wrong
+prefer_simple_line: 2 right / 2 wrong
 fade_favorite: 2 right / 2 wrong
-back_favorite: 3 right / 3 wrong
+back_favorite: 3 right / 4 wrong
 extras_risk: 1 right / 1 wrong
 spread_nervousness: 2 right / 1 wrong
 fade_consensus: 1 right / 2 wrong
 situational_angle: 2 right / 2 wrong
-chased_better_payout: 0 right / 3 wrong
-fade_line_movement: 0 right / 3 wrong
+chased_better_payout: 0 right / 4 wrong
+fade_line_movement: 0 right / 4 wrong
 missed_hedge: 0 right / 2 wrong
-decision_day_before: 0 right / 1 wrong
+decision_day_before: 0 right / 2 wrong
 failure_to_cash_out: 0 right / 1 wrong
-followed_tipster: 1 right / 1 wrong
+followed_tipster: 1 right / 2 wrong
 changed_mind: 0 right / 1 wrong
 outlier_price: 0 right / 1 wrong
 envy_driven: 0 right / 1 wrong
@@ -124,20 +129,13 @@ live_loss_spiral: 0 right / 1 wrong
 fear_of_numbers: 0 right / 1 wrong
 gamblers_fallacy: 0 right / 1 wrong
 tilt_bet: 0 right / 1 wrong
-parlay_conflict: 0 right / 1 wrong
+parlay_conflict: 0 right / 2 wrong
 price_deterioration: 1 right / 1 wrong
 greed_driven: 0 right / 1 wrong
 overcaution: 0 right / 1 wrong
 misread_line_movement: 0 right / 1 wrong
 spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
+overconfidence: 0 right / 1 wrong
 
 # Notes to ignore 
-fadeparaguay
-one day out amateur thinking is france scores 3 goals every game, easy -2 -101. more profit at +106 with o2.5 parlay with -.5 spread. 2 hours away the -2 is +110. o2.5 parlay with -.5 is +116. 
-final_lean:
-tags: back_favorite, chased_better_payout, prefer_simple_line, fade_line_movement, parlay_conflict, decision_day_before, overconfidence
-direction: negative on the o2.5+(-.5) parlay chase; if anything play the simple france -2 small, but the whole spot is weak — lean pass/avoid the parlay.
-strength: strong on avoiding the parlay chase; moderate that the entire setup is a fade.
-reasoning: the tell here is chased_better_payout, which is 0/3 in our log (entries 3 and 7 both lost by jumping to the bigger number). reaching for the o2.5+(-.5) parlay at +106/+116 over the straight -2 is exactly that mistake — more profit, more legs, more ways to lose (parlay_conflict). the premise itself is overconfidence: "france scores 3 goals every game" is the same envy/vibes read that sank entry 3, and the o2.5 leg literally needs 3 goals. worse, the market is moving AGAINST the favorite covering: -2 drifted -101 -> +110 in the last two hours (fade_line_movement 0/3), the single worst signal in the cache — the price on the cover getting cheaper means money is fading france -2. that adverse drift, plus decision_day_before conviction with no confirming move toward france, is the same shape as entries 1/11. prefer_simple_line is 2/1 so the plain -2 is the better expression than the parlay, but with the cover line fading you're paying up into a number the market dislikes. net: the profit-maximizing parlay is a textbook payout-chase to avoid outright; the straight -2 is only a small play at best given the adverse line movement. the correct discipline move is to skip the parlay and either take -2 small or pass.
-
