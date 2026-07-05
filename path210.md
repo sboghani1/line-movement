@@ -70,9 +70,9 @@ back_favorite,follow_consensus,follow_line_movement,prefer_simple_line,spread_ne
 context: argentina heavy favorite; chose the moneyline over the -2 spread and avoided both the +100 nbtts/o1.5 parlay and trent's under 2.5 (trent was off a win). argentina won 3-2 in extra time. moneyline hit; the -2 would have lost (margin 1), the nbtts parlay lost (both scored), and trent's under lost (5 goals) — so every avoid was correct. the nervy 3-2/extra-time result validated the spread_nervousness and extras_risk flags: backing the moneyline over the spread was the right expression.
 
 9fadeghana
-right
-back_favorite,follow_consensus,nervous_winner,total_under,prefer_simple_line,faded_tipster,line_stable,situational_angle
-context: colombia favorite over ghana (insane home crowd), -1.5 at +132 and stable 9h/3h out. read was "colombia wins 2-0 late" nervous_winner, so leaned the u2.5 as the cleaner play and avoided forcing the -1.5. trent was off 2 wins and on colombia -1.5. colombia won 1-0: the under hit (1 goal), the -1.5 did not cover (margin 1) so avoiding the spread was correct, and trent's -1.5 lost. nervous_winner read landed exactly.
+wrong
+back_favorite,follow_consensus,followed_tipster,spread_nervousness,chased_better_payout,nervous_winner,line_stable,situational_angle
+context: colombia favorite over ghana (ghana's insane home crowd), -1.5 at +132, line stable 9h/3h out. own read was a nervous narrow win ("colombia wins 1-0/2-0 late"), but wanted the -1.5 for the favorite anyway — reaching for the +132 payout over the simpler moneyline/under. trent was off 2 wins and on colombia -1.5. colombia won 1-0: the margin of 1 did not cover -1.5, so the spread lost (as did trent's -1.5). lesson: with a nervous_winner read of a one-goal game, taking a -1.5 that needs a 2-goal margin is chasing payout against your own read — the cover nervousness was real and should have pointed to the moneyline/under, not the spread.
 
 10fadeliberty
 wrong
@@ -100,28 +100,27 @@ Signal right/wrong record (based on tags):
 follow_line_movement: 2 right / 0 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
-faded_tipster: 2 right / 1 wrong
-follow_consensus: 2 right / 1 wrong
-back_favorite: 2 right / 4 wrong
 fade_favorite: 2 right / 3 wrong
-prefer_simple_line: 2 right / 2 wrong
 vibes_over_logic: 1 right / 0 wrong
 abandoned_winning_method: 1 right / 0 wrong
 fresh_off_win: 1 right / 0 wrong
 avoided_payout_chase: 1 right / 0 wrong
-nervous_winner: 1 right / 0 wrong
-total_under: 1 right / 0 wrong
-line_stable: 1 right / 0 wrong
+faded_tipster: 1 right / 1 wrong
 extras_risk: 1 right / 1 wrong
-spread_nervousness: 1 right / 2 wrong
+follow_consensus: 1 right / 2 wrong
+prefer_simple_line: 1 right / 2 wrong
+spread_nervousness: 1 right / 3 wrong
 fade_consensus: 1 right / 3 wrong
-situational_angle: 1 right / 3 wrong
-chased_better_payout: 0 right / 4 wrong
+back_favorite: 1 right / 5 wrong
+chased_better_payout: 0 right / 5 wrong
 fade_line_movement: 0 right / 5 wrong
-missed_hedge: 0 right / 2 wrong
+situational_angle: 0 right / 4 wrong
+followed_tipster: 0 right / 3 wrong
 decision_day_before: 0 right / 3 wrong
-followed_tipster: 0 right / 2 wrong
+missed_hedge: 0 right / 2 wrong
 parlay_conflict: 0 right / 2 wrong
+nervous_winner: 0 right / 1 wrong
+line_stable: 0 right / 1 wrong
 failure_to_cash_out: 0 right / 1 wrong
 changed_mind: 0 right / 1 wrong
 outlier_price: 0 right / 1 wrong
