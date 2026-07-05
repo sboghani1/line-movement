@@ -85,9 +85,9 @@ back_favorite,situational_angle,spread_confidence,fade_line_movement,motivated_u
 context: backed chicago as the home favorite in a 'maybe motivated' spot, trusting the class gap and dismissing points fear. read -7 as stable 9h out, but the line drifted to -4 by close — the market was fading chicago. chicago lost by 8 outright. the closing drift (-7 -> -4) was the fade_line_movement warning i overlooked, and the 'maybe motivated' underdog risk materialized. lesson: track the CLOSING line, not just an early snapshot; an adverse drift off your favorite plus a live motivation angle is a real loss signal, not to be overridden by spread_confidence.
 
 12fademorocco
-right
-back_favorite,follow_consensus,follow_line_movement,followed_tipster,situational_angle,spread_nervousness,price_deterioration,decision_day_before
-context: morocco heavy home favorite -.5 with an insane home crowd; dabundo off a correct favorite call and trent on morocco -.5 (his first bet), and everyone was on morocco. the line firmed from -125 (2 days out) to -128 (1 day out). backed morocco -.5 WITH the consensus and line movement rather than fading. flagged thin value / price_deterioration on the late worse number and the -.5 draw risk, but stayed on the side history says not to fade. morocco won 2-0, so the -.5 cashed comfortably and the draw risk never materialized. lesson: a firming favorite with unanimous consensus + line movement is a follow, not a fade; the value worry was real but secondary to being on the correct side.
+wrong
+fade_favorite,fade_consensus,fade_line_movement,faded_tipster,situational_angle,spread_nervousness,decision_day_before
+context: morocco heavy home favorite -.5 with an insane home crowd; dabundo off a correct favorite call, trent on morocco -.5, and everyone was on morocco. the line firmed from -125 (2 days out) to -128 (1 day out) TOWARD morocco. the decision was to FADE the -.5 — bet against morocco covering (the draw/opponent side) — fading the consensus, the firming line, and both tipsters. morocco won 2-0, so the -.5 covered easily and the fade lost. lesson: fading a firming favorite that has unanimous consensus + line movement is the losing shape (same as entry 3) — this is a side to follow, not fade; the "value is thin" worry was not a reason to take the wrong side.
 
 13fadeparaguay
 wrong
@@ -97,10 +97,14 @@ context: france favorite over paraguay; naive read was "france scores 3 every ga
 # Model Cache
 
 Signal right/wrong record (based on tags):
-follow_line_movement: 3 right / 0 wrong
+follow_line_movement: 2 right / 0 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
-faded_tipster: 2 right / 0 wrong
+faded_tipster: 2 right / 1 wrong
+follow_consensus: 2 right / 1 wrong
+back_favorite: 2 right / 4 wrong
+fade_favorite: 2 right / 3 wrong
+prefer_simple_line: 2 right / 2 wrong
 vibes_over_logic: 1 right / 0 wrong
 abandoned_winning_method: 1 right / 0 wrong
 fresh_off_win: 1 right / 0 wrong
@@ -108,20 +112,17 @@ avoided_payout_chase: 1 right / 0 wrong
 nervous_winner: 1 right / 0 wrong
 total_under: 1 right / 0 wrong
 line_stable: 1 right / 0 wrong
-follow_consensus: 3 right / 1 wrong
-prefer_simple_line: 2 right / 2 wrong
-fade_favorite: 2 right / 2 wrong
-back_favorite: 3 right / 4 wrong
 extras_risk: 1 right / 1 wrong
-spread_nervousness: 2 right / 1 wrong
-fade_consensus: 1 right / 2 wrong
-situational_angle: 2 right / 2 wrong
+spread_nervousness: 1 right / 2 wrong
+fade_consensus: 1 right / 3 wrong
+situational_angle: 1 right / 3 wrong
 chased_better_payout: 0 right / 4 wrong
-fade_line_movement: 0 right / 4 wrong
+fade_line_movement: 0 right / 5 wrong
 missed_hedge: 0 right / 2 wrong
-decision_day_before: 0 right / 2 wrong
+decision_day_before: 0 right / 3 wrong
+followed_tipster: 0 right / 2 wrong
+parlay_conflict: 0 right / 2 wrong
 failure_to_cash_out: 0 right / 1 wrong
-followed_tipster: 1 right / 2 wrong
 changed_mind: 0 right / 1 wrong
 outlier_price: 0 right / 1 wrong
 envy_driven: 0 right / 1 wrong
@@ -129,8 +130,7 @@ live_loss_spiral: 0 right / 1 wrong
 fear_of_numbers: 0 right / 1 wrong
 gamblers_fallacy: 0 right / 1 wrong
 tilt_bet: 0 right / 1 wrong
-parlay_conflict: 0 right / 2 wrong
-price_deterioration: 1 right / 1 wrong
+price_deterioration: 0 right / 1 wrong
 greed_driven: 0 right / 1 wrong
 overcaution: 0 right / 1 wrong
 misread_line_movement: 0 right / 1 wrong
