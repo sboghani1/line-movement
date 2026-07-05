@@ -25,7 +25,7 @@ context: string starting with "context" which is explanation of why the decision
 
 4. Maintain the '# Model Cache' section: for each factor keep a running right-vs-wrong record (counts). Track totals only, not streaks or consecutive patterns.
 
-5. Continuation entries: a pending decision in '# Notes to ignore' may be extended over time with one or more '<name>_cont' blocks appended after the prior lean, each holding new information (line moves, tipster positions, time-to-event, etc.). When asked to update a lean, read the original entry plus ALL its '<name>_cont' blocks together, then write a fresh block at the bottom (e.g. 'updated_lean:' / 'final_lean:') with refreshed tags, direction, strength, and reasoning. Do not edit the earlier leans — append, so the evolution of the read is preserved.
+5. Continuation entries: a pending decision in '# Potential Events' may be extended over time with one or more '<name>_cont' blocks appended after the prior lean, each holding new information (line moves, tipster positions, time-to-event, etc.). When asked to update a lean, read the original entry plus ALL its '<name>_cont' blocks together, then write a fresh block at the bottom (e.g. 'updated_lean:' / 'final_lean:') with refreshed tags, direction, strength, and reasoning. Do not edit the earlier leans — append, so the evolution of the read is preserved.
 
 # Events
 
@@ -137,4 +137,11 @@ spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
 overconfidence: 0 right / 1 wrong
 
-# Notes to ignore 
+# Potential Events 
+fadebrasil
+expert said bad brasil team, clown nick is backing them. norway never been here. 2 days out +.5 -102 for the underdog. o2.5 -126 seems likely. 1 day out +.5 is +106 for underdog, o2.5 -128. 12 hours out, +.5 is +109 for underdog, total is o2.5 -140. 3 hours out, +.5 is +114, total is o2.5 -150. 2 hours out, +.5 is +112, total is o2.5 -143. trent is on brasil -.5
+updated_lean:
+tags: fade_favorite, fade_line_movement, faded_tipster, situational_angle, spread_nervousness, decision_day_before
+direction: still lean AGAINST backing norway +.5 — pass or token. the small pullback does not change the picture; the line still points at brasil.
+strength: moderate (unchanged).
+reasoning: the 2h move is noise, not a reversal — norway +.5 ticked +114 -> +112 and the over eased -150 -> -143, but the dominant trend across the whole window is still a heavy drift from -102 to +112, i.e., money has moved decisively onto brasil. backing the dog into that is fade_line_movement (0/5, tied worst), the inverse of the entries-5/6 winning template (which needed the line moving TOWARD the dog). the new info is trent on brasil -.5, so now BOTH tipsters (clown nick + trent) are on brasil; fading them is faded_tipster, which is only 1/1 — a coin flip that is not enough to override the 0/5 line signal, and note trent's reads have not been reliably wrong (following him lost in entry 1). the "bad brasil" expert take and fade_favorite (2/3) keep the fade tempting, but situational_angle (norway newcomer) is 0/4 and the still-elevated over (-143) means goals, which is bad for a +.5 dog. net: unchanged — this is the losing shape of an underdog back against the move; pass or token, the line and both tipsters say brasil.

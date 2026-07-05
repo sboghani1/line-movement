@@ -1,0 +1,71 @@
+fadebrasil
+expert said bad brasil team, clown nick is backing them. norway never been here. 2 days out +.5 -102 for the underdog. o2.5 -126 seems likely. 1 day out +.5 is +106 for underdog, o2.5 -128. 12 hours out, +.5 is +109 for underdog, total is o2.5 -140. 3 hours out, +.5 is +114, total is o2.5 -150.
+final_lean:
+tags: fade_favorite, fade_line_movement, faded_tipster, situational_angle, spread_nervousness, decision_day_before
+direction: lean AGAINST backing norway +.5 — pass or token. the line keeps pointing at brasil.
+strength: moderate (firmer than before given the continued drift).
+reasoning: this looks like the winning fades (entries 5,6: fade a favorite, back the dog+), but the LINE IS MOVING THE WRONG WAY and keeps going — norway +.5 bled -102 -> +106 -> +109 -> +114, so money is steadily moving onto brasil, not the dog. entries 5/6 only won because the line moved TOWARD the dog (follow_line_movement 2/0); backing a dog while its price drifts to the favorite is fade_line_movement (0/5, tied worst). the "bad brasil / clown nick" narrative makes fading brasil tempting (faded_tipster 1/1, expert agrees brasil is weak), but the market disagrees and history says defer to the move. the over firmed -126 -> -150, signaling goals — bad for a +.5 dog since brasil scoring enough to win kills it. situational_angle (norway newcomer) is 0/4 and cuts against the dog. net: losing shape of an underdog back (against the move); pass or token, the line says brasil.
+
+fadeengland
+bet of the tournmanent. 2 days out cannot believe mexico at home is +104 -> +108 dog to advance against -122 england. 1 day out, home is +104 and the total is o2.5 +143. 12 hours out, home is +108 and the total is o2.5 +143. 5 hours out, home is +104 and the total is o2.5 +144.
+final_lean:
+tags: fade_favorite, situational_angle, line_stable, decision_day_before, overconfidence, spread_nervousness
+direction: temper the "bet of the tournament" — do not oversize mexico to advance; small or pass. the line is stable, not confirming.
+strength: moderate.
+reasoning: softened slightly from the prior read because the line round-tripped (mexico +104 -> +108 -> back to +104) and the total is flat (~+143/+144), so this is now line_stable rather than actively moving against you — the fade_line_movement worry has eased. but the core caution stands: calling it the "bet of the tournament" 2 days out is overconfidence (0/1) + decision_day_before (0/3), and entry 10's explicit lesson is that strong conviction a day in advance WITHOUT a favorable line move is itself a fade sign — a stable line does not confirm the big conviction. mexico-at-home is a real situational_angle, but that tag is 0/4 in the log. the o2.5 +143 is a separate plus-money market, not the advance bet. net: mexico +104 home to advance is a defensible small value play, but the confidence is the danger — do NOT make it the bet of the tournament; size it small and let the flat line keep you honest.
+
+fademets
+a 60% winning home favorite against 40% road dog. 10 hours out, great price -117 for moneyline, want to even take -1.5 +155. 1 hour out, moneyline is now -112 and -1.5 +182.
+final_lean:
+tags: back_favorite, chased_better_payout, fade_line_movement, spread_nervousness
+direction: avoid the -1.5 payout chase entirely; be cautious even on the ML. the market is cooling on the mets.
+strength: moderate-strong against the -1.5, moderate against the ML.
+reasoning: two of the worst signals in the log stack here. taking -1.5 at +182 (up from +155) for the bigger payout is textbook chased_better_payout (0/5) — the exact greed move that sank entries 3, 7, 9, 13 — and the run line is getting MORE plus money, meaning the market is moving off the -1.5. the moneyline also drifted from -117 to -112, i.e., money is coming off the mets (line cooling on the favorite), so backing them is a mild fade_line_movement (0/5) and back_favorite is 1/5. a 60/40 home edge is real, but at -112 into a cooling line there is no payout edge left, and the -1.5 needs a 2-run win against a market that is fading exactly that. net: never take the -1.5 here; the ML is at best a small play, and the line drift argues for passing.
+
+fadetigers
+a 45% wining road tigers team is favored against home texas 50% winning team. previous day the road favorite tigers won so this is good revenge spot. 12 hours out, home texas is +103. 3 hours out, home texas is +110.
+final_lean:
+tags: fade_favorite, fade_line_movement, situational_angle, spread_nervousness
+direction: lean AGAINST backing texas here — pass or small. the line is moving to the tigers.
+strength: moderate.
+reasoning: backing texas (home dog, the "better" 50% team getting a plus price against a 45% road favorite) is a tempting fade_favorite value spot, and fade_favorite is our only net-positive fade tag (2/3). BUT the texas dog price drifted +103 -> +110, meaning money is moving onto the tigers — so backing texas is against the movement = fade_line_movement (0/5, tied worst). this again breaks the entries-5/6 winning template, which required the line moving TOWARD the dog. the "tigers won yesterday, revenge spot" note is a situational_angle (0/4) that points at the TIGERS, not texas, and the market agrees. net: the value/fade-favorite angle is real but the line and the situational read both favor the tigers; do not back texas into that drift — pass or keep it small.
+
+fadetempo
+wnba dallas is way better on the road. 12 hours out only -5 -105, expect them to win by 10 so maybe u183 -115 is the way. 3 hours out now -6 -110 and total is now u185 -108.
+final_lean:
+tags: follow_line_movement, back_favorite, situational_angle, total_under, spread_nervousness
+direction: if playing, dallas -6 (follow the move) over the under; AVOID the u185 — it fights a rising total.
+strength: moderate.
+reasoning: this is the rare spot where the line CONFIRMS the play. dallas -5 firmed to -6, i.e., the market is moving toward dallas exactly as your "way better on the road, win by 10" read expects — backing dallas -6 is follow_line_movement, our best signal (2/0). the trap is the under: the total ROSE from 183 to 185, so backing u185 is betting against the total movement = fade_line_movement (0/5, tied worst), and it rests on the specific "blowout with defense" narrative. back_favorite is 1/5, so keep respect for size, but the differentiator across the log is line direction, and here it points at dallas. net: the -6 is the disciplined, market-confirmed side; skip the under, which fights the move.
+
+fadeaces
+wnba vegas on a bad stretch with injuries and fever well rested so expecting no defense shoot out. 12 hours out can get road underdog +3 -110 and o181.5. 5 hours out, underdog is not +3.5 -115.
+final_lean:
+tags: fade_favorite, situational_angle, fade_line_movement, total_over, spread_nervousness
+direction: lean small/pass on backing the fever +3.5; the over is a narrative-only play. don't oversize either.
+strength: moderate.
+reasoning: the thesis (vegas injured/on a bad stretch, fever rested, shootout) is a situational_angle, which is 0/4 in our log — narrative angles have not converted. on the spread, the favorite's number grew (dog +3 -> +3.5, i.e. aces -3 -> -3.5), so the market is moving TOWARD the aces; backing the fever is against that movement = fade_line_movement (0/5, tied worst). the one genuine positive is that you now get +3.5 across the key number 3, a better number for a dog-backer, and fade_favorite is 2/3 — so a SMALL fever play is defensible. the o181.5 rests entirely on the "no defense shootout" read with no line confirmation shown, so treat it as a narrative bet, not an edge. net: at most a small fever +3.5 for the better number, but the line and the 0/4 situational history argue against sizing up; the over is speculative.
+
+fadepadres
+mlb shoehei birthday so home favorite dodgers should destroy. 8 hours out, favorite is -1.5 -105 and total is o9.5 -119 expecting lots of runs.
+
+fadeportugal
+2 days out, spain is definitely the better team so -.5 -110 is a good price to take for spain as favorite. 2 days out, another thought is u2.5 +104 because portugal plays in low scoring games and spain does not score a lot.
+
+fadeusa
+3 days out, belgium to advance +103 apparently has history doing this so maybe a home comeback but belgium should win and score at least 1, maybe usa takes it to 1-1 extras? belgium off lucky win against senegal in extra time. 2 days out, belgium to advance is -110 and total is o2.5 -132.
+
+fadeegypt
+3 days out, argentina favorite is -1.5 +124 and o2.5 +108. expecting argentina to blow them out by a lot.
+
+fadeswiss
+3 days out, colombia -.5 +130 is great value for home field advantage for the better team. 3 days out, tempting to get high return on o2.5 +146.
+
+fademorocco
+4 days out, france -1 +101 is great value for best team of the tournament. they should win by at least 2 so worst case this is a push.
+
+fadecong
+7 days out, take wang cong -115, o2.5 -265.
+
+fadeholloway
+7 days out, o2.5 -103 feels free no way connor taps
