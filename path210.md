@@ -94,29 +94,34 @@ wrong
 back_favorite,chased_better_payout,prefer_simple_line,fade_line_movement,parlay_conflict,followed_tipster,decision_day_before,overconfidence
 context: france favorite over paraguay; naive read was "france scores 3 every game, easy -2" at -101, tempted toward more profit on an o2.5+(-.5) parlay (+106 -> +121). the -2 cover line drifted adversely all day (-101 -> +110 -> +119), the market progressively fading france covering. trent was off a win and on france -2.5 (an even harder cover). france won 1-0: it did not cover -2, the o2.5 under hit, so the straight -2, trent's -2.5 tail, and the parlay all would have lost. fading paraguay via the spread/parlay was incorrect. lesson: the adverse cover-line drift correctly predicted france would not cover; the payout chase and "scores 3" overconfidence were the losing shape. backing a favorite to WIN is not the same as covering a big number the market is actively fading — the fade_line_movement warning was right, and the disciplined pass would have avoided all three losing tickets.
 
+14fadebrasil
+right
+fade_favorite,fade_line_movement,faded_tipster,situational_angle,spread_nervousness,decision_day_before
+context: fade of brasil (backing norway +.5) despite the market moving hard toward brasil — norway +.5 drifted -102 -> +112/+114 as money piled onto brasil, and BOTH tipsters (clown nick and trent) were on brasil -.5. the case for the fade was fundamental: an expert flagged a bad brasil team, and norway were the disrespected newcomer. backed norway +.5 against the line movement and against both tipsters. brasil lost 2-0, so norway won outright and the +.5 cashed easily. lesson: a strong fundamental/expert read against a weak favorite can beat heavy adverse line movement and tipster consensus — this is the FIRST fade_line_movement win in the log, so line movement is not automatically decisive when the fundamental case against the favorite is strong. (note: the model's pre-game lean was AGAINST this bet, over-weighting the 0/5 fade_line_movement signal — a miss to learn from.)
+
 # Model Cache
 
 Signal right/wrong record (based on tags):
 follow_line_movement: 2 right / 0 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
-fade_favorite: 2 right / 3 wrong
+fade_favorite: 3 right / 3 wrong
+faded_tipster: 2 right / 1 wrong
 vibes_over_logic: 1 right / 0 wrong
 abandoned_winning_method: 1 right / 0 wrong
 fresh_off_win: 1 right / 0 wrong
 avoided_payout_chase: 1 right / 0 wrong
-faded_tipster: 1 right / 1 wrong
 extras_risk: 1 right / 1 wrong
 follow_consensus: 1 right / 2 wrong
 prefer_simple_line: 1 right / 2 wrong
-spread_nervousness: 1 right / 3 wrong
+spread_nervousness: 2 right / 3 wrong
 fade_consensus: 1 right / 3 wrong
+situational_angle: 1 right / 4 wrong
+decision_day_before: 1 right / 3 wrong
+fade_line_movement: 1 right / 5 wrong
 back_favorite: 1 right / 5 wrong
 chased_better_payout: 0 right / 5 wrong
-fade_line_movement: 0 right / 5 wrong
-situational_angle: 0 right / 4 wrong
 followed_tipster: 0 right / 3 wrong
-decision_day_before: 0 right / 3 wrong
 missed_hedge: 0 right / 2 wrong
 parlay_conflict: 0 right / 2 wrong
 nervous_winner: 0 right / 1 wrong
@@ -138,10 +143,10 @@ motivated_underdog: 0 right / 1 wrong
 overconfidence: 0 right / 1 wrong
 
 # Potential Events 
-fadebrasil
-expert said bad brasil team, clown nick is backing them. norway never been here. 2 days out +.5 -102 for the underdog. o2.5 -126 seems likely. 1 day out +.5 is +106 for underdog, o2.5 -128. 12 hours out, +.5 is +109 for underdog, total is o2.5 -140. 3 hours out, +.5 is +114, total is o2.5 -150. 2 hours out, +.5 is +112, total is o2.5 -143. trent is on brasil -.5
+fadeengland
+bet of the tournmanent. 2 days out cannot believe mexico at home is +104 -> +108 dog to advance against -122 england. 1 day out, home is +104 and the total is o2.5 +143. 12 hours out, home is +108 and the total is o2.5 +143. 6 hours out, home is +104 and the total is o2.5 +144. 5 hours out, home is +100 and the total is o2.5 +144.
 updated_lean:
-tags: fade_favorite, fade_line_movement, faded_tipster, situational_angle, spread_nervousness, decision_day_before
-direction: still lean AGAINST backing norway +.5 — pass or token. the small pullback does not change the picture; the line still points at brasil.
-strength: moderate (unchanged).
-reasoning: the 2h move is noise, not a reversal — norway +.5 ticked +114 -> +112 and the over eased -150 -> -143, but the dominant trend across the whole window is still a heavy drift from -102 to +112, i.e., money has moved decisively onto brasil. backing the dog into that is fade_line_movement (0/5, tied worst), the inverse of the entries-5/6 winning template (which needed the line moving TOWARD the dog). the new info is trent on brasil -.5, so now BOTH tipsters (clown nick + trent) are on brasil; fading them is faded_tipster, which is only 1/1 — a coin flip that is not enough to override the 0/5 line signal, and note trent's reads have not been reliably wrong (following him lost in entry 1). the "bad brasil" expert take and fade_favorite (2/3) keep the fade tempting, but situational_angle (norway newcomer) is 0/4 and the still-elevated over (-143) means goals, which is bad for a +.5 dog. net: unchanged — this is the losing shape of an underdog back against the move; pass or token, the line and both tipsters say brasil.
+tags: fade_favorite, follow_line_movement, nervous_underdog_backing, situational_angle, extras_risk, decision_day_before, overconfidence
+direction: now lean TOWARD backing mexico (+100 to advance) at a real size — the line has turned in your favor. this is an upgrade from the prior "temper it" read.
+strength: moderate (upgraded).
+reasoning: the latest moves flip this into the WINNING template. mexico to advance came in +108 -> +104 -> +100, i.e., money is now moving ONTO mexico — that is follow_line_movement (2/0, our best signal), and it matches entries 5/6 exactly: fade the favorite (england), back the dog, WITH the line moving toward the dog. crucially this neutralizes the earlier warning: entry 10's lesson is that big day-before conviction WITHOUT a favorable line move is a fade sign — but there is now a confirming move toward mexico, so the "bet of the tournament" conviction is corroborated rather than contradicted. backing a home dog to advance is nervous_underdog_backing (2/0), another clean winner in the log. cautions remain but are secondary: situational_angle (home) is 0/4 and has not converted on its own, +100 is shorter than the +108 you could have had (you are paying up for the confirmation, don't chase if it firms much more), overconfidence (0/1) says don't make it a literal max bet, and extras_risk (1/1) means a knockout can swing on extra time/penalties. net: this is the most template-consistent spot of the pending set — a fade of the favorite with the line moving toward your dog; back mexico to advance at a solid (not max) size, and note it's the MOVEMENT, not the "bet of the tournament" narrative, that now earns the conviction.
