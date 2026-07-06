@@ -6,6 +6,7 @@ Purpose: This file is a decision log used to compare a decision currently under 
 name: string id starting with a number
 result: either "right" or "wrong"
 tags: single comma-separated line of strings (human-provided and model-generated tags are merged here, deduplicated into one normalized set)
+line movement: optional single line, present only when timed numeric line values were provided. It is a comma-separated list of the line/price values in chronological order, each annotated with how long before the game it was observed (e.g. "-125 (2d), -128 (1d)"). If more than one market was tracked (e.g. a side and a total), separate them with a semicolon and label each (e.g. "side: ...; total: ..."). Times use d=days, h=hours, m=minutes before the game, plus "close" for the closing line.
 context: string starting with "context" which is explanation of why the decision was made. It should capture the setup/reasoning for the decision, what moved (line/price), the action taken, the result, and the retrospective lesson (the "should have...").
 
 2. tags: read each entry's content and generate/merge tags that make sense given all the other contexts. There is ONE tags line per entry — fold any human-supplied tags into the same normalized vocabulary rather than keeping a separate list. Prefer a consistent, reusable vocabulary so the same factor uses the same tag across entries (this is what makes patterns accumulate). Rules for generating/regenerating tags:
@@ -22,6 +23,7 @@ context: string starting with "context" which is explanation of why the decision
 - Give a lean, including the reasoning behind it and whether it is a strong or weak lean.
 - Record the lean, its reasoning, and its strength over time so the model's own decision-making can be evaluated too.
 - Nervousness is not inherently a negative signal. The winning entries (5, 6) were both nervous_underdog_backing, so expect that the right amount of nervousness can correlate with good outcomes. When weighing a lean, treat the degree of nervousness as its own factor rather than a reason to avoid a bet — mild/healthy nervousness about a sound read can be a positive pattern, while its absence (overconfidence) has been a loss signal.
+- Treat late line movement with skepticism for noise. Moves inside the last few hours before a game are often volatility, not signal. Weight the CLOSING line and the NET move (open -> close), not a transient intraday spike. A big-looking swing that reverts by close is effectively a stable line and should be tagged line_stable, NOT follow_/fade_line_movement — see entry 15, where mexico ran +104 open -> -104 (1h) but CLOSED +101, so the "-104 favorite" move was noise that should have been ignored. Do not overweight a move that closes near where it opened, and be most cautious about moves that only appear in the final hours.
 
 4. Maintain the '# Model Cache' section: for each factor keep a running right-vs-wrong record (counts). Track totals only, not streaks or consecutive patterns.
 
@@ -72,6 +74,7 @@ context: argentina heavy favorite; chose the moneyline over the -2 spread and av
 9fadeghana
 wrong
 back_favorite,follow_consensus,followed_tipster,spread_nervousness,chased_better_payout,nervous_winner,line_stable,situational_angle
+line movement: colombia -1.5: +132 (9h), +132 (3h)
 context: colombia favorite over ghana (ghana's insane home crowd), -1.5 at +132, line stable 9h/3h out. own read was a nervous narrow win ("colombia wins 1-0/2-0 late"), but wanted the -1.5 for the favorite anyway — reaching for the +132 payout over the simpler moneyline/under. trent was off 2 wins and on colombia -1.5. colombia won 1-0: the margin of 1 did not cover -1.5, so the spread lost (as did trent's -1.5). lesson: with a nervous_winner read of a one-goal game, taking a -1.5 that needs a 2-goal margin is chasing payout against your own read — the cover nervousness was real and should have pointed to the moneyline/under, not the spread.
 
 10fadeliberty
@@ -82,50 +85,90 @@ context: road favorite against a home-hangover spot; liked the angle but got ner
 11fadesky
 wrong
 back_favorite,situational_angle,spread_confidence,fade_line_movement,motivated_underdog
+line movement: chicago spread: -7 (9h), -4 (close)
 context: backed chicago as the home favorite in a 'maybe motivated' spot, trusting the class gap and dismissing points fear. read -7 as stable 9h out, but the line drifted to -4 by close — the market was fading chicago. chicago lost by 8 outright. the closing drift (-7 -> -4) was the fade_line_movement warning i overlooked, and the 'maybe motivated' underdog risk materialized. lesson: track the CLOSING line, not just an early snapshot; an adverse drift off your favorite plus a live motivation angle is a real loss signal, not to be overridden by spread_confidence.
 
 12fademorocco
 wrong
 fade_favorite,fade_consensus,fade_line_movement,faded_tipster,situational_angle,spread_nervousness,decision_day_before
+line movement: morocco -.5: -125 (2d), -128 (1d)
 context: morocco heavy home favorite -.5 with an insane home crowd; dabundo off a correct favorite call, trent on morocco -.5, and everyone was on morocco. the line firmed from -125 (2 days out) to -128 (1 day out) TOWARD morocco. the decision was to FADE the -.5 — bet against morocco covering (the draw/opponent side) — fading the consensus, the firming line, and both tipsters. morocco won 2-0, so the -.5 covered easily and the fade lost. lesson: fading a firming favorite that has unanimous consensus + line movement is the losing shape (same as entry 3) — this is a side to follow, not fade; the "value is thin" worry was not a reason to take the wrong side.
 
 13fadeparaguay
 wrong
 back_favorite,chased_better_payout,prefer_simple_line,fade_line_movement,parlay_conflict,followed_tipster,decision_day_before,overconfidence
+line movement: france -2: -101 (1d), +110 (2h), +119 (30m); o2.5+(-.5) parlay: +106 (1d), +116 (2h), +121 (30m)
 context: france favorite over paraguay; naive read was "france scores 3 every game, easy -2" at -101, tempted toward more profit on an o2.5+(-.5) parlay (+106 -> +121). the -2 cover line drifted adversely all day (-101 -> +110 -> +119), the market progressively fading france covering. trent was off a win and on france -2.5 (an even harder cover). france won 1-0: it did not cover -2, the o2.5 under hit, so the straight -2, trent's -2.5 tail, and the parlay all would have lost. fading paraguay via the spread/parlay was incorrect. lesson: the adverse cover-line drift correctly predicted france would not cover; the payout chase and "scores 3" overconfidence were the losing shape. backing a favorite to WIN is not the same as covering a big number the market is actively fading — the fade_line_movement warning was right, and the disciplined pass would have avoided all three losing tickets.
 
 14fadebrasil
 right
 fade_favorite,fade_line_movement,faded_tipster,situational_angle,spread_nervousness,decision_day_before
+line movement: norway +.5: -102 (2d), +106 (1d), +109 (12h), +114 (3h), +112 (2h); total o2.5: -126 (2d), -128 (1d), -140 (12h), -150 (3h), -143 (2h)
 context: fade of brasil (backing norway +.5) despite the market moving hard toward brasil — norway +.5 drifted -102 -> +112/+114 as money piled onto brasil, and BOTH tipsters (clown nick and trent) were on brasil -.5. the case for the fade was fundamental: an expert flagged a bad brasil team, and norway were the disrespected newcomer. backed norway +.5 against the line movement and against both tipsters. brasil lost 2-0, so norway won outright and the +.5 cashed easily. lesson: a strong fundamental/expert read against a weak favorite can beat heavy adverse line movement and tipster consensus — this is the FIRST fade_line_movement win in the log, so line movement is not automatically decisive when the fundamental case against the favorite is strong. (note: the model's pre-game lean was AGAINST this bet, over-weighting the 0/5 fade_line_movement signal — a miss to learn from.)
+
+15fadeengland
+wrong
+fade_favorite,line_stable,followed_tipster,situational_angle,extras_risk,price_deterioration,decision_day_before,overconfidence
+line movement: mexico to advance: +104->+108 (2d), +104 (1d), +108 (12h), +104 (6h), +100 (5h), -104 (1h), +101 (30m, close); total o2.5: +143 (1d), +143 (12h), +144 (6h), +144 (5h), +162 (1h)
+context: "bet of the tournament" — faded england by backing mexico (home) to advance. mexico appeared to move from a +104/+108 dog to a -104 favorite at 1h out, and trent came on mexico -.5, which looked like the market and a tipster aligning with the bet; entry was taken at the shorter -104. BUT the line CLOSED at +101 — essentially back to the +104 open — so the net movement was negligible and the -104 was NOISE, not a real follow_line_movement signal (this was in truth a line_stable spot). england won the match 3-2, so mexico was eliminated and the advance bet lost; the total also blew well over (5 goals vs o2.5). lessons: (1) do not chase transient line swings in the last few hours — weight the CLOSING/net line; the -104 spike that reverted to +101 should have been ignored, and reading it as "money piling onto mexico" was reading noise; (2) taking a deteriorated -104 that then closed back at +101 gave up value for nothing on an overconfident "bet of the tournament". (note: BOTH model leans missed — the side lean backed mexico partly on the noisy -104 move, and the total lean was UNDER while 5 goals went over.)
+
+16fadepadres
+wrong
+back_favorite,follow_line_movement,total_over,situational_angle,overconfidence,price_deterioration
+line movement: dodgers -1.5: -105 (8h), -115 (30m); total: o9.5 -119 (8h), o10 -115 (30m)
+context: "ohtani birthday so dodgers should destroy / lots of runs" narrative drove an over play (o9.5 -> o10) alongside a look at dodgers -1.5. the market confirmed both — the -1.5 firmed -105 -> -115 and the total climbed o9.5 -> o10 on over money (follow_line_movement), with entry at the worse numbers (o10 after o9.5). dodgers won 5-2: they DID cover -1.5 (won by 3), but only 7 total runs meant the total stayed UNDER 9.5/10, so the "lots of runs" over lost. lessons: an overconfident "should destroy / lots of runs" narrative (overconfidence + situational_angle) is a losing driver even when the favorite wins comfortably — a team covering the run line is NOT the same as a shootout total; and buying the deteriorated total (o10 after o9.5) added no value. (note: the model's total lean was a small OVER — wrong; the -1.5 caution was overly conservative since the -1.5 actually covered.)
+
+17fademets
+wrong
+back_favorite,chased_better_payout,fade_line_movement,spread_nervousness
+line movement: mets ML: -117 (10h), -112 (1h); mets -1.5: +155 (10h), +182 (1h)
+context: mets a ~60% home favorite over a ~40% road dog. liked the ML at -117 but got pulled toward the -1.5 for the bigger payout (+155 -> +182). the market was COOLING on the mets all day — ML drifted -117 -> -112 and the run line ballooned +155 -> +182 (more plus money = the market moving off the -1.5). backed the mets anyway/chased the run-line payout. mets won 10-9: a 1-run win, so the -1.5 did NOT cover (and the 19-run game was a wild shootout). lesson: taking a bigger-payout run line (chased_better_payout, 0/6) into a cooling line (backing a favorite the market is fading = fade_line_movement) is the recurring losing shape — the 2-run cover nervousness was real; a 60/40 home edge at a deteriorating price/number had no value left.
+
+18fadetigers
+wrong
+fade_favorite,fade_line_movement,situational_angle
+line movement: texas ML: +103 (12h), +110 (3h)
+context: backed home texas (~50% team) as the plus-money dog against the road tigers (~45% favorite) — a fade_favorite value spot, with a "tigers won yesterday, revenge/letdown" situational angle. but the texas dog price drifted +103 -> +110, i.e., money was moving TOWARD the tigers, so backing texas was against the movement (fade_line_movement). tigers won 6-3, so the texas dog lost. lesson: this repeats the losing template — backing a dog while the line moves toward the favorite is the wrong shape (the winning dog backs in entries 5/6 required the line moving TOWARD the dog); the fade-favorite value did not overcome adverse movement, and the situational angle actually pointed at the tigers.
+
+19fadetempo
+right
+follow_line_movement,back_favorite,situational_angle
+line movement: dallas spread: -5 (-105) (12h), -6 (-110) (3h); total: 183 (12h), 185 (3h)
+context: wnba dallas markedly better on the road; read them to win by ~10. dallas -5 firmed to -6 (-105 -> -110), the market moving toward dallas exactly as the read expected (follow_line_movement), so backed dallas -6 rather than the under (the total ROSE 183 -> 185, so an under would have fought the move). dallas won by 13, covering -6 easily. lesson: this is the market-confirmed template — backing the favorite the line is moving toward (follow_line_movement, now 3/1, the best signal) beats a narrative under that fights a rising total; taking the side the movement confirms, not the market-contradicting total, was correct.
+
+20fadeaces
+right
+fade_favorite,fade_line_movement,situational_angle
+line movement: aces spread: fever +3 (-110) (12h), fever +3.5 (-115) (5h)
+context: wnba vegas aces on a bad injury-hit stretch, fever well rested — situational read of a shootout/upset. backed the fever as the road dog (fade_favorite) at +3.5, across the key number of 3. the line had moved TOWARD the aces (fever +3 -> +3.5, i.e. aces -3 -> -3.5), so backing the fever was against the movement (fade_line_movement). aces lost by 16, so the fever covered easily and won outright. lesson: a genuine fundamental edge (injuries + rest mismatch) can win against adverse line movement — mirror of entry 18 (same fade_favorite + fade_line_movement + situational_angle shape, opposite result), showing that when the situational read is a real class/health mismatch (not just a narrative), fading the favorite into movement can still cash; getting the better side of the key number (+3.5) added margin.
 
 # Model Cache
 
 Signal right/wrong record (based on tags):
-follow_line_movement: 2 right / 0 wrong
+follow_line_movement: 3 right / 1 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
-fade_favorite: 3 right / 3 wrong
+fade_favorite: 4 right / 5 wrong
 faded_tipster: 2 right / 1 wrong
 vibes_over_logic: 1 right / 0 wrong
 abandoned_winning_method: 1 right / 0 wrong
 fresh_off_win: 1 right / 0 wrong
 avoided_payout_chase: 1 right / 0 wrong
-extras_risk: 1 right / 1 wrong
+extras_risk: 1 right / 2 wrong
 follow_consensus: 1 right / 2 wrong
 prefer_simple_line: 1 right / 2 wrong
-spread_nervousness: 2 right / 3 wrong
+spread_nervousness: 2 right / 4 wrong
 fade_consensus: 1 right / 3 wrong
-situational_angle: 1 right / 4 wrong
-decision_day_before: 1 right / 3 wrong
-fade_line_movement: 1 right / 5 wrong
-back_favorite: 1 right / 5 wrong
-chased_better_payout: 0 right / 5 wrong
-followed_tipster: 0 right / 3 wrong
+situational_angle: 3 right / 7 wrong
+decision_day_before: 1 right / 4 wrong
+fade_line_movement: 2 right / 7 wrong
+back_favorite: 2 right / 7 wrong
+chased_better_payout: 0 right / 6 wrong
+followed_tipster: 0 right / 4 wrong
 missed_hedge: 0 right / 2 wrong
 parlay_conflict: 0 right / 2 wrong
 nervous_winner: 0 right / 1 wrong
-line_stable: 0 right / 1 wrong
+line_stable: 0 right / 2 wrong
 failure_to_cash_out: 0 right / 1 wrong
 changed_mind: 0 right / 1 wrong
 outlier_price: 0 right / 1 wrong
@@ -134,19 +177,28 @@ live_loss_spiral: 0 right / 1 wrong
 fear_of_numbers: 0 right / 1 wrong
 gamblers_fallacy: 0 right / 1 wrong
 tilt_bet: 0 right / 1 wrong
-price_deterioration: 0 right / 1 wrong
+price_deterioration: 0 right / 3 wrong
 greed_driven: 0 right / 1 wrong
 overcaution: 0 right / 1 wrong
 misread_line_movement: 0 right / 1 wrong
 spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
-overconfidence: 0 right / 1 wrong
+overconfidence: 0 right / 3 wrong
+total_over: 0 right / 1 wrong
 
 # Potential Events 
-fadeengland
-bet of the tournmanent. 2 days out cannot believe mexico at home is +104 -> +108 dog to advance against england. 1 day out, home is +104 and the total is o2.5 +143. 12 hours out, home is +108 and the total is o2.5 +143. 6 hours out, home is +104 and the total is o2.5 +144. 5 hours out, home is +100 and the total is o2.5 +144. 1 hour out, home is -104 and the total is o2.5 +162.
-updated_lean:
-tags: fade_favorite, follow_line_movement, situational_angle, extras_risk, price_deterioration, decision_day_before, overconfidence
-direction: right side (mexico to advance) is now fully confirmed by the market, but the VALUE is largely gone. hold if already on at plus money; if entering fresh at -104, small only and do not chase further.
-strength: moderate on direction, weak on value (a "right side, bad price" spot).
-reasoning: the line has completed a decisive move ONTO mexico — from a +104/+108 dog to a -104 FAVORITE to advance. that is strong follow_line_movement (2/0, our best signal) and it fully corroborates the original "cannot believe mexico is a dog" read; the market now agrees, which also converts the earlier overconfidence/decision_day_before concern into confirmation (entry 10's lesson was conviction WITHOUT a supporting move; here the move arrived). the catch is exactly the fademorocco pattern: being right on the side does not mean there is value left. mexico went +104/+108 -> -104, so anyone entering now eats full price_deterioration (0/1, the egypt/"don't take the worse number" lesson) — you are paying -104 for what was +108. so: if you already backed mexico at plus money, hold and let the move validate you; if you have NOT bet yet, this is a thin-value late entry — a small mexico-to-advance play at most, and do not chase if it firms past -110/-115. situational_angle (home) is 1/4 and extras_risk (1/1) still apply (a knockout can swing on extra time/penalties). net: correct side, poor price — the time to get the value has passed; modest size or pass, do not pay up further.
+fadeportugal
+2 days out, spain is definitely the better team so -.5 -110 is a good price to take for spain as favorite. 2 days out, another thought is total u2.5 +104 because portugal plays in low scoring games and spain does not score a lot. 1 day out, the favorite is -.5 -108 and the total is u2.5 +112.
+final_lean:
+tags: back_favorite, line_stable, decision_day_before, overconfidence, total_under, fade_line_movement, situational_angle
+direction: SIDE (spain -.5): small at most — flat line + day-before overconfidence. TOTAL (u2.5): avoid — it fights the movement. If forced to pick one, the side is cleaner than the under, but neither is a strong play.
+strength: weak on the side, weak/avoid on the under.
+reasoning: two separate markets, both lightly supported. On the side, spain -.5 barely moved (-110 -> -108 = effectively flat, line_stable 0/2), so this is a back_favorite (2/7) with no line confirmation, decided 2 days out on a "definitely the better team" read — that's decision_day_before (1/4) plus overconfidence (0/3), and entry 10's lesson explicitly flags strong day-ahead conviction with no line movement as a fade sign. On the total, the under price IMPROVED +104 -> +112, meaning money is coming in on the OVER — so backing u2.5 is against the movement (fade_line_movement, 2/7) and rests on a "both low scoring" narrative (situational_angle, 3/7). net: the under is the weaker of the two because it fights a moving total on narrative alone; the spain side is passable but small since a flat line + advance-day overconfidence has historically underperformed.
+
+fadeusa
+3 days out, belgium to advance +103 apparently has history doing this so maybe a home comeback but belgium should win and score at least 1, maybe usa takes it to 1-1 extras? belgium off lucky win against senegal in extra time. 2 days out, belgium to advance is -110 and total is o2.5 -132. 1 day out, belgium to advance is +104 and the total is o2.5 -150.
+final_lean:
+tags: back_favorite, line_stable, extras_risk, situational_angle, total_over, follow_line_movement
+direction: SIDE (belgium to advance): the -110 was noise — it round-tripped back to +104, so treat it as a flat line, not a firming favorite; if you want belgium, the +104 now is basically the +103 open (no value gained or lost). TOTAL (o2.5): the strongest play across BOTH events — the over is firming and the market confirms it.
+strength: weak/neutral on the side, moderate on the over.
+reasoning: this is a textbook entry-15 noise case on the side — belgium to advance went +103 -> -110 -> +104, so the mid-move to a -110 favorite REVERTED to essentially the open; net movement is flat (line_stable, 0/2), and reading the -110 spike as "money on belgium" would be reading noise. back_favorite is 2/7, the advance bet carries extras_risk (1/2) and belgium just needed extra time to survive senegal, so backing the advance at +104 is fine value but not a signal-backed edge. The total is the real edge: o2.5 firmed -132 -> -150, money steadily buying the OVER, which is follow_line_movement — our BEST signal at 3/1 — and it fits the "belgium scores + possible 1-1/extras" read (situational_angle 3/7 is mixed but here it aligns with the line). net: skip treating the side move as meaningful; the over 2.5 is the best-supported bet on the board because the line direction confirms it, exactly the winning template from entries 8 and 19.
