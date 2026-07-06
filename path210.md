@@ -149,6 +149,12 @@ fade_favorite,fade_line_movement,situational_angle
 line movement: aces spread: fever +3 (-110) (12h), fever +3.5 (-115) (5h)
 context: wnba vegas aces on a bad injury-hit stretch, fever well rested — situational read of a shootout/upset. backed the fever as the road dog (fade_favorite) at +3.5, across the key number of 3. the line had moved TOWARD the aces (fever +3 -> +3.5, i.e. aces -3 -> -3.5), so backing the fever was against the movement (fade_line_movement). aces lost by 16, so the fever covered easily and won outright. lesson: a genuine fundamental edge (injuries + rest mismatch) can win against adverse line movement — mirror of entry 18 (same fade_favorite + fade_line_movement + situational_angle shape, opposite result), showing that when the situational read is a real class/health mismatch (not just a narrative), fading the favorite into movement can still cash; getting the better side of the key number (+3.5) added margin.
 
+21fadeportugal
+right
+back_favorite,fade_line_movement,follow_consensus,decision_day_before,overconfidence,situational_angle,total_under
+line movement: spain -.5: -110 (2d), -112 (1d), -107 (12h), -107 (2h), -104 (10m, close); total u2.5: +104 (2d), +112 (1d), +104 (12h), +108 (2h), +116 (10m, close)
+context: fade portugal = back spain -.5, a heavy favorite, on a "spain is definitely the better team" read locked in 2 days out. broad tipster consensus was on spain (trent, cblez, most tipsters). over the day the spain -.5 price CHEAPENED -110 -> -104 (money drifting OFF spain, toward portugal) and the u2.5 under drifted +104 -> +116 (money onto the OVER) — so BOTH markets' lines moved off the popular side. also considered u2.5 on a low-scoring narrative (portugal low scoring, spain doesn't score a lot). spain won 1-0: spain -.5 cashed AND u2.5 cashed (only 1 goal), so fading portugal was right and the under would have won too. lesson: broad consensus + a fundamental "clearly better team" read + a low-scoring narrative all came through DESPITE the line drifting off both popular sides — a fade_line_movement win (like entries 14, 20) where the popular/fundamental read beat the adverse late drift. this is a caution against mechanically fading a consensus-vs-line disconnect: when the fundamental case is strong, the late drift off the favorite can be noise/value, not a warning. (note: the final model lean was to PASS/fade BOTH markets, trusting the line drift over the consensus and the narrative — WRONG on both; the model over-weighted the consensus-vs-line disconnect and the fade_line_movement signal, the same class of miss as entries 14 and 20.)
+
 # Model Cache
 
 Signal right/wrong record (based on tags):
@@ -162,14 +168,14 @@ abandoned_winning_method: 1 right / 0 wrong
 fresh_off_win: 1 right / 0 wrong
 avoided_payout_chase: 1 right / 0 wrong
 extras_risk: 1 right / 2 wrong
-follow_consensus: 1 right / 2 wrong
+follow_consensus: 2 right / 2 wrong
 prefer_simple_line: 1 right / 2 wrong
 spread_nervousness: 2 right / 4 wrong
 fade_consensus: 1 right / 3 wrong
-situational_angle: 3 right / 7 wrong
-decision_day_before: 1 right / 4 wrong
-fade_line_movement: 2 right / 7 wrong
-back_favorite: 2 right / 7 wrong
+situational_angle: 4 right / 7 wrong
+decision_day_before: 2 right / 4 wrong
+fade_line_movement: 3 right / 7 wrong
+back_favorite: 3 right / 7 wrong
 chased_better_payout: 0 right / 6 wrong
 followed_tipster: 0 right / 4 wrong
 missed_hedge: 0 right / 2 wrong
@@ -190,14 +196,23 @@ overcaution: 0 right / 1 wrong
 misread_line_movement: 0 right / 1 wrong
 spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
-overconfidence: 0 right / 3 wrong
+overconfidence: 1 right / 3 wrong
 total_over: 0 right / 1 wrong
+total_under: 1 right / 0 wrong
 
 # Potential Events
-fadeportugal
-2 days out, spain is definitely the better team so -.5 -110 is a good price to take for spain as favorite. 2 days out, another thought is total u2.5 +104 because portugal plays in low scoring games and spain does not score a lot. 1 day out, the favorite is -.5 -112 and the total is u2.5 +112. 12 hours out, the favorite is -.5 -107 and the total is u2.5 +104. 2 hours out, the favorite is -.5 -107 and the total is u2.5 +108. trent is on spain -.5. and so is cblez. in fact most tipsters are. 10 minutes out, the favorite is -.5 -104 and the total is u2.5 +116.
+fadeusa
+3 days out, belgium to advance +103 apparently has history doing this so maybe a home comeback but belgium should win and score at least 1, maybe usa takes it to 1-1 extras? belgium off lucky win against senegal in extra time. 2 days out, belgium to advance is -110 and total is o2.5 -132. 1 day out, belgium to advance is +104 and the total is o2.5 -150. 18 hours out, the total is o2.5 -152. 8 hours out, belgium to advance is +113 and the the total is o2.5 -148. 1 hour out, belgium to advance is +114 and the total is o2.5 -130. Trent is off a win and he is on belgium. cblez is on usa.
 final_lean:
-tags: back_favorite, fade_line_movement, follow_consensus, situational_angle, total_under
-<ins>direction: PASS on both — the line is drifting AWAY from the popular side in each market. SIDE (spain -.5): most tipsters are on spain, but the price cheapened -110 -> -104 (money coming OFF spain, toward portugal), so backing spain is fighting the move; that consensus-vs-line disconnect is the losing shape, so pass (or a mild fade = portugal +.5). TOTAL (u2.5): the under drifted to +116 (over money), so backing the under also fights the move — pass, if anything the over.</ins>
-strength: moderate against backing spain, avoid the under.
-reasoning: correcting the direction of the side move — for a favorite laying odds, -104 is CHEAPER than -110, so spain -.5 going -110 (2d) -> -112 (1d) -> -107 (12h) -> -107 (2h) -> -104 (10m close) means money came OFF spain over the day; the NET open->close drift is AWAY from spain (toward portugal). So even though the broad tipster consensus (trent, cblez, most tipsters) is on spain, the market is leaving spain — that is the classic consensus-vs-line disconnect, and backing spain here is fade_line_movement (2/7) against the move. Per the notes, when the line disagrees with the popular read, trust the line: this points to PASS on spain, or a small fade (portugal +.5) rather than backing the favorite everyone loves. back_favorite is also 2/7. On the TOTAL, the under went +104 -> +112 -> +104 -> +108 -> +116 (10m): the under price is climbing = money buying the OVER, so backing u2.5 is fade_line_movement on a narrative (situational_angle 3/7) with the line against it — avoid; the move points at the over. net: in BOTH markets the line is moving off the popular/narrative side (spain and the under), so the disciplined play is to pass both (or fade toward portugal / the over), not to back spain or the under.
+tags: back_favorite, fade_line_movement, extras_risk, followed_tipster, situational_angle, total_over
+<ins>direction: SIDE (belgium to advance): PASS / lean cautious — the -110 spike was noise and the NET line drifted OFF belgium (+103 -> +114), i.e. money toward USA advancing, so backing belgium is fighting the move; combined with live extras_risk this echoes the losing entry-15 shape. TOTAL (o2.5): weak/pass — the over is persistently juiced but net flat (-132 -> -130) with the juice actually COOLING late (-152 -> -130), so no fresh over edge; narrative-only.</ins>
+strength: moderate against backing belgium, weak/pass on the over.
+reasoning: on the SIDE, belgium to advance ran +103 (3d) -> -110 (2d) -> +104 (1d) -> +113 (8h) -> +114 (1h): the -110 at 2d was a transient spike that fully reverted, exactly the entry-15 noise pattern — weight the net, which drifted +103 -> +114, i.e. money came OFF belgium toward USA advancing. Backing belgium is therefore fade_line_movement (3/7) against the drift, and this is a to-advance bet carrying extras_risk (1/2) with belgium fresh off needing extra time to survive senegal — the same setup that lost in entry 15 (fadeengland: advance bet + extras_risk + a reverting spike). The tipsters are SPLIT (trent, off a win, on belgium; cblez on USA), so there is no consensus to lean on, and a single tipster off a win is a mild fade signal (followed_tipster 0/4 vs faded_tipster 2/1) pointing away from belgium. On the TOTAL, o2.5 went -132 -> -150 -> -152 -> -148 -> -130: it stayed juiced toward the over throughout but the NET is flat (-132 -> -130) and the over juice actually came DOWN late (-152 -> -130 at 1h), so late money edged off the over — no fresh follow_line_movement edge, and backing it rests on the "belgium scores, maybe 1-1 extras" narrative (situational_angle 4/7). net: the drift and extras_risk argue against backing belgium to advance (pass, or USA has the value the line is moving toward); the over is at best a small narrative play with a flat/cooling line, not an edge.
+
+fadevalkyries
+wnba road favorite should be a small dog. 1 day out valkyries are road favorite -5.5 -110 and total is o156 -110 which sounds too low for talented teams that are playing. 6 hours out, the favorite is -5.5 -115 and the total is o156 -105. 30 minutes out the favorite is -6.5 -112 and the total is o155 -110.
+final_lean:
+tags: fade_favorite, fade_line_movement, situational_angle, total_over
+<ins>direction: BOTH of the instincts here fight the line — lean AGAINST both. SIDE (home dog +6.5): PASS — you want to fade the valkyries (back the home dog), but the line moved TOWARD the valkyries (-5.5 -> -6.5, firming), so backing the dog is against the move (the losing shape); if anything the line confirms the valkyries. TOTAL (over): PASS — you think o156 is too low, but the total moved DOWN 156 -> 155 (money on the UNDER), so backing the over fights the move.</ins>
+strength: moderate against both the home dog and the over.
+reasoning: this is the textbook "narrative vs line" spot the notes warn about. On the SIDE, the read is "road favorite should be a small dog" = a fade_favorite angle toward the home dog, but valkyries -5.5 grew to -6.5 with firming juice (-110 -> -115 -> -112), i.e. the market moved TOWARD the favorite. Backing the home dog is thus fade_line_movement (3/7) against the move, and it breaks the winning dog template (entries 5, 6), which REQUIRED the line moving toward the dog — here it moves the other way. Per the notes, a narrative angle that points against the line movement is typically the wrong angle: trust the line, which favors the valkyries, so pass the home dog. On the TOTAL, the instinct is "o156 too low for talented teams" (an over lean), but the total ticked DOWN 156 -> 155 with over juice flat/plus (-110 -> -105 -> -110) = money leaning UNDER; backing the over is again fade_line_movement on a situational_angle (4/7) with the line against it. net: both instincts (home dog + over) are narratives fighting the line; the disciplined read is to trust the line — pass both, and if anything the line points at the valkyries side and the under.
