@@ -31,6 +31,7 @@ context: string starting with "context" which is explanation of why the decision
 - (Based on 20 logged events.) Distrust strong conviction formed days before with no line movement. overconfidence is 0/3 and decision_day_before is 1/4. High certainty locked in days out — especially "definitely the better team" / "bet of the tournament" reads — has underperformed, and when the line stays flat (line_stable, 0/2) there is no market confirmation of the edge (entry 10's lesson; also entries 12, 13, 15). A firm early opinion that the market never validates is a fade sign, not a green light.
 - (Based on 20 logged events.) A favorite covering the spread/run line is NOT the same as a high-scoring game. In entry 16 the dodgers covered -1.5 (won by 3) but the total stayed under — a "should destroy / lots of runs" read conflated winning big with scoring a lot. Evaluate the side and the total as INDEPENDENT markets; a confident side read does not justify an over, and they can (and did) split. Moreover, a side lean and a total lean on the same game are unlikely to BOTH be right, so when you have a lean on both, look for line movement (or another distinguishing factor) on one of the two and prefer that market — the side/total split is itself a useful signal for which one to trust, rather than betting both.
 - (Based on 20 logged events.) Take available hedges and avoid self-conflicting tickets. missed_hedge is 0/2 (entries 2, 7 — passing on an available ~50% hedge hurt) and parlay_conflict is 0/2 (entries 4, 13 — legs that fought each other or an existing position). When a reasonable mid-game or pre-game hedge is available, lean toward taking it, and avoid stacking a bet that conflicts with another position you already hold. Some games present a HIGH likelihood of an in-game hedge opportunity in the first half (which is ideal — an early swing lets you lock value): watch for high-emotion spots (a "game of the tournament", rivalry/revenge games, elimination matches) where volatile early scoring/live-line swings make a first-half hedge especially likely, and plan for it going in rather than reacting late.
+- (Based on 24 logged events.) A reliable fade signal that ALSO has a Trent bet on it is a strong fade candidate. When a factor with a poor track record points against a bet AND Trent (a single tipster) is on that same bet, the two negatives compound. In entry 24 (fadeegypt) the -1.5 was a chased_better_payout (0/7, the worst tag) AND trent was on the -1.5 (followed_tipster 0/5) — both signals said fade, and the -1.5 lost. Treat "a known losing signal + a Trent pick on the same side" as a high-confidence spot to fade that side (or at minimum avoid backing it), since faded_tipster (2/1) beats followed_tipster (0/5) and stacking it on top of an already-weak factor makes the fade cleaner.
 
 4. Maintain the '# Model Cache' section: for each factor keep a running right-vs-wrong record (counts). Track totals only, not streaks or consecutive patterns.
 
@@ -167,10 +168,16 @@ fade_favorite,fade_line_movement,situational_angle,total_over
 line movement: valkyries spread: -5.5 (-110) (1d), -5.5 (-115) (6h), -6.5 (-112) (30m); total: o156 (-110) (1d), o156 (-105) (6h), o155 (-110) (30m)
 context: fade the valkyries = back the home dog +6.5 (read: "road favorite should be a small dog"), plus an over lean ("o156 too low for talented teams"). both instincts fought the line: valkyries -5.5 firmed to -6.5 (market moving TOWARD the favorite) and the total ticked DOWN 156 -> 155 (money on the under). valkyries won 62-49 (by 13), so the home dog +6.5 lost AND the total of 111 blew way under 155, so the over lost too — both wrong. lesson: textbook narrative-vs-line loss — backing a home dog while the line moves toward the favorite breaks the winning dog template (entries 5, 6, which needed the line moving TOWARD the dog), and backing an over while the total drops fights the move; trusting the line (valkyries side + the under) would have been right on both. (note: the model lean correctly warned AGAINST both markets — a model hit, the disciplined "trust the line over the narrative" read paid off.)
 
+24fadeegypt
+wrong
+back_favorite,follow_line_movement,chased_better_payout,price_deterioration,followed_tipster,situational_angle,total_over
+line movement: argentina -1.5: +124 (3d), +123 (2d), +123 (1d), +111 (12h), -101 (1h, close); total o2.5: +108 (3d), +108 (2d), -101 (1d), +102 (12h), -103 (1h, close)
+context: fade egypt = back argentina -1.5, expecting a blowout. the -1.5 firmed hard all day (+124 -> -101 close), money piling ONTO the cover (follow_line_movement), and trent came on argentina -1.5; entry was the -1.5 at the deteriorated price. argentina won 3-2 — a 1-goal win, so egypt covered +1.5 and the -1.5 did NOT cover; fading egypt was wrong. the total (5 goals) cleared o2.5, so the small over would have won. lesson: this is the entry-9 trap again — follow_line_movement correctly predicted argentina would WIN, but a -1.5 needs a 2-goal margin, and a favorite winning is NOT the same as covering a big spread; the line confirming the SIDE does not justify the payout-chase expression (chased_better_payout 0/6), and buying the -1.5 at -101 after +124 was price_deterioration (paying up for a move that already happened). the moneyline was the correct expression of the confirmed read. (note: the model lean was a HIT on process — it explicitly preferred the ML over the -1.5, warned against paying -101, flagged the chased_better_payout trap, and called the small over that won; the placed -1.5 lost exactly as the lean cautioned.)
+
 # Model Cache
 
 Signal right/wrong record (based on tags):
-follow_line_movement: 3 right / 1 wrong
+follow_line_movement: 3 right / 2 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
 fade_favorite: 4 right / 6 wrong
@@ -184,12 +191,12 @@ follow_consensus: 2 right / 2 wrong
 prefer_simple_line: 1 right / 2 wrong
 spread_nervousness: 2 right / 4 wrong
 fade_consensus: 1 right / 3 wrong
-situational_angle: 5 right / 8 wrong
+situational_angle: 5 right / 9 wrong
 decision_day_before: 2 right / 4 wrong
 fade_line_movement: 4 right / 8 wrong
-back_favorite: 4 right / 7 wrong
-chased_better_payout: 0 right / 6 wrong
-followed_tipster: 0 right / 4 wrong
+back_favorite: 4 right / 8 wrong
+chased_better_payout: 0 right / 7 wrong
+followed_tipster: 0 right / 5 wrong
 missed_hedge: 0 right / 2 wrong
 parlay_conflict: 0 right / 2 wrong
 nervous_winner: 0 right / 1 wrong
@@ -202,21 +209,21 @@ live_loss_spiral: 0 right / 1 wrong
 fear_of_numbers: 0 right / 1 wrong
 gamblers_fallacy: 0 right / 1 wrong
 tilt_bet: 0 right / 1 wrong
-price_deterioration: 0 right / 3 wrong
+price_deterioration: 0 right / 4 wrong
 greed_driven: 0 right / 1 wrong
 overcaution: 0 right / 1 wrong
 misread_line_movement: 0 right / 1 wrong
 spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
 overconfidence: 1 right / 3 wrong
-total_over: 1 right / 2 wrong
+total_over: 1 right / 3 wrong
 total_under: 1 right / 0 wrong
 
 # Upcoming Events
-fadeegypt
-3 days out, argentina favorite is -1.5 +124 and total is o2.5 +108. expecting argentina to blow them out by a lot. 2 days out, the favorite is -1.5 +123 and total is o2.5 +108. 1 day out, the favorite is -1.5 +123 and total is o2.5 -101. 12 hours out, -1.5 is +111 and the total is o2.5 +102. 1 hour out, -1.5 is -101 and the total is o2.5 -103. Trent is on argentina -1.5.
+fadeswiss
+3 days out, the favorite colombia -.5 +130 is great value for home field advantage for the better team. 3 days out, tempting to get high return on o2.5 +146. 2 days out, the favorite is -.5 +130 and the total is o2.5 +146. 1 day out, the favorite is -.5 +130 and the total is o2.5 +146. 12 hours out, the favorite is -.5 +129 and the total is o2.5 +134. 5 hours out, the favorite is -.5 +129 and the total is o2.5 +136. 2 hours out, the favorite is -.5 +130 and the total is o2.5 +136.
 final_lean:
-tags: back_favorite, follow_line_movement, chased_better_payout, price_deterioration, followed_tipster, situational_angle, total_over
-<ins>direction: LEAN FOR argentina — both markets firmed hard, so the line strongly confirms the blowout read. SIDE (argentina -1.5): the price ran +124 -> -101, a big move ONTO the cover (follow_line_movement); the read is right, but the value is now largely gone, so prefer the moneyline and DON'T pay up to -101 for the -1.5. TOTAL (o2.5): the over also firmed (+102 -> -103), mild follow_line_movement, so a small over is now supported too.</ins>
-strength: moderate-strong that argentina covers/wins, but weak on the -1.5 at the current price; small on the over.
-reasoning: the 1-hour close sharpened both markets. On the SIDE, argentina -1.5 went +124 (3d) -> +123 (2d) -> +123 (1d) -> +111 (12h) -> -101 (1h): money poured ONTO the cover all the way from +124 to -101 — a strong follow_line_movement (3/1, best signal) fully confirming the "blow them out" read, the winning template. The catch is price_deterioration (0/3): the edge lived at +124 days out, and taking the -1.5 now at -101 pays up for a move that already happened — you are buying at the top. So the confirmed read is real but the -1.5 at -101 has no value left; the disciplined expression is the moneyline (argentina to win), keeping any -1.5 small, and respecting that a -1.5 is still a chased_better_payout (0/6) 2-goal ask (entry-9 trap). Trent being on argentina -1.5 is a mild caution not a boost — a single tipster is followed_tipster (0/4) vs faded_tipster (2/1). On the TOTAL, o2.5 went +108 -> +108 -> -101 -> +102 -> -103 (1h): after round-tripping it firmed to -103, money onto the over = mild follow_line_movement, so a small over is now supported (was pass before the late firm) — but total_over is 1/2, so keep it modest. Per the notes, side and total are unlikely to both be right; the far stronger, cleaner move is the SIDE. net: argentina to win is the confirmed play — take the moneyline rather than paying -101 for the -1.5, add a small over on the late firm, and treat trent's single-tipster agreement as neutral-to-cautionary.
+tags: back_favorite, line_stable, follow_line_movement, chased_better_payout, decision_day_before, overconfidence, situational_angle, total_over
+<ins>direction: TOTAL (o2.5) is the better side, but only mildly — the over firmed +146 -> +136 (some money onto the over) yet STALLED, so a small over is defensible, not a conviction play. SIDE (colombia -.5): weak/small — +130 for the better team to win is fair value but the line is FLAT (+130 -> +130), no confirmation, on a "great value" read locked in 3 days out.</ins>
+strength: weak-moderate on the over, weak/small on the side.
+reasoning: on the SIDE, colombia -.5 held +130 (3d) -> +130 (2d) -> +130 (1d) -> +129 (12h) -> +129 (5h) -> +130 (2h): dead flat = line_stable (0/2), so backing colombia is a back_favorite (4/8) with NO market confirmation, and the "great value... better team" read was locked in 3 days out = decision_day_before (2/4) + overconfidence (1/3) — the same flat-line/day-before shape as fadeportugal's side and the fadeegypt caution. +130 for colombia to win outright (the -.5 only needs a win) is fair IF they are genuinely better and at home, so it is a small fair-value dart, not an edge. On the TOTAL, o2.5 went +146 (3d) -> +146 -> +146 -> +134 (12h) -> +136 (5h) -> +136 (2h): the over firmed from +146 to ~+135 (money onto the over = follow_line_movement, the best signal at 3/2) but then PLATEAUED and even ticked back slightly, so the move is real but has stalled — not a continuing firm. That makes it a modest over, and since it is still a high-payout number, respect chased_better_payout (0/7) and total_over (1/3): keep it small. Per the notes, side and total are unlikely to both be right, and the line movement (mild as it is) favors the OVER over the flat side. net: a small over on the mild line confirmation is the cleaner play, plus a small colombia-to-win dart as fair value — do not oversize either, especially the flat-line favorite.
