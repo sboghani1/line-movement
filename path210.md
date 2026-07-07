@@ -2,7 +2,7 @@
 
 Purpose: This file is a decision log used to compare a decision currently under consideration against past outcomes, so we can learn which factors drive right vs. wrong binary decisions. Every decision resolves later to "right" or "wrong".
 
-1. The 'Events' section contains content split by 2 line breaks. Each chunk follows this schema:
+1. The 'Past Events' section contains content split by 2 line breaks. Each chunk follows this schema:
 name: string id starting with a number
 result: either "right" or "wrong"
 tags: single comma-separated line of strings (human-provided and model-generated tags are merged here, deduplicated into one normalized set)
@@ -34,9 +34,9 @@ context: string starting with "context" which is explanation of why the decision
 
 4. Maintain the '# Model Cache' section: for each factor keep a running right-vs-wrong record (counts). Track totals only, not streaks or consecutive patterns.
 
-5. Continuation entries: a pending decision in '# Potential Events' may be extended over time with one or more '<name>_cont' blocks appended after the prior lean, each holding new information (line moves, tipster positions, time-to-event, etc.). When asked to update a lean, read the original entry plus ALL its '<name>_cont' blocks together, then write a fresh block at the bottom (e.g. 'updated_lean:' / 'final_lean:') with refreshed tags, direction, strength, and reasoning. Do not edit the earlier leans — append, so the evolution of the read is preserved.
+5. Continuation entries: a pending decision in '# Upcoming Events' may be extended over time with one or more '<name>_cont' blocks appended after the prior lean, each holding new information (line moves, tipster positions, time-to-event, etc.). When asked to update a lean, read the original entry plus ALL its '<name>_cont' blocks together, then write a fresh block at the bottom (e.g. 'updated_lean:' / 'final_lean:') with refreshed tags, direction, strength, and reasoning. Do not edit the earlier leans — append, so the evolution of the read is preserved.
 
-# Events
+# Past Events
 
 1fadespain
 wrong
@@ -155,27 +155,39 @@ back_favorite,fade_line_movement,follow_consensus,decision_day_before,overconfid
 line movement: spain -.5: -110 (2d), -112 (1d), -107 (12h), -107 (2h), -104 (10m, close); total u2.5: +104 (2d), +112 (1d), +104 (12h), +108 (2h), +116 (10m, close)
 context: fade portugal = back spain -.5, a heavy favorite, on a "spain is definitely the better team" read locked in 2 days out. broad tipster consensus was on spain (trent, cblez, most tipsters). over the day the spain -.5 price CHEAPENED -110 -> -104 (money drifting OFF spain, toward portugal) and the u2.5 under drifted +104 -> +116 (money onto the OVER) — so BOTH markets' lines moved off the popular side. also considered u2.5 on a low-scoring narrative (portugal low scoring, spain doesn't score a lot). spain won 1-0: spain -.5 cashed AND u2.5 cashed (only 1 goal), so fading portugal was right and the under would have won too. lesson: broad consensus + a fundamental "clearly better team" read + a low-scoring narrative all came through DESPITE the line drifting off both popular sides — a fade_line_movement win (like entries 14, 20) where the popular/fundamental read beat the adverse late drift. this is a caution against mechanically fading a consensus-vs-line disconnect: when the fundamental case is strong, the late drift off the favorite can be noise/value, not a warning. (note: the final model lean was to PASS/fade BOTH markets, trusting the line drift over the consensus and the narrative — WRONG on both; the model over-weighted the consensus-vs-line disconnect and the fade_line_movement signal, the same class of miss as entries 14 and 20.)
 
+22fadeusa
+right
+back_favorite,fade_line_movement,extras_risk,situational_angle,total_over
+line movement: belgium to advance: +103 (3d), -110 (2d), +104 (1d), +113 (8h), +114 (1h); total o2.5: -132 (2d), -150 (1d), -152 (18h), -148 (8h), -130 (1h)
+context: fade usa = back belgium to advance, belgium being the favorite with a comeback history, but off a lucky extra-time win over senegal (extras_risk). the to-advance price drifted OFF belgium on net (+103 -> +114 after a reverting -110 spike at 2d), i.e. money toward usa, so backing belgium was against the drift (fade_line_movement). tipsters were split — trent (off a win) on belgium, cblez on usa. belgium won 4-1: they advanced (side cashed) and the 5 goals cleared o2.5 (over cashed), so fading usa was right on both markets. lesson: a third straight fade_line_movement win (with 14, 20, 21) — a clearly-stronger favorite beat the adverse drift, and the extras_risk/entry-15 comparison did NOT bite because belgium was simply the better team and won decisively in regulation, not a nervy 1-1. the late-reverting -110 spike was correctly read as noise. (note: the model lean was PASS/cautious on belgium and weak/pass the over — WRONG on both; it over-weighted the drift + extras_risk, the same class of miss as entries 14, 20, 21.)
+
+23fadevalkyries
+wrong
+fade_favorite,fade_line_movement,situational_angle,total_over
+line movement: valkyries spread: -5.5 (-110) (1d), -5.5 (-115) (6h), -6.5 (-112) (30m); total: o156 (-110) (1d), o156 (-105) (6h), o155 (-110) (30m)
+context: fade the valkyries = back the home dog +6.5 (read: "road favorite should be a small dog"), plus an over lean ("o156 too low for talented teams"). both instincts fought the line: valkyries -5.5 firmed to -6.5 (market moving TOWARD the favorite) and the total ticked DOWN 156 -> 155 (money on the under). valkyries won 62-49 (by 13), so the home dog +6.5 lost AND the total of 111 blew way under 155, so the over lost too — both wrong. lesson: textbook narrative-vs-line loss — backing a home dog while the line moves toward the favorite breaks the winning dog template (entries 5, 6, which needed the line moving TOWARD the dog), and backing an over while the total drops fights the move; trusting the line (valkyries side + the under) would have been right on both. (note: the model lean correctly warned AGAINST both markets — a model hit, the disciplined "trust the line over the narrative" read paid off.)
+
 # Model Cache
 
 Signal right/wrong record (based on tags):
 follow_line_movement: 3 right / 1 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
-fade_favorite: 4 right / 5 wrong
+fade_favorite: 4 right / 6 wrong
 faded_tipster: 2 right / 1 wrong
 vibes_over_logic: 1 right / 0 wrong
 abandoned_winning_method: 1 right / 0 wrong
 fresh_off_win: 1 right / 0 wrong
 avoided_payout_chase: 1 right / 0 wrong
-extras_risk: 1 right / 2 wrong
+extras_risk: 2 right / 2 wrong
 follow_consensus: 2 right / 2 wrong
 prefer_simple_line: 1 right / 2 wrong
 spread_nervousness: 2 right / 4 wrong
 fade_consensus: 1 right / 3 wrong
-situational_angle: 4 right / 7 wrong
+situational_angle: 5 right / 8 wrong
 decision_day_before: 2 right / 4 wrong
-fade_line_movement: 3 right / 7 wrong
-back_favorite: 3 right / 7 wrong
+fade_line_movement: 4 right / 8 wrong
+back_favorite: 4 right / 7 wrong
 chased_better_payout: 0 right / 6 wrong
 followed_tipster: 0 right / 4 wrong
 missed_hedge: 0 right / 2 wrong
@@ -197,22 +209,14 @@ misread_line_movement: 0 right / 1 wrong
 spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
 overconfidence: 1 right / 3 wrong
-total_over: 0 right / 1 wrong
+total_over: 1 right / 2 wrong
 total_under: 1 right / 0 wrong
 
-# Potential Events
-fadeusa
-3 days out, belgium to advance +103 apparently has history doing this so maybe a home comeback but belgium should win and score at least 1, maybe usa takes it to 1-1 extras? belgium off lucky win against senegal in extra time. 2 days out, belgium to advance is -110 and total is o2.5 -132. 1 day out, belgium to advance is +104 and the total is o2.5 -150. 18 hours out, the total is o2.5 -152. 8 hours out, belgium to advance is +113 and the the total is o2.5 -148. 1 hour out, belgium to advance is +114 and the total is o2.5 -130. Trent is off a win and he is on belgium. cblez is on usa.
+# Upcoming Events
+fadeegypt
+3 days out, argentina favorite is -1.5 +124 and total is o2.5 +108. expecting argentina to blow them out by a lot. 2 days out, the favorite is -1.5 +123 and total is o2.5 +108. 1 day out, the favorite is -1.5 +123 and total is o2.5 -101. 12 hours out, -1.5 is +111 and the total is o2.5 +102. 1 hour out, -1.5 is -101 and the total is o2.5 -103. Trent is on argentina -1.5.
 final_lean:
-tags: back_favorite, fade_line_movement, extras_risk, followed_tipster, situational_angle, total_over
-<ins>direction: SIDE (belgium to advance): PASS / lean cautious — the -110 spike was noise and the NET line drifted OFF belgium (+103 -> +114), i.e. money toward USA advancing, so backing belgium is fighting the move; combined with live extras_risk this echoes the losing entry-15 shape. TOTAL (o2.5): weak/pass — the over is persistently juiced but net flat (-132 -> -130) with the juice actually COOLING late (-152 -> -130), so no fresh over edge; narrative-only.</ins>
-strength: moderate against backing belgium, weak/pass on the over.
-reasoning: on the SIDE, belgium to advance ran +103 (3d) -> -110 (2d) -> +104 (1d) -> +113 (8h) -> +114 (1h): the -110 at 2d was a transient spike that fully reverted, exactly the entry-15 noise pattern — weight the net, which drifted +103 -> +114, i.e. money came OFF belgium toward USA advancing. Backing belgium is therefore fade_line_movement (3/7) against the drift, and this is a to-advance bet carrying extras_risk (1/2) with belgium fresh off needing extra time to survive senegal — the same setup that lost in entry 15 (fadeengland: advance bet + extras_risk + a reverting spike). The tipsters are SPLIT (trent, off a win, on belgium; cblez on USA), so there is no consensus to lean on, and a single tipster off a win is a mild fade signal (followed_tipster 0/4 vs faded_tipster 2/1) pointing away from belgium. On the TOTAL, o2.5 went -132 -> -150 -> -152 -> -148 -> -130: it stayed juiced toward the over throughout but the NET is flat (-132 -> -130) and the over juice actually came DOWN late (-152 -> -130 at 1h), so late money edged off the over — no fresh follow_line_movement edge, and backing it rests on the "belgium scores, maybe 1-1 extras" narrative (situational_angle 4/7). net: the drift and extras_risk argue against backing belgium to advance (pass, or USA has the value the line is moving toward); the over is at best a small narrative play with a flat/cooling line, not an edge.
-
-fadevalkyries
-wnba road favorite should be a small dog. 1 day out valkyries are road favorite -5.5 -110 and total is o156 -110 which sounds too low for talented teams that are playing. 6 hours out, the favorite is -5.5 -115 and the total is o156 -105. 30 minutes out the favorite is -6.5 -112 and the total is o155 -110.
-final_lean:
-tags: fade_favorite, fade_line_movement, situational_angle, total_over
-<ins>direction: BOTH of the instincts here fight the line — lean AGAINST both. SIDE (home dog +6.5): PASS — you want to fade the valkyries (back the home dog), but the line moved TOWARD the valkyries (-5.5 -> -6.5, firming), so backing the dog is against the move (the losing shape); if anything the line confirms the valkyries. TOTAL (over): PASS — you think o156 is too low, but the total moved DOWN 156 -> 155 (money on the UNDER), so backing the over fights the move.</ins>
-strength: moderate against both the home dog and the over.
-reasoning: this is the textbook "narrative vs line" spot the notes warn about. On the SIDE, the read is "road favorite should be a small dog" = a fade_favorite angle toward the home dog, but valkyries -5.5 grew to -6.5 with firming juice (-110 -> -115 -> -112), i.e. the market moved TOWARD the favorite. Backing the home dog is thus fade_line_movement (3/7) against the move, and it breaks the winning dog template (entries 5, 6), which REQUIRED the line moving toward the dog — here it moves the other way. Per the notes, a narrative angle that points against the line movement is typically the wrong angle: trust the line, which favors the valkyries, so pass the home dog. On the TOTAL, the instinct is "o156 too low for talented teams" (an over lean), but the total ticked DOWN 156 -> 155 with over juice flat/plus (-110 -> -105 -> -110) = money leaning UNDER; backing the over is again fade_line_movement on a situational_angle (4/7) with the line against it. net: both instincts (home dog + over) are narratives fighting the line; the disciplined read is to trust the line — pass both, and if anything the line points at the valkyries side and the under.
+tags: back_favorite, follow_line_movement, chased_better_payout, price_deterioration, followed_tipster, situational_angle, total_over
+<ins>direction: LEAN FOR argentina — both markets firmed hard, so the line strongly confirms the blowout read. SIDE (argentina -1.5): the price ran +124 -> -101, a big move ONTO the cover (follow_line_movement); the read is right, but the value is now largely gone, so prefer the moneyline and DON'T pay up to -101 for the -1.5. TOTAL (o2.5): the over also firmed (+102 -> -103), mild follow_line_movement, so a small over is now supported too.</ins>
+strength: moderate-strong that argentina covers/wins, but weak on the -1.5 at the current price; small on the over.
+reasoning: the 1-hour close sharpened both markets. On the SIDE, argentina -1.5 went +124 (3d) -> +123 (2d) -> +123 (1d) -> +111 (12h) -> -101 (1h): money poured ONTO the cover all the way from +124 to -101 — a strong follow_line_movement (3/1, best signal) fully confirming the "blow them out" read, the winning template. The catch is price_deterioration (0/3): the edge lived at +124 days out, and taking the -1.5 now at -101 pays up for a move that already happened — you are buying at the top. So the confirmed read is real but the -1.5 at -101 has no value left; the disciplined expression is the moneyline (argentina to win), keeping any -1.5 small, and respecting that a -1.5 is still a chased_better_payout (0/6) 2-goal ask (entry-9 trap). Trent being on argentina -1.5 is a mild caution not a boost — a single tipster is followed_tipster (0/4) vs faded_tipster (2/1). On the TOTAL, o2.5 went +108 -> +108 -> -101 -> +102 -> -103 (1h): after round-tripping it firmed to -103, money onto the over = mild follow_line_movement, so a small over is now supported (was pass before the late firm) — but total_over is 1/2, so keep it modest. Per the notes, side and total are unlikely to both be right; the far stronger, cleaner move is the SIDE. net: argentina to win is the confirmed play — take the moneyline rather than paying -101 for the -1.5, add a small over on the late firm, and treat trent's single-tipster agreement as neutral-to-cautionary.
