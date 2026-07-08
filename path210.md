@@ -8,6 +8,7 @@ result: either "right" or "wrong"
 tags: single comma-separated line of strings (human-provided and model-generated tags are merged here, deduplicated into one normalized set)
 line movement: optional single line, present only when timed numeric line values were provided. It is a comma-separated list of the line/price values in chronological order, each annotated with how long before the game it was observed (e.g. "-125 (2d), -128 (1d)"). If more than one market was tracked (e.g. a side and a total), separate them with a semicolon and label each (e.g. "side: ...; total: ..."). Times use d=days, h=hours, m=minutes before the game, plus "close" for the closing line.
 context: string starting with "context" which is explanation of why the decision was made. It should capture the setup/reasoning for the decision, what moved (line/price), the action taken, the result, and the retrospective lesson (the "should have...").
+model_lean: optional single line, present when the decision came from '# Upcoming Events' and the model had recorded a lean. Briefly summarize the model's pre-game lean per market — side, total, parlay, or whatever markets were in the pick — each with its direction, strength (strong/moderate/small/pass), and whether it HIT or MISSED once resolved. This captures model-lean accuracy in a compact, structured form; the prose context lesson can still elaborate.
 
 2. tags: read each entry's content and generate/merge tags that make sense given all the other contexts. There is ONE tags line per entry — fold any human-supplied tags into the same normalized vocabulary rather than keeping a separate list. Prefer a consistent, reusable vocabulary so the same factor uses the same tag across entries (this is what makes patterns accumulate). Rules for generating/regenerating tags:
 - Regenerate across the whole set, not just the new entry. When a new decision is logged, re-derive tags for ALL entries together so the vocabulary stays normalized.
@@ -174,13 +175,39 @@ back_favorite,follow_line_movement,chased_better_payout,price_deterioration,foll
 line movement: argentina -1.5: +124 (3d), +123 (2d), +123 (1d), +111 (12h), -101 (1h, close); total o2.5: +108 (3d), +108 (2d), -101 (1d), +102 (12h), -103 (1h, close)
 context: fade egypt = back argentina -1.5, expecting a blowout. the -1.5 firmed hard all day (+124 -> -101 close), money piling ONTO the cover (follow_line_movement), and trent came on argentina -1.5; entry was the -1.5 at the deteriorated price. argentina won 3-2 — a 1-goal win, so egypt covered +1.5 and the -1.5 did NOT cover; fading egypt was wrong. the total (5 goals) cleared o2.5, so the small over would have won. lesson: this is the entry-9 trap again — follow_line_movement correctly predicted argentina would WIN, but a -1.5 needs a 2-goal margin, and a favorite winning is NOT the same as covering a big spread; the line confirming the SIDE does not justify the payout-chase expression (chased_better_payout 0/6), and buying the -1.5 at -101 after +124 was price_deterioration (paying up for a move that already happened). the moneyline was the correct expression of the confirmed read. (note: the model lean was a HIT on process — it explicitly preferred the ML over the -1.5, warned against paying -101, flagged the chased_better_payout trap, and called the small over that won; the placed -1.5 lost exactly as the lean cautioned.)
 
+25fadeswiss
+wrong
+back_favorite,fade_line_movement,line_stable,chased_better_payout,decision_day_before,overconfidence,situational_angle,total_over,followed_tipster
+line movement: colombia -.5: +130 (3d), +130 (2d), +130 (1d), +129 (12h), +129 (5h), +133 (2h), +146 (30m, close); total o2.5: +146 (3d), +146 (2d), +146 (1d), +134 (12h), +136 (5h), +136 (2h), +147 (30m, close)
+context: fade swiss = back colombia -.5, a "better team with home-field value" read locked in 3 days out, plus a tempting high-return o2.5 +146. over the days colombia's -.5 price drifted UP +130 -> +146 (money coming OFF colombia, so backing the favorite was AGAINST the move = fade_line_movement), and the o2.5 over round-tripped +146 -> +134 (12h) -> +147 (close), reverting to flat = effectively line_stable, not a real over signal. trent (off a LOSS) was on both-teams-to-score (BTTS). the game finished 0-0 through regulation/extra time and switzerland won on penalties, so colombia -.5 did NOT cash, the o2.5 stayed well under (0 goals), and trent's BTTS lost too — fading swiss was wrong on both our markets. lesson: a fade-against-the-line + payout-chase miss — backing colombia while the price drifted off it (fade_line_movement 4/8) on a day-before "better team" read (decision_day_before, overconfidence) with no market confirmation (the over reverted to line_stable) failed, and the high-return o2.5 was another chased_better_payout (0/7) miss. crucially, trent was off a LOSS and holding BTTS, and BTTS in a low-scoring reverting market was exactly the tipster signal to FADE — in retrospect we should have faded trent's BTTS (faded_tipster 2/1 beats followed_tipster 0/5), and fading it would have cashed on the 0-0. (note: the final model lean was PASS the reverted over and only a SMALL colombia-to-win dart at the improved +146 — the small colombia play lost, but the model correctly passed the round-tripped over and sized the side down: a partial process hit.)
+
+26fadepirates
+wrong
+fade_favorite,follow_line_movement,situational_angle,overconfidence,chased_better_payout,total_over
+line movement: road dog +1.5: -140 (open), -152 (7h), -153 (6h), -158 (3h); moneyline: +149 (open), +133 (7h), +128 (6h), +129 (3h); total o8: -105 (open), -110 (7h), -110 (6h), -113 (3h)
+context: fade pirates = back the road dog (the 60% win-rate team, a road underdog to the 50% home pirates) on a "should destroy in a high-scoring game" read. all three markets firmed toward the dog: the +1.5 -140 -> -158, the moneyline +149 -> +129, and the o8 over juice -105 -> -113 — money piled onto the dog to cover, to win outright, and onto the over (follow_line_movement, the best signal). the entry leaned the dog, tempted by the +1.5 at the deteriorated -158 (chased_better_payout) plus a small over. pirates won 12-4 (by 8): the road dog lost outright, so the moneyline AND the +1.5 both lost, and fading pirates was wrong. the 16 total runs cleared o8, so the small over WON. lesson: follow_line_movement is the best signal but not infallible — here the market firmed hard toward the dog on ALL three markets and the dog still got blown out by 8, a reminder that the line confirming a side is not a guarantee, especially when the underlying read is an overconfident "should destroy" narrative (overconfidence, situational_angle) rather than a real class/health edge. no expression of the side would have cashed (even the moneyline lost, so the +1.5 -158 payout-chase was moot), and the only winner was the over, which the market also pointed to. (note: the model lean was FOR the road dog on the MONEYLINE (moderate-strong) plus a small over — WRONG on the side it emphasized, RIGHT on the small over; a clean follow_line_movement miss where the confirmed side lost outright.)
+
+27fadeliberty
+right
+back_favorite,situational_angle,fade_line_movement,line_stable,decision_day_before,overconfidence,total_under,spread_nervousness
+line movement: dallas spread: -5 (-107) (1d), -4 (-110) (9h), -4.5 (-110) (30m); total: u175.5 (1d), u175 (-115) (9h), u176 (-112) (30m)
+context: fade liberty = back the hot dallas team as a road favorite laying points into a liberty home-hangover spot, plus a "good defense" under lean. dallas's spread drifted -5 -> -4 -> -4.5 (a small move off dallas that gave a better number) and the total round-tripped u175.5 -> u175 -> u176. liberty lost 88-77: dallas won by 11 and comfortably covered -4.5, so fading liberty was right; the 165 total also stayed under u176. lesson: a clean repeat of the entry-10 template — a road favorite in a home-hangover spot covered, and the tiny drift off the favorite (per entry 10's lesson) was correctly ignored rather than faded; the situational angle backed by the right shape delivered.
+model_lean: side (dallas -4.5) — moderate LEAN FOR, HIT (covered by 11); total (u176) — pass/small lean, HIT (165 stayed under); no parlay.
+
+28fadesky
+wrong
+back_favorite,line_stable,fade_line_movement,situational_angle,overconfidence,total_over
+line movement: home favorite spread: -3 (-112) (1d), -3.5 (-113) (11h), -3 (-104) (8h), -3 (-115) (6h), -3 (-115) (3h); total: o176.5 (-105) (1d), o172.5 (-110) (11h), o172.5 (-110) (8h), o172.5 (-105) (6h), o172.5 (-108) (3h)
+context: fade sky = back the "better home team" -3 to cover a short spread in a "high scoring game", plus an over lean. the spread held essentially flat at -3 (a brief -3.5 blip at 11h reverted) = line_stable with no market confirmation, while the total DROPPED 176.5 -> 172.5 and stayed there for 8+ hours = money firmly onto the UNDER, directly contradicting the "high scoring" narrative. sky won 77-66 (by 11): the home favorite lost outright, so the -3 did NOT cover, and the 143 total finished well under o172.5 — fading sky was wrong on the side and the over would have lost too. lesson: a textbook overconfident-narrative-vs-line loss — an unconfirmed flat-line favorite (back_favorite, line_stable) on a "should easily cover" read (overconfidence) got blown out, and the "high scoring" over fought a clear, sustained 4-point drop to the under (fade_line_movement) and was never live. trusting the line (which said flat side / firm under) over the narrative would have avoided both.
+model_lean: side (home favorite -3) — weak/small lean (flagged flat line, no edge), HIT direction (advised small/pass; the -3 lost); total (over) — PASS/fade lean, HIT (143 well under, over lost); no parlay.
+
 # Model Cache
 
 Signal right/wrong record (based on tags):
-follow_line_movement: 3 right / 2 wrong
+follow_line_movement: 3 right / 3 wrong
 resisted_live_doubledown: 2 right / 0 wrong
 nervous_underdog_backing: 2 right / 0 wrong
-fade_favorite: 4 right / 6 wrong
+fade_favorite: 4 right / 7 wrong
 faded_tipster: 2 right / 1 wrong
 vibes_over_logic: 1 right / 0 wrong
 abandoned_winning_method: 1 right / 0 wrong
@@ -191,16 +218,16 @@ follow_consensus: 2 right / 2 wrong
 prefer_simple_line: 1 right / 2 wrong
 spread_nervousness: 2 right / 4 wrong
 fade_consensus: 1 right / 3 wrong
-situational_angle: 5 right / 9 wrong
-decision_day_before: 2 right / 4 wrong
-fade_line_movement: 4 right / 8 wrong
-back_favorite: 4 right / 8 wrong
-chased_better_payout: 0 right / 7 wrong
-followed_tipster: 0 right / 5 wrong
+situational_angle: 5 right / 11 wrong
+decision_day_before: 2 right / 5 wrong
+fade_line_movement: 4 right / 9 wrong
+back_favorite: 4 right / 9 wrong
+chased_better_payout: 0 right / 9 wrong
+followed_tipster: 0 right / 6 wrong
 missed_hedge: 0 right / 2 wrong
 parlay_conflict: 0 right / 2 wrong
 nervous_winner: 0 right / 1 wrong
-line_stable: 0 right / 2 wrong
+line_stable: 0 right / 3 wrong
 failure_to_cash_out: 0 right / 1 wrong
 changed_mind: 0 right / 1 wrong
 outlier_price: 0 right / 1 wrong
@@ -215,15 +242,42 @@ overcaution: 0 right / 1 wrong
 misread_line_movement: 0 right / 1 wrong
 spread_confidence: 0 right / 1 wrong
 motivated_underdog: 0 right / 1 wrong
-overconfidence: 1 right / 3 wrong
-total_over: 1 right / 3 wrong
+overconfidence: 1 right / 5 wrong
+total_over: 1 right / 5 wrong
 total_under: 1 right / 0 wrong
 
 # Upcoming Events
-fadeswiss
-3 days out, the favorite colombia -.5 +130 is great value for home field advantage for the better team. 3 days out, tempting to get high return on o2.5 +146. 2 days out, the favorite is -.5 +130 and the total is o2.5 +146. 1 day out, the favorite is -.5 +130 and the total is o2.5 +146. 12 hours out, the favorite is -.5 +129 and the total is o2.5 +134. 5 hours out, the favorite is -.5 +129 and the total is o2.5 +136. 2 hours out, the favorite is -.5 +133 and the total is o2.5 +136. 30 minutes out, the favorite is -.5 +146 and the total is o2.5 +147.
-final_lean:
-tags: back_favorite, fade_line_movement, line_stable, chased_better_payout, decision_day_before, overconfidence, situational_angle, total_over
-<ins>direction: TOTAL (o2.5): PASS now — the earlier over firm fully REVERTED (+146 -> +134 -> +147), so it round-tripped to flat and the late move is OFF the over; no edge left. SIDE (colombia -.5): small value dart — the late drift went AGAINST colombia (+129 -> +146), which is a fade signal, BUT it also improved your price to +146 for the better team to win outright; per the fadeportugal precedent don't mechanically abandon a fundamental favorite the line drifts off, so a SMALL colombia play at the better number is defensible, not a conviction bet.</ins>
-strength: pass on the total, weak/small on the side.
-reasoning: the 30-minute numbers changed the read from my earlier take. On the TOTAL, o2.5 went +146 (3d) -> +146 -> +146 -> +134 (12h) -> +136 (5h) -> +136 (2h) -> +147 (30m): the mild over firm (+146 -> +134) that earlier justified a small over has now fully reverted to +147 — a round-trip to flat with the LATE move off the over. Per the noise note, a move that reverts by close is effectively line_stable, not a follow_line_movement signal, so the over edge is gone; combined with total_over (1/3) and chased_better_payout (0/7) on the high payout, pass it. On the SIDE, colombia -.5 held flat then drifted UP late: +130 -> +129 (5h) -> +133 (2h) -> +146 (30m), i.e. money came OFF colombia in the last hours — a fade_line_movement signal (4/8) against backing the favorite, and the "great value... better team" read was locked 3 days out (decision_day_before 2/4 + overconfidence 1/3). Two things pull the other way, though: (1) the drift IMPROVED the price to +146 for colombia to simply WIN (the -.5 only needs a win), so you now get materially more value than the +130 that was already called fair; and (2) the fadeportugal precedent (entry 21) is exactly this shape — a fundamental/home favorite the market drifted off that still won — plus the recent fade_line_movement wins (14, 20, 21, 22) show a strong-favorite read can beat adverse late drift. So this is not a "fade colombia" spot, but it is not a confirmed one either — a SMALL colombia-to-win dart at the improved +146 is the play, sized down for the flat/adverse line and the day-before overconfidence. net: pass the reverted over; take colombia to win only small, treating the late drift as improved value on a fundamental favorite rather than a green light.
+fadetoronto
+super short total line seems like great value for a mlb game. 1 day out total is o7 +105.
+indicators: the thought = the o7 total is too low, back the OVER.
+- confirm: the total ticks UP (o7 -> o7.5/o8) and/or the over juice firms (+105 -> even/-110) = money onto the over, follow_line_movement supporting the read.
+- deny: the total drops (o7 -> o6.5) or the over price lengthens (+105 -> +120) = money onto the under, fade_line_movement against the read.
+- no_signal: total holds o7 with juice near +105 = line_stable, no market confirmation of the "too low" claim; note total_over is 1/5, so a plus-price over with no line support is weak value, not a green light.
+
+fadepirates
+no way the better recorded team will lose back to back. thinking road dog braves win and score a lot. 1 day out, road dog is currently +1.5 -195 and moneyline is +104 and the total is o8.5 -116.
+indicators: the thought = back the road dog braves to WIN (ML +104) and go OVER o8.5.
+- confirm: braves ML firms (+104 -> even/-120), the +1.5 firms, and/or over juice firms / total rises = money piling onto the dog + over, the favorable dog shape (line moving TOWARD the dog, entries 5/6).
+- deny: braves ML drifts out (+104 -> +130), total drops = money toward the home team / under, the losing dog shape (entries 18, 23, and the recent entry-26 fadepirates loss where the line firmed toward the dog and it still got blown out).
+- no_signal: flat lines = line_stable. Flag: "won't lose back to back" is a gamblers_fallacy record-narrative, not an edge — require the line to move toward braves before trusting it, and prefer the ML over paying -195 for the +1.5 (chased_better_payout 0/9).
+
+fadevalkyries
+seems like overrated team as a road favorite could lose a close low scoring contested game. 1 day out, favorite is -7.5 -105 and the total is o168.5 -105.
+indicators: the thought = fade the valkyries = back the home dog +7.5 and the UNDER o168.5.
+- confirm: valkyries -7.5 drifts DOWN (-7.5 -> -6.5/-6, money OFF the road favorite toward the home dog) AND the total falls (168.5 -> 166) = both markets moving toward the read (follow_line_movement).
+- deny: -7.5 firms to -8/-8.5 (money ONTO the favorite) and/or the total rises = a repeat of the entry-23 fadevalkyries losing shape (backed the home dog while the line moved toward the favorite).
+- no_signal: flat -7.5 / flat total = line_stable, the "overrated favorite" narrative is unconfirmed (situational_angle needs line support; overconfidence 1/5).
+
+fadesun
+last game was against same team and crazy one point home upset as double digit dog. so sun should get smashed (in a high scoring game) by a lot more than this small line. 1 day out, road favorite is -7 -117 and total is o168.5 -108.
+indicators: the thought = back the road favorite -7 to cover big and the OVER o168.5 (revenge/bounce-back blowout).
+- confirm: the -7 firms (-7 -> -8/-8.5, money ONTO the road favorite) AND the total rises / over juice firms = the market agreeing with the blowout + high-scoring read.
+- deny: the -7 drifts down toward the home dog (money OFF the favorite) and/or the total drops = the market fading the revenge angle.
+- no_signal: flat -7 / flat total = line_stable, no confirmation. Flag: "should get smashed" off a one-point last meeting is a situational_angle/overconfidence narrative, and laying -7 for a big cover is chased_better_payout territory (0/9) — require the line to firm toward the favorite before laying the number.
+
+fadefever
+everyone says fever are bad team now they are getting this many points on the road against lively sparks team. should be close high scoring game. 1 day out, home dog sparks are +6.5 -108 and the total is o185 -105.
+indicators: the thought = back the road point-getter (fever +6.5) to keep it close and the OVER o185 (close, high-scoring).
+- confirm: the points move toward fever (fever's spread firms / the number grows in their favor) and the total rises (185 -> 187) or the over juice firms = money onto the road dog + over.
+- deny: the points shrink toward the home side (money onto the favorite to cover) and/or the total drops = the "close, high-scoring" read fighting the line.
+- no_signal: flat spread / flat total = line_stable, the "everyone says they're bad" contrarian angle is unconfirmed (situational_angle needs line support). Note the entry mixes a road-dog read with a "home dog sparks +6.5" line — confirm which side actually holds the +6.5 before acting.
